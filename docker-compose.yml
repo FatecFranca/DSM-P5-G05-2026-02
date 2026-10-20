@@ -31,5 +31,24 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  ml:
+    build: ./services/ml
+    env_file: ./services/ml/.env
+    environment:
+      ML_MODEL_PATH: /models/evasao-baseline-v1/model.joblib
+      ML_METADATA_PATH: /models/evasao-baseline-v1/metadata.json
+    volumes:
+      - ./services/ml/artifacts:/models:ro
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   sgei_postgres:
