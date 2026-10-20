@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: ./services/api/.env
+    volumes:
+      - sgei_postgres:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build:
+      context: ./services/api
+      target: build
+    command: npm run db:migrate
+    env_file: ./services/api/.env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: ./services/api
+    env_file: ./services/api/.env
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  sgei_postgres:

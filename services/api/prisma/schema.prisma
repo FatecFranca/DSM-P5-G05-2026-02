@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Perfil {
+  ADMIN
+  COORDENACAO
+  PROFESSOR
+  TUTOR
+  ALUNO
+}
+
+model Instituicao {
+  id         String      @id @default(uuid()) @db.Uuid
+  nome       String      @db.VarChar(160)
+  ativa      Boolean     @default(true)
+  criadaEm   DateTime    @default(now()) @map("criada_em")
+  usuarios   Usuario[]
+  sessoes    Sessao[]
+  auditorias Auditoria[]
+
+  @@map("instituicao")
+}
+
+model Usuario {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  email         String      @db.VarChar(254)
+  nome          String      @db.VarChar(160)
+  senhaHash     String      @map("senha_hash") @db.VarChar(255)
+  perfil        Perfil
+  ativo         Boolean     @default(true)
+  criadoEm      DateTime    @default(now()) @map("criado_em")
+  atualizadoEm  DateTime    @updatedAt @map("atualizado_em")
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id])
+  sessoes       Sessao[]
+  auditorias    Auditoria[]
+
+  @@unique([instituicaoId, email])
+  @@unique([instituicaoId, id])
+  @@map("usuario")
+}
+
+model Sessao {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  usuarioId     String      @map("usuario_id") @db.Uuid
+  tokenHash     String      @unique @map("token_hash") @db.Char(64)
+  expiraEm      DateTime    @map("expira_em")
+  revogadaEm    DateTime?   @map("revogada_em")
+  criadaEm      DateTime    @default(now()) @map("criada_em")
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id])
+  usuario       Usuario     @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@index([usuarioId, revogadaEm])
+  @@map("sessao")
+}
+
+model Auditoria {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  autorId       String?     @map("autor_id") @db.Uuid
+  acao          String      @db.VarChar(80)
+  recurso       String      @db.VarChar(80)
+  recursoId     String?     @map("recurso_id") @db.Uuid
+  criadaEm      DateTime    @default(now()) @map("criada_em")
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id])
+  autor         Usuario?    @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+
+  @@index([instituicaoId, criadaEm])
+  @@map("auditoria")
+}
