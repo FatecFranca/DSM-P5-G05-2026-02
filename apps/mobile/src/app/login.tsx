@@ -1,0 +1,155 @@
+import { Redirect } from 'expo-router';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+
+import { useSession } from '@/auth/session';
+import { BrandMark, PrimaryButton, Screen, TextButton } from '@/components/primitives';
+import { palette } from '@/constants/design';
+import { ApiError } from '@/services/api';
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export default function LoginScreen() {
+  const { width } = useWindowDimensions();
+  const { state, signIn, demoSignIn, retryRestore } = useSession();
+  const [instituicaoId, setInstituicaoId] = useState('');
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  if (state.status === 'signedIn') return <Redirect href="/home" />;
+
+  async function submit() {
+    if (!uuidPattern.test(instituicaoId.trim())) {
+      setError('Informe o ID da instituição no formato UUID.');
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setError('Informe um e-mail válido.');
+      return;
+    }
+    if (!senha) {
+      setError('Informe sua senha.');
+      return;
+    }
+    setError('');
+    setBusy(true);
+    try {
+      await signIn(instituicaoId, email, senha);
+    } catch (cause: unknown) {
+      setError(cause instanceof ApiError ? cause.message : 'Não foi possível entrar. Tente novamente.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function enterDemo(role: 'ADMIN' | 'PROFESSOR' | 'ALUNO') {
+    setError('');
+    setBusy(true);
+    try {
+      await demoSignIn(role);
+    } catch {
+      setError('Não foi possível abrir a demonstração local.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Screen>
+        <View style={[styles.layout, width >= 760 && styles.layoutWide]}>
+        <View style={styles.hero}>
+          <View style={styles.brandRow}>
+            <BrandMark compact />
+            <View>
+              <Text style={styles.brandName}>SGEI</Text>
+              <Text style={styles.brandCaption}>Observatório acadêmico</Text>
+            </View>
+          </View>
+          <View style={styles.heroCopy}>
+            <Text style={styles.kicker}>Dados para acompanhar pessoas</Text>
+            <Text style={styles.heroTitle}>Ensino em{'\n'}perspectiva.</Text>
+            <Text style={styles.heroDescription}>Acompanhe turmas, estudantes e indicadores em um único espaço de trabalho.</Text>
+          </View>
+          <View style={styles.art} accessible accessibilityLabel="Ilustração abstrata de progresso acadêmico">
+            <View style={[styles.artCard, styles.artCardBack]} />
+            <View style={[styles.artCard, styles.artCardFront]}>
+              <View style={styles.artLineShort} />
+              <View style={styles.artLineLong} />
+              <View style={styles.artChart}>
+                <View style={[styles.artBar, { height: 22 }]} />
+                <View style={[styles.artBar, { height: 38 }]} />
+                <View style={[styles.artBar, { height: 54, backgroundColor: palette.gold }]} />
+                <View style={[styles.artBar, { height: 68 }]} />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.formCard}>
+          <Text style={styles.formTitle}>Acesse sua conta</Text>
+          <Text style={styles.formDescription}>Entre com as credenciais da sua instituição.</Text>
+          {state.status === 'signedOut' && state.restoreError ? (
+            <View style={styles.notice}>
+              <Text style={styles.noticeText}>{state.restoreError}</Text>
+              <TextButton title="Tentar novamente" onPress={() => void retryRestore()} />
+            </View>
+          ) : null}
+          <Text style={styles.label}>ID da instituição</Text>
+          <TextInput accessibilityLabel="ID da instituição" autoCapitalize="none" autoCorrect={false} placeholder="UUID da instituição" placeholderTextColor={palette.muted} value={instituicaoId} onChangeText={setInstituicaoId} style={styles.input} />
+          <Text style={styles.label}>E-mail institucional</Text>
+          <TextInput accessibilityLabel="E-mail institucional" autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="voce@instituicao.edu" placeholderTextColor={palette.muted} value={email} onChangeText={setEmail} style={styles.input} />
+          <Text style={styles.label}>Senha</Text>
+          <TextInput accessibilityLabel="Senha" autoComplete="current-password" secureTextEntry placeholder="Sua senha" placeholderTextColor={palette.muted} value={senha} onChangeText={setSenha} style={styles.input} />
+          {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+          <PrimaryButton title="Entrar" onPress={() => void submit()} loading={busy} disabled={state.status === 'loading'} />
+        </View>
+        </View>
+        {__DEV__ ? <View style={styles.demoCard}>
+          <Text style={styles.demoTitle}>Explorar a demonstração</Text>
+          <Text style={styles.formDescription}>Perfis locais fictícios. Nenhum dado é enviado à API ou salvo no banco.</Text>
+          <View style={styles.demoActions}>{(['ADMIN', 'PROFESSOR', 'ALUNO'] as const).map((role) => <Pressable key={role} accessibilityRole="button" disabled={busy || state.status === 'loading'} onPress={() => void enterDemo(role)} style={styles.demoButton}><Text style={styles.demoButtonText}>{role === 'ADMIN' ? 'Admin' : role === 'PROFESSOR' ? 'Professor' : 'Aluno'}</Text></Pressable>)}</View>
+        </View> : null}
+        <Text style={styles.footer}>Seus dados acadêmicos são acessados conforme seu perfil e sua instituição.</Text>
+      </Screen>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  layout: { gap: 18 },
+  layoutWide: { flexDirection: 'row', alignItems: 'stretch' },
+  hero: { flex: 1, backgroundColor: palette.primary, borderRadius: 15, overflow: 'hidden', padding: 27, gap: 32, minHeight: 360 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  brandName: { color: palette.surface, fontSize: 21, fontWeight: '800', letterSpacing: 0.2 },
+  brandCaption: { color: '#B8D7D4', fontSize: 11, fontWeight: '600' },
+  heroCopy: { gap: 9, zIndex: 1 },
+  kicker: { color: palette.gold, fontSize: 12, fontWeight: '700' },
+  heroTitle: { color: palette.surface, fontSize: 37, lineHeight: 42, fontWeight: '800', letterSpacing: -1.4 },
+  heroDescription: { color: '#CEE3DF', fontSize: 14, lineHeight: 21, maxWidth: 310 },
+  art: { height: 118, alignItems: 'flex-end', justifyContent: 'flex-end' },
+  artCard: { position: 'absolute', width: 192, height: 118, borderRadius: 11 },
+  artCardBack: { right: 70, top: 18, backgroundColor: '#28747A', transform: [{ rotate: '-8deg' }] },
+  artCardFront: { right: 0, top: 0, backgroundColor: palette.surface, padding: 18, gap: 10 },
+  artLineShort: { width: 44, height: 7, borderRadius: 4, backgroundColor: palette.gold },
+  artLineLong: { width: 105, height: 7, borderRadius: 4, backgroundColor: palette.line },
+  artChart: { flexDirection: 'row', alignItems: 'flex-end', height: 68, gap: 12 },
+  artBar: { width: 21, borderRadius: 6, backgroundColor: palette.teal },
+  formCard: { flex: 1, backgroundColor: palette.surface, borderRadius: 15, padding: 27, gap: 10, borderWidth: 1, borderColor: palette.line, justifyContent: 'center' },
+  formTitle: { color: palette.ink, fontSize: 25, fontWeight: '800', letterSpacing: -0.6 },
+  formDescription: { color: palette.muted, fontSize: 14, marginBottom: 8 },
+  label: { color: palette.ink, fontSize: 13, fontWeight: '700', marginTop: 4 },
+  input: { minHeight: 52, borderWidth: 1, borderColor: palette.line, borderRadius: 9, backgroundColor: palette.surface, color: palette.ink, paddingHorizontal: 15, fontSize: 15 },
+  error: { color: palette.danger, fontSize: 13, lineHeight: 18, marginVertical: 4 },
+  notice: { backgroundColor: palette.goldSoft, borderRadius: 14, padding: 12 },
+  noticeText: { color: palette.ink, fontSize: 13 },
+  footer: { color: palette.muted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  demoCard: { backgroundColor: palette.primarySoft, borderRadius: 12, padding: 18, gap: 8 },
+  demoTitle: { color: palette.ink, fontSize: 16, fontWeight: '800' },
+  demoActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  demoButton: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 11, minHeight: 44, justifyContent: 'center' },
+  demoButtonText: { color: palette.primary, fontWeight: '700', fontSize: 13 },
+});
