@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { MlModule } from './ml/ml.module';
 import { AccessGuard } from './auth/access/access.guard';
 import { RolesGuard } from './common/roles/roles.guard';
 import { validateEnvironment } from './config/validate-environment';
@@ -16,6 +17,7 @@ import { validateEnvironment } from './config/validate-environment';
     PrismaModule,
     AuthModule,
     UsersModule,
+    MlModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

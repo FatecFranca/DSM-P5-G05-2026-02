@@ -34,6 +34,30 @@ describe('validateEnvironment', () => {
     ).toThrow('JWT_SECRET');
   });
 
+  it('exige token forte e URL interna válida quando ML está configurado', () => {
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        ML_SERVICE_URL: 'http://ml:8000',
+        ML_SERVICE_TOKEN: 'curto',
+      }),
+    ).toThrow('ML');
+    expect(() =>
+      validateEnvironment({
+        ...valid,
+        ML_SERVICE_URL: 'file:///tmp/modelo',
+        ML_SERVICE_TOKEN: 's'.repeat(32),
+      }),
+    ).toThrow('ML');
+    expect(
+      validateEnvironment({
+        ...valid,
+        ML_SERVICE_URL: 'http://ml:8000',
+        ML_SERVICE_TOKEN: 's'.repeat(32),
+      }),
+    ).toEqual(expect.objectContaining({ ML_CLIENT_TIMEOUT_MS: 3000 }));
+  });
+
   it.each(['0', '65536', '3.5', 'texto'])(
     'rejeita porta inválida: %s',
     (port) => {
