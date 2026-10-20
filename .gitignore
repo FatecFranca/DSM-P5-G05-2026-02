@@ -1,0 +1,24 @@
+# Configurações privadas de desenvolvimento
+**/.agents/
+**/AGENTS.md
+**/agents.md
+**/CONTEXT.md
+**/context.md
+
+# Dependências e artefatos gerados em qualquer componente
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/*.tsbuildinfo
+**/src/generated/prisma/
+
+# Variáveis locais e logs
+**/.env
+**/.env.*
+!**/.env.example
+*.log
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
