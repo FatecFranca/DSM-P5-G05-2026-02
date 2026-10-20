@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "SGEI",
+    "slug": "sgei-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/sgei-icon.png",
+    "scheme": "sgei",
+    "userInterfaceStyle": "light",
+    "ios": {},
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#075D62",
+        "foregroundImage": "./assets/images/sgei-icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/sgei-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#075D62",
+          "image": "./assets/images/sgei-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": false
+    }
+  }
+}
