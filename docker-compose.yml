@@ -22,6 +22,19 @@ services:
       db:
         condition: service_healthy
 
+  seed-demo:
+    profiles: ["demo"]
+    build:
+      context: ./services/api
+      target: build
+    command: npx prisma db seed
+    env_file: ./services/api/.env
+    environment:
+      DEMO_SEED_ENABLED: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   api:
     build: ./services/api
     env_file: ./services/api/.env

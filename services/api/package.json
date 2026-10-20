@@ -17,6 +17,7 @@
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate deploy",
+    "db:seed:demo": "node dist/seed-demo.js",
     "bootstrap": "node dist/bootstrap.js",
     "test": "jest",
     "test:watch": "jest --watch",

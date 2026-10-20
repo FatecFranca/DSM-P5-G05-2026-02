@@ -20,6 +20,20 @@ Na raiz do repositório, `docker compose up --build` inicia PostgreSQL, aplica a
 
 Após a migração, defina `BOOTSTRAP_INSTITUICAO_ID` (UUID), `BOOTSTRAP_INSTITUICAO_NOME`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NOME` e `BOOTSTRAP_ADMIN_PASSWORD` (mínimo 12 caracteres) no ambiente do comando. Execute `npm run bootstrap` após o build, ou `docker compose run --rm -e BOOTSTRAP_INSTITUICAO_ID -e BOOTSTRAP_INSTITUICAO_NOME -e BOOTSTRAP_ADMIN_EMAIL -e BOOTSTRAP_ADMIN_NOME -e BOOTSTRAP_ADMIN_PASSWORD migrate node dist/bootstrap.js` com essas variáveis previamente definidas no shell. O script recusa recriar o mesmo administrador e não imprime a senha.
 
+## Contas demonstrativas por perfil
+
+As migrations criam a estrutura do banco. A carga de contas é separada para que nenhuma senha seja gravada em SQL versionado. Para o ambiente Docker local, configure em `services/api/.env` as variáveis `DEMO_INSTITUICAO_ID`, `DEMO_INSTITUICAO_NOME` e as cinco `DEMO_<PERFIL>_PASSWORD` mostradas em `.env.example`. Use UUID próprio e senhas fortes diferentes. Então execute na raiz `docker compose --profile demo up --build -d db api` e `docker compose --profile demo run --rm seed-demo`. A carga é idempotente: preserva senhas de contas existentes e falha se o e-mail já tiver outro perfil. Ela recusa `NODE_ENV=production`.
+
+| Perfil | E-mail fictício |
+| --- | --- |
+| ADMIN | `admin.demo@sgei.example` |
+| COORDENACAO | `coordenacao.demo@sgei.example` |
+| PROFESSOR | `professor.demo@sgei.example` |
+| TUTOR | `tutor.demo@sgei.example` |
+| ALUNO | `aluno.demo@sgei.example` |
+
+Use o mesmo `DEMO_INSTITUICAO_ID` no login do mobile. Os perfis têm login funcional, mas os vínculos acadêmicos ainda não existem no esquema atual; assim, não há dados reais de turma ou estudante para acessar.
+
 ## Contrato inicial
 
 | Rota | Acesso | Uso |
