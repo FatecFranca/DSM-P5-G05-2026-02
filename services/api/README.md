@@ -32,8 +32,11 @@ Após a migração, defina `BOOTSTRAP_INSTITUICAO_ID` (UUID), `BOOTSTRAP_INSTITU
 | `GET /usuarios` | ADMIN | lista até 100 usuários da própria instituição |
 | `GET /usuarios/:id` | ADMIN | consulta usuário da própria instituição |
 | `POST /usuarios` | ADMIN | cria usuário na própria instituição |
+| `GET /ml/status` | ADMIN | informa se o serviço interno e um modelo aprovado estão disponíveis |
 
 Use `Authorization: Bearer <accessToken>` nas rotas protegidas. O servidor resolve o perfil e a instituição a partir da sessão no banco; campos enviados pelo cliente não alteram o escopo. Respostas de usuários não incluem `senhaHash`.
+
+O cliente interno de ML é configurado por `ML_SERVICE_URL`, `ML_SERVICE_TOKEN` e `ML_CLIENT_TIMEOUT_MS`. Ele envia apenas o contrato de 36 atributos, usa timeout e rejeita respostas incompatíveis. Consulte `services/ml/README.md` para treino, aprovação e limites atuais. Não há endpoint público de previsão de alunos até que a estrutura acadêmica e as regras de autorização estejam implementadas.
 
 ## Verificação
 

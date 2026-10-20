@@ -1,5 +1,12 @@
 # Decisões do backend
 
+## Módulo inicial de ML
+
+- O CSV externo fornecido ao projeto foi validado por SHA-256, esquema de 36 atributos e três classes. O candidato de modelo fica fora do Git e não é publicado automaticamente.
+- Treinamento offline em Python e inferência FastAPI são processos separados. O serviço interno só carrega um artefato cujo hash foi aprovado por configuração; o NestJS é a única API pública.
+- A API expõe somente o estado do módulo a `ADMIN` nesta etapa. Previsão por aluno depende dos cadastros acadêmicos, mapeamento de atributos e autorização por vínculo; retornar uma previsão antes disso criaria resultados enganosos.
+- Dados operacionais do PostgreSQL nunca alimentam o treino. A previsão, quando integrada, usará somente atributos disponíveis na data de corte e persistirá versão e origem para auditoria.
+
 ## Base inicial
 
 - O primeiro incremento implementa o início do marco 1 da seção 15 de `CONTEXT.md`: infraestrutura local, schema de instituição/usuário/sessão/auditoria e autenticação. Os módulos acadêmicos seguem nos marcos seguintes.
