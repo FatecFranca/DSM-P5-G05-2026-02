@@ -37,10 +37,11 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = {
-  method?: 'GET' | 'POST';
+export type RequestOptions = {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
   body?: object;
   accessToken?: string;
+  binary?: boolean;
 };
 
 export class ApiClient {
@@ -56,28 +57,37 @@ export class ApiClient {
       throw new Error('A URL da API deve usar HTTP ou HTTPS');
     }
     this.baseUrl = baseUrl.replace(/\/+$/, '');
-    this.transport = transport;
+    // Browser fetch must not receive ApiClient as its `this` value.
+    this.transport = (input, init) => transport(input, init);
   }
 
-  private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    if (!path.startsWith('/') || path.startsWith('//') || path.includes('://')) throw new Error('Rota inválida');
+    const multipart = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
     let response: Response;
     try {
       response = await this.transport(`${this.baseUrl}${path}`, {
         method: options.method ?? 'GET',
         headers: {
           Accept: 'application/json',
-          ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+          ...(options.body && !multipart ? { 'Content-Type': 'application/json' } : {}),
           ...(options.accessToken
             ? { Authorization: `Bearer ${options.accessToken}` }
             : {}),
         },
-        ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+        ...(options.body ? { body: multipart ? options.body as FormData : JSON.stringify(options.body) } : {}),
+        signal: controller.signal,
       });
     } catch {
       throw new ApiError('Não foi possível conectar à API. Confira o endereço e a rede.', 0);
+    } finally {
+      clearTimeout(timer);
     }
 
     if (response.status === 204) return undefined as T;
+    if (response.ok && options.binary) return await response.arrayBuffer() as T;
     const payload: unknown = await response.json().catch(() => null);
     if (!response.ok) {
       const message =
@@ -85,7 +95,7 @@ export class ApiClient {
           ? payload.message
           : null;
       throw new ApiError(
-        typeof message === 'string' ? message : 'A solicitação não pôde ser concluída.',
+        typeof message === 'string' ? message : Array.isArray(message) ? message.join('\n') : 'A solicitação não pôde ser concluída.',
         response.status,
       );
     }

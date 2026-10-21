@@ -39,7 +39,7 @@ export default function ProfileScreen() {
         <View style={styles.divider} />
         <Field label="Perfil de acesso" value={roleLabel[user.perfil]} />
       </View>
-      <Text style={styles.note}>{state.mode === 'demo' ? 'Perfil fictício local para demonstração. Nenhum dado desta conta foi consultado na API.' : 'Perfil confirmado pela rota autenticada /auth/me. As telas acadêmicas permanecem demonstrativas até a integração dos módulos no backend.'}</Text>
+      <Text style={styles.note}>{state.mode === 'demo' ? 'Perfil fictício local para demonstração. Nenhum dado desta conta foi consultado na API.' : 'Sua sessão e suas permissões são verificadas pelo servidor. A área acadêmica exibe os dados disponíveis para seus vínculos.'}</Text>
       <PrimaryButton title={busy ? 'Encerrando sessão...' : 'Sair da conta'} onPress={() => void logout()} loading={busy} />
     </Screen>
   );
