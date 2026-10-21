@@ -46,10 +46,12 @@ type RequestOptions = {
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly transport: typeof fetch;
+  private readonly timeoutMs: number;
 
   constructor(
     baseUrl: string,
     transport: typeof fetch = fetch,
+    timeoutMs = 15_000,
   ) {
     const parsed = new URL(baseUrl);
     if (!['http:', 'https:'].includes(parsed.protocol)) {
@@ -57,13 +59,17 @@ export class ApiClient {
     }
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.transport = transport;
+    this.timeoutMs = timeoutMs;
   }
 
   private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     let response: Response;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       response = await this.transport(`${this.baseUrl}${path}`, {
         method: options.method ?? 'GET',
+        signal: controller.signal,
         headers: {
           Accept: 'application/json',
           ...(options.body ? { 'Content-Type': 'application/json' } : {}),
@@ -74,7 +80,14 @@ export class ApiClient {
         ...(options.body ? { body: JSON.stringify(options.body) } : {}),
       });
     } catch {
-      throw new ApiError('Não foi possível conectar à API. Confira o endereço e a rede.', 0);
+      throw new ApiError(
+        controller.signal.aborted
+          ? 'A API demorou para responder. Confira a conexão e tente novamente.'
+          : 'Não foi possível conectar à API. Confira o endereço e a rede.',
+        0,
+      );
+    } finally {
+      clearTimeout(timer);
     }
 
     if (response.status === 204) return undefined as T;
