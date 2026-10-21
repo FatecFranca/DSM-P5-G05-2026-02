@@ -33,7 +33,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --test src/services/*.test.ts src/demo/*.test.ts"
+    "test": "node --test \"src/**/*.test.ts\""
   },
   "private": true
 }
