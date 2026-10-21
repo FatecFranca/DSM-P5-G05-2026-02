@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen, SectionTitle } from '@/components/primitives';
+import { TopBar } from '@/components/top-bar';
 import { palette } from '@/constants/design';
 import { demoStudents } from '@/demo/data';
 import { Bar, Card, classColor, DemoBanner } from '@/demo/ui';
@@ -27,7 +28,7 @@ export default function Simulations() {
     setResult(Math.max(0.02, Math.min(0.95, baseline.Dropout + (14 - grade1) * 0.025 + (13 - grade2) * 0.025)));
   }
   const simulated = result === null ? null : { Dropout: result, Enrolled: (1 - result) * 0.4, Graduate: (1 - result) * 0.6 };
-  return <Screen><SectionTitle eyebrow="LABORATÓRIO DEMONSTRATIVO" title="Simulações" /><DemoBanner />
+  return <Screen><TopBar /><SectionTitle eyebrow="LABORATÓRIO DEMONSTRATIVO" title="Simulações" /><DemoBanner />
     <Card><Text style={styles.heading}>Cenário fictício</Text><Text style={styles.note}>Ajuste as notas das unidades curriculares do 1º e 2º semestre (atributos presentes no pipeline). A fórmula é ilustrativa e não usa o modelo de ML. Nenhum registro acadêmico é alterado.</Text>
       <Text style={styles.label}>Nota do 1º semestre (0–20)</Text><TextInput accessibilityLabel="Nota do 1º semestre" keyboardType="decimal-pad" value={firstSemesterGrade} onChangeText={setFirstSemesterGrade} style={styles.input} />
       <Text style={styles.label}>Nota do 2º semestre (0–20)</Text><TextInput accessibilityLabel="Nota do 2º semestre" keyboardType="decimal-pad" value={secondSemesterGrade} onChangeText={setSecondSemesterGrade} style={styles.input} />

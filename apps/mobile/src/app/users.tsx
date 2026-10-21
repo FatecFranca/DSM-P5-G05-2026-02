@@ -1,15 +1,17 @@
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSession } from '@/auth/session';
 import { SectionTitle, TextButton } from '@/components/primitives';
+import { TopBar, useGoBack } from '@/components/top-bar';
 import { palette, roleLabel } from '@/constants/design';
 import { ApiError, type UserSummary } from '@/services/api';
 
 export default function UsersScreen() {
-  const router = useRouter();
+  const goBack = useGoBack('/profile');
+  const { bottom } = useSafeAreaInsets();
   const { state, listUsers } = useSession();
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,16 +54,17 @@ export default function UsersScreen() {
   if (state.user.perfil !== 'ADMIN') return <Redirect href="/home" />;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
         data={!loading && !error ? visibleUsers : []}
         keyExtractor={(user) => user.id}
         renderItem={({ item }) => <UserCard user={item} />}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.list}
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={[styles.list, { paddingBottom: 24 + bottom }]}
         ListHeaderComponent={
           <View style={styles.headerContent}>
-            <View style={styles.header}><TextButton title="← Início" onPress={() => router.replace('/home')} /><View style={styles.count}><Text style={styles.countText}>{users.length} usuários</Text></View></View>
+            <View style={styles.header}><TopBar onBack={goBack} showAccount={false} /><View style={styles.count}><Text style={styles.countText}>{users.length} usuários</Text></View></View>
             <SectionTitle eyebrow="ADMINISTRAÇÃO" title="Pessoas da instituição" />
             <Text style={styles.description}>Consulte os usuários cadastrados. Esta lista vem da rota protegida /usuarios.</Text>
             <TextInput accessibilityLabel="Buscar por nome ou e-mail" autoCapitalize="none" placeholder="Buscar por nome ou e-mail" placeholderTextColor={palette.muted} value={query} onChangeText={setQuery} style={styles.search} />

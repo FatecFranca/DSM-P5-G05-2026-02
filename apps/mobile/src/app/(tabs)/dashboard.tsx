@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen } from '@/components/primitives';
-import { palette, roleLabel } from '@/constants/design';
+import { TopBar } from '@/components/top-bar';
+import { palette } from '@/constants/design';
 import { demoClasses, demoStudents, riskLevel, studentsInClass, type RiskLevel } from '@/demo/data';
 import { ComparisonBar, HistogramChart } from '@/demo/charts';
 import { gradeBins, describeStudents } from '@/demo/statistics';
@@ -32,10 +33,7 @@ export default function Dashboard() {
   const selectedClass = demoClasses.find((item) => item.id === classId);
 
   return <Screen>
-    <View style={styles.topline}>
-      <View><Text style={styles.brand}>SGEI / Observatório</Text><Text style={styles.role}>{roleLabel[state.user.perfil]}</Text></View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Abrir perfil" onPress={() => router.push('/profile')} style={styles.profile}><Text style={styles.profileText}>Perfil</Text></Pressable>
-    </View>
+    <TopBar />
 
     <View style={styles.hero}>
       <Text style={styles.heroOverline}>Panorama acadêmico</Text>
@@ -89,10 +87,6 @@ export default function Dashboard() {
 
 const styles = StyleSheet.create({
   pageTitle: { color: palette.ink, fontSize: 28, fontWeight: '800' },
-  topline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brand: { color: palette.primary, fontSize: 15, fontWeight: '800' }, role: { color: palette.muted, fontSize: 12, marginTop: 3 },
-  profile: { borderWidth: 1, borderColor: palette.line, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: palette.surface },
-  profileText: { color: palette.primary, fontWeight: '700', fontSize: 13 },
   hero: { backgroundColor: palette.primary, borderRadius: 15, padding: 24, gap: 9 },
   heroOverline: { color: '#A7D6CF', fontSize: 13, fontWeight: '600' },
   heroTitle: { color: palette.surface, fontSize: 30, fontWeight: '800', letterSpacing: -1, lineHeight: 35 },

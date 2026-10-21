@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen } from '@/components/primitives';
+import { TopBar } from '@/components/top-bar';
 import { palette } from '@/constants/design';
 import { demoModelMetrics } from '@/demo/data';
 import { evaluateConfusionMatrix } from '@/demo/statistics';
@@ -20,6 +21,7 @@ export default function Metrics() {
   const matrix = demoModelMetrics.confusionMatrix;
 
   return <Screen>
+    <TopBar />
     <View style={styles.heading}><Text style={styles.kicker}>Avaliação demonstrativa</Text><Text style={styles.title}>Qualidade do modelo</Text><Text style={styles.body}>Como o classificador fictício se comporta em 30 exemplos ilustrativos.</Text></View>
     <DemoBanner />
 

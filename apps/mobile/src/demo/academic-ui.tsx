@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { TopBar } from '@/components/top-bar';
 import { palette } from '@/constants/design';
 
 export function AcademicHeader({ title, subtitle, back = false, backHref }: { title: string; subtitle?: string; back?: boolean; backHref?: Href }) {
   const router = useRouter();
   return <View style={styles.header}>
-    {back ? <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={() => backHref ? router.replace(backHref) : router.back()}><Text style={styles.link}>← Voltar</Text></Pressable> : <Pressable accessibilityRole="button" accessibilityLabel="Abrir perfil" onPress={() => router.push('/profile')}><Text style={styles.link}>Meu perfil</Text></Pressable>}
+    <TopBar onBack={back ? () => backHref ? router.replace(backHref) : router.back() : undefined} />
     <Text style={styles.title}>{title}</Text>
     {subtitle ? <Text style={styles.body}>{subtitle}</Text> : null}
   </View>;
@@ -67,12 +68,12 @@ export const academicStyles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   strong: { color: palette.ink, fontSize: 14, fontWeight: '700' },
   meta: { color: palette.muted, fontSize: 12, lineHeight: 18 },
-  link: { color: palette.secondary, fontSize: 13, fontWeight: '700' },
+  link: { color: palette.secondary, fontSize: 13, fontWeight: '700', paddingVertical: 8 },
   divider: { height: 1, backgroundColor: palette.line },
 });
 
 const styles = StyleSheet.create({
-  header: { gap: 5 }, link: { color: palette.secondary, fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  header: { gap: 5 },
   title: { color: palette.ink, fontSize: 29, fontWeight: '800', letterSpacing: -0.8 }, body: { color: palette.muted, fontSize: 13, lineHeight: 19 },
   notice: { gap: 6 }, noticeBanner: { backgroundColor: palette.goldSoft, paddingHorizontal: 15, paddingVertical: 11, borderRadius: 9, flexDirection: 'row', alignItems: 'center', gap: 9 }, noticeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: palette.gold }, noticeBannerText: { color: palette.ink, fontSize: 12, lineHeight: 18, flex: 1 }, noticeText: { color: palette.muted, fontSize: 11, lineHeight: 16 },
   panel: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, borderRadius: 12, padding: 17, gap: 12 },
