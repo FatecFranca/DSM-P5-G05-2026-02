@@ -4,9 +4,9 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "cjs"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
   importFileExtension = ""
 }
 
@@ -30,6 +30,7 @@ model Instituicao {
   usuarios   Usuario[]
   sessoes    Sessao[]
   auditorias Auditoria[]
+  turmas     Turma[]
 
   @@map("instituicao")
 }
@@ -47,6 +48,10 @@ model Usuario {
   instituicao   Instituicao @relation(fields: [instituicaoId], references: [id])
   sessoes       Sessao[]
   auditorias    Auditoria[]
+  matriculas    Matricula[]
+  lotacoes      Lotacao[]
+  tutorias      Tutoria[]
+  arquivos      Arquivo[]
 
   @@unique([instituicaoId, email])
   @@unique([instituicaoId, id])
@@ -81,4 +86,219 @@ model Auditoria {
 
   @@index([instituicaoId, criadaEm])
   @@map("auditoria")
+}
+
+model Turma {
+  id            String       @id @default(uuid()) @db.Uuid
+  instituicaoId String       @db.Uuid
+  nome          String       @db.VarChar(120)
+  curso         String       @db.VarChar(120)
+  periodo       String       @db.VarChar(40)
+  fechada       Boolean      @default(false)
+  instituicao   Instituicao  @relation(fields: [instituicaoId], references: [id])
+  disciplinas   Disciplina[]
+  matriculas    Matricula[]
+
+  @@unique([instituicaoId, id])
+  @@unique([instituicaoId, nome, periodo])
+  @@map("turma")
+}
+
+model Disciplina {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @db.Uuid
+  turmaId       String      @db.Uuid
+  nome          String      @db.VarChar(120)
+  turma         Turma       @relation(fields: [instituicaoId, turmaId], references: [instituicaoId, id])
+  lotacoes      Lotacao[]
+  aulas         Aula[]
+  avaliacoes    Avaliacao[]
+  atividades    Atividade[]
+  materiais     Material[]
+
+  @@unique([instituicaoId, id])
+  @@unique([instituicaoId, turmaId, nome])
+  @@map("disciplina")
+}
+
+model Matricula {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  turmaId       String     @db.Uuid
+  alunoId       String     @db.Uuid
+  registro      String     @db.VarChar(40)
+  turma         Turma      @relation(fields: [instituicaoId, turmaId], references: [instituicaoId, id])
+  aluno         Usuario    @relation(fields: [instituicaoId, alunoId], references: [instituicaoId, id])
+  tutorias      Tutoria[]
+  presencas     Presenca[]
+  notas         Nota[]
+  entregas      Entrega[]
+
+  @@unique([instituicaoId, id])
+  @@unique([instituicaoId, turmaId, alunoId])
+  @@unique([instituicaoId, registro])
+  @@map("matricula")
+}
+
+model Lotacao {
+  instituicaoId String     @db.Uuid
+  disciplinaId  String     @db.Uuid
+  professorId   String     @db.Uuid
+  disciplina    Disciplina @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  professor     Usuario    @relation(fields: [instituicaoId, professorId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, disciplinaId, professorId])
+  @@index([instituicaoId, professorId])
+  @@map("lotacao")
+}
+
+model Tutoria {
+  instituicaoId String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  tutorId       String    @db.Uuid
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id])
+  tutor         Usuario   @relation(fields: [instituicaoId, tutorId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, matriculaId, tutorId])
+  @@index([instituicaoId, tutorId])
+  @@map("tutoria")
+}
+
+model Aula {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  disciplinaId  String     @db.Uuid
+  data          DateTime
+  tema          String     @db.VarChar(200)
+  disciplina    Disciplina @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  presencas     Presenca[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, disciplinaId, data])
+  @@map("aula")
+}
+
+enum SituacaoPresenca {
+  PRESENTE
+  FALTA
+  FALTA_JUSTIFICADA
+}
+
+model Presenca {
+  instituicaoId String           @db.Uuid
+  aulaId        String           @db.Uuid
+  matriculaId   String           @db.Uuid
+  situacao      SituacaoPresenca
+  atualizadoEm  DateTime         @updatedAt
+  aula          Aula             @relation(fields: [instituicaoId, aulaId], references: [instituicaoId, id])
+  matricula     Matricula        @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, aulaId, matriculaId])
+  @@map("presenca")
+}
+
+model Avaliacao {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  disciplinaId  String     @db.Uuid
+  titulo        String     @db.VarChar(160)
+  peso          Float
+  notaMaxima    Float
+  data          DateTime
+  publicada     Boolean    @default(false)
+  publicadaEm   DateTime?
+  disciplina    Disciplina @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  notas         Nota[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, disciplinaId])
+  @@map("avaliacao")
+}
+
+model Nota {
+  instituicaoId String    @db.Uuid
+  avaliacaoId   String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  valor         Float
+  atualizadoEm  DateTime  @updatedAt
+  avaliacao     Avaliacao @relation(fields: [instituicaoId, avaliacaoId], references: [instituicaoId, id])
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, avaliacaoId, matriculaId])
+  @@map("nota")
+}
+
+enum EstadoAtividade {
+  RASCUNHO
+  PUBLICADA
+  ENCERRADA
+}
+
+model Atividade {
+  id            String          @id @default(uuid()) @db.Uuid
+  instituicaoId String          @db.Uuid
+  disciplinaId  String          @db.Uuid
+  titulo        String          @db.VarChar(160)
+  descricao     String          @db.VarChar(4000)
+  prazo         DateTime
+  notaMaxima    Float
+  estado        EstadoAtividade @default(RASCUNHO)
+  publicadaEm   DateTime?
+  disciplina    Disciplina      @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  entregas      Entrega[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, disciplinaId])
+  @@map("atividade")
+}
+
+model Arquivo {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  autorId       String     @db.Uuid
+  nome          String     @db.VarChar(200)
+  mime          String     @db.VarChar(100)
+  tamanho       Int
+  sha256        String     @db.Char(64)
+  criadoEm      DateTime   @default(now())
+  autor         Usuario    @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+  materiais     Material[]
+  entregas      Entrega[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, autorId])
+  @@map("arquivo")
+}
+
+model Entrega {
+  instituicaoId String    @db.Uuid
+  atividadeId   String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  arquivoId     String    @db.Uuid
+  enviadaEm     DateTime  @default(now())
+  nota          Float?
+  feedback      String?   @db.VarChar(4000)
+  corrigidaEm   DateTime?
+  atividade     Atividade @relation(fields: [instituicaoId, atividadeId], references: [instituicaoId, id])
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id])
+  arquivo       Arquivo   @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, atividadeId, matriculaId])
+  @@map("entrega")
+}
+
+model Material {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  disciplinaId  String     @db.Uuid
+  titulo        String     @db.VarChar(160)
+  descricao     String     @db.VarChar(4000)
+  arquivoId     String     @db.Uuid
+  criadoEm      DateTime   @default(now())
+  disciplina    Disciplina @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  arquivo       Arquivo    @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, disciplinaId])
+  @@map("material")
 }

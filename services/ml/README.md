@@ -4,13 +4,13 @@ O NestJS continua sendo a única API pública. Este serviço FastAPI recebe lote
 
 ## Treinamento offline
 
-O CSV externo deve ter exatamente as 36 colunas descritas em `CONTEXT.md`, seguidas de `classe`. O comando exige o SHA-256 previamente conferido do arquivo e rejeita qualquer divergência. Não copie o CSV para o repositório.
+O CSV externo deve ter exatamente as 36 colunas descritas em `CONTEXT.md`, seguidas de `classe`. O dataset selecionado está disponível localmente em `datasets/dados_preprocessados.csv` (4.152 registros; SHA-256 `48b6a0c4417f5f52b5a5d332e2a7e1cfa34b2f62a74fe35d97fb2373a06fe085`). A origem conhecida é o arquivo fornecido para o projeto; a fonte primária e a licença ainda precisam ser documentadas antes de distribuir o dataset. `datasets/` é ignorado pelo Git: mantenha o arquivo no ambiente controlado de treinamento, sem versioná-lo ou incluí-lo na imagem Docker. O comando exige o SHA-256 conferido e rejeita divergências.
 
 ```powershell
 cd services/ml
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m training.train --dataset CAMINHO_DO_CSV --approved-sha256 HASH_CONFERIDO --source "origem autorizada" --version evasao-baseline-v1 --output artifacts/evasao-baseline-v1
+.\.venv\Scripts\python.exe -m training.train --dataset datasets/dados_preprocessados.csv --approved-sha256 48b6a0c4417f5f52b5a5d332e2a7e1cfa34b2f62a74fe35d97fb2373a06fe085 --source "CSV fornecido para o projeto SGEI" --version evasao-baseline-v2 --output artifacts/evasao-baseline-v2
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
@@ -19,6 +19,8 @@ O treino separa treino/validação/teste em 70/15/15 por classe, ajusta o pré-p
 ## Publicação e operação
 
 Copie `.env.example` para `services/ml/.env`. O serviço só carrega um artefato `joblib` quando `ML_MODEL_APPROVED_SHA256` coincide com o hash do arquivo e dos metadados. Esta variável representa a aprovação explícita de uma versão revisada. `joblib` usa pickle e **nunca** deve carregar arquivos de origem não confiável. Defina também `ML_SERVICE_TOKEN` com ao menos 32 caracteres e configure o mesmo valor em `services/api/.env`, junto de `ML_SERVICE_URL=http://ml:8000`. O serviço de ML recebe apenas suas próprias variáveis, sem credenciais do NestJS ou do banco. Em Compose, o diretório `artifacts/` é montado somente para leitura e a porta 8000 não é publicada no host.
+
+O treino local `evasao-baseline-v2` produziu o artefato SHA-256 `7cd97ce79675511c083d855c136632b61946f92a3920465f1b369be43a62c7e4`. O `docker-compose.yml` aponta para esta versão. Para testar a integração localmente, configure o hash em `ML_MODEL_APPROVED_SHA256` no `.env` privado do ML, use o mesmo token nos dois serviços e habilite `ML_PREVIEW_ENABLED=true` no `.env` da API. Isso permite a prévia técnica; o candidato permanece `CANDIDATE` e não autoriza previsões para decisões sobre estudantes reais.
 
 - `GET /health`: processo ativo, mesmo sem modelo.
 - `GET /ready`: `503` enquanto não houver modelo aprovado.

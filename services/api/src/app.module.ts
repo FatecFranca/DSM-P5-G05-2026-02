@@ -9,6 +9,7 @@ import { MlModule } from './ml/ml.module';
 import { AccessGuard } from './auth/access/access.guard';
 import { RolesGuard } from './common/roles/roles.guard';
 import { validateEnvironment } from './config/validate-environment';
+import { AcademicModule } from './academic/academic.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { validateEnvironment } from './config/validate-environment';
     AuthModule,
     UsersModule,
     MlModule,
+    AcademicModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

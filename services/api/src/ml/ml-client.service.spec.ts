@@ -1,4 +1,7 @@
-import { ServiceUnavailableException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MlClientService } from './ml-client.service';
 import { ML_FEATURES, type MlBatchRequest, type MlFeatures } from './ml.types';
@@ -20,6 +23,7 @@ describe('MlClientService', () => {
     ML_SERVICE_URL: 'http://ml:8000',
     ML_SERVICE_TOKEN: 's'.repeat(40),
     ML_CLIENT_TIMEOUT_MS: 1000,
+    ML_PREVIEW_ENABLED: 'true',
   };
   const config = {
     get: jest.fn((key: string) => settings[key]),
@@ -100,5 +104,47 @@ describe('MlClientService', () => {
       ServiceUnavailableException,
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('faz prévia somente quando habilitada e com modelo pronto', async () => {
+    const disabled = new MlClientService({
+      get: (key: string) =>
+        key === 'ML_PREVIEW_ENABLED' ? 'false' : settings[key],
+    } as unknown as ConfigService);
+    await expect(
+      disabled.preview(request.items[0].features),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    jest.spyOn(global, 'fetch').mockImplementation((_url, options) => {
+      if (!options?.method) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ model_version: 'teste-v1' }), {
+            status: 200,
+          }),
+        );
+      }
+      const payload = JSON.parse(options.body as string) as MlBatchRequest;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            model_version: payload.model_version,
+            request_id: payload.request_id,
+            results: [
+              {
+                ref: payload.items[0].ref,
+                predicted_class: 'Dropout',
+                probabilities: { Dropout: 0.7, Enrolled: 0.2, Graduate: 0.1 },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+    await expect(client.preview(request.items[0].features)).resolves.toEqual({
+      modelVersion: 'teste-v1',
+      predictedClass: 'Dropout',
+      probabilities: { Dropout: 0.7, Enrolled: 0.2, Graduate: 0.1 },
+    });
   });
 });

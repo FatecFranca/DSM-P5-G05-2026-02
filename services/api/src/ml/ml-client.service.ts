@@ -1,16 +1,32 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { isUUID } from 'class-validator';
+import { randomUUID } from 'node:crypto';
 import {
   ML_CLASSES,
   ML_FEATURES,
   type MlBatchRequest,
   type MlBatchResponse,
+  type MlFeatures,
+  type MlPreviewResponse,
 } from './ml.types';
 
 @Injectable()
 export class MlClientService {
   constructor(private readonly config: ConfigService) {}
+
+  schema() {
+    return {
+      features: ML_FEATURES,
+      classes: ML_CLASSES,
+      mode: 'TECHNICAL_PREVIEW' as const,
+      previewEnabled: this.config.get<string>('ML_PREVIEW_ENABLED') === 'true',
+    };
+  }
 
   async status(): Promise<{
     configured: boolean;
@@ -36,6 +52,28 @@ export class MlClientService {
     } catch {
       return { configured: true, ready: false };
     }
+  }
+
+  async preview(features: MlFeatures): Promise<MlPreviewResponse> {
+    if (this.config.get<string>('ML_PREVIEW_ENABLED') !== 'true') {
+      throw new ForbiddenException('Prévia de ML desabilitada');
+    }
+    const status = await this.status();
+    if (!status.ready || !status.modelVersion) {
+      throw new ServiceUnavailableException('Inferência indisponível');
+    }
+    const ref = randomUUID();
+    const response = await this.predictBatch({
+      model_version: status.modelVersion,
+      request_id: randomUUID(),
+      items: [{ ref, features }],
+    });
+    const result = response.results[0];
+    return {
+      modelVersion: response.model_version,
+      predictedClass: result.predicted_class,
+      probabilities: result.probabilities,
+    };
   }
 
   async predictBatch(request: MlBatchRequest): Promise<MlBatchResponse> {

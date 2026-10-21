@@ -57,3 +57,9 @@ export interface MlBatchResponse {
     probabilities: Record<MlClass, number>;
   }>;
 }
+
+export interface MlPreviewResponse {
+  modelVersion: string;
+  predictedClass: MlClass;
+  probabilities: Record<MlClass, number>;
+}

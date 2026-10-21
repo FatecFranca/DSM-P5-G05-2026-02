@@ -47,10 +47,11 @@ Use o mesmo `DEMO_INSTITUICAO_ID` no login do mobile. Os perfis têm login funci
 | `GET /usuarios/:id` | ADMIN | consulta usuário da própria instituição |
 | `POST /usuarios` | ADMIN | cria usuário na própria instituição |
 | `GET /ml/status` | ADMIN | informa se o serviço interno e um modelo aprovado estão disponíveis |
+| `POST /ml/preview` | ADMIN, com `ML_PREVIEW_ENABLED=true` | testa uma inferência com os 36 atributos numéricos completos, sem vínculo acadêmico ou persistência |
 
 Use `Authorization: Bearer <accessToken>` nas rotas protegidas. O servidor resolve o perfil e a instituição a partir da sessão no banco; campos enviados pelo cliente não alteram o escopo. Respostas de usuários não incluem `senhaHash`.
 
-O cliente interno de ML é configurado por `ML_SERVICE_URL`, `ML_SERVICE_TOKEN` e `ML_CLIENT_TIMEOUT_MS`. Ele envia apenas o contrato de 36 atributos, usa timeout e rejeita respostas incompatíveis. Consulte `services/ml/README.md` para treino, aprovação e limites atuais. Não há endpoint público de previsão de alunos até que a estrutura acadêmica e as regras de autorização estejam implementadas.
+O cliente interno de ML é configurado por `ML_SERVICE_URL`, `ML_SERVICE_TOKEN` e `ML_CLIENT_TIMEOUT_MS`. Ele envia apenas o contrato de 36 atributos, usa timeout e rejeita respostas incompatíveis. A prévia exige `ML_PREVIEW_ENABLED=true` e aceita `{ "features": { ... } }` com todas as 36 colunas de entrada; use somente dados sintéticos ou de teste. Consulte `services/ml/README.md` para treino, aprovação e limites atuais. Não há endpoint de previsão de alunos até que a estrutura acadêmica, o mapeamento dos atributos e as regras de autorização estejam implementados.
 
 ## Verificação
 

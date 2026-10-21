@@ -20,6 +20,7 @@
     "db:seed:demo": "node dist/seed-demo.js",
     "bootstrap": "node dist/bootstrap.js",
     "test": "jest",
+    "test:integration:academic": "node test/academic.integration.cjs",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"

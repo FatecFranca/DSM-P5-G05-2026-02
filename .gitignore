@@ -22,3 +22,5 @@
 # Arquivos do sistema operacional
 .DS_Store
 Thumbs.db
+/services/api/uploads/
+/services/api/.cache/

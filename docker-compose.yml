@@ -38,6 +38,8 @@ services:
   api:
     build: ./services/api
     env_file: ./services/api/.env
+    volumes:
+      - sgei_uploads:/app/uploads
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
@@ -48,8 +50,8 @@ services:
     build: ./services/ml
     env_file: ./services/ml/.env
     environment:
-      ML_MODEL_PATH: /models/evasao-baseline-v1/model.joblib
-      ML_METADATA_PATH: /models/evasao-baseline-v1/metadata.json
+      ML_MODEL_PATH: /models/evasao-baseline-v2/model.joblib
+      ML_METADATA_PATH: /models/evasao-baseline-v2/metadata.json
     volumes:
       - ./services/ml/artifacts:/models:ro
     expose:
@@ -65,3 +67,4 @@ services:
 
 volumes:
   sgei_postgres:
+  sgei_uploads:
