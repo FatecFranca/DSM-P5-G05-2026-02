@@ -22,3 +22,11 @@ test('professor lança notas e admin gerencia a estrutura', () => {
   assert.equal(canSend('ADMIN', 'POST', '/usuarios'), true);
   assert.equal(canSend('ADMIN', 'PUT', '/avaliacoes/abc/notas'), false);
 });
+
+test('prévia ML é enviada somente por ADMIN e nunca libera rotas de treino', () => {
+  for (const role of ['ADMIN', 'PROFESSOR', 'ALUNO', 'COORDENACAO', 'TUTOR'] as const) {
+    assert.equal(canSend(role, 'POST', '/ml/preview'), role === 'ADMIN');
+    assert.equal(canSend(role, 'GET', '/ml/schema'), role === 'ADMIN');
+    assert.equal(canSend(role, 'POST', '/ml/treinos'), false);
+  }
+});

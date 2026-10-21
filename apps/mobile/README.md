@@ -23,7 +23,15 @@ As telas abaixo pertencem somente ao modo demonstrativo:
 - A fonte acadêmica compartilhada fica em `src/demo/academic.ts` e `src/demo/academic-store.tsx`. As alterações vivem apenas em memória até reiniciar o aplicativo. O seletor de documentos guarda somente o nome do arquivo; não há upload ou download real.
 - A média de notas do demo usa pesos ilustrativos e escala 0–10. Frequência e justificativas não inferem limite nem regra institucional. As regras definitivas virão da API.
 
-## Verificação
+## Prévia de ML com o modelo treinado
+
+Entre com uma conta ADMIN real e abra a seção **ML** em `/workspace`. A tela consulta `/ml/schema` e `/ml/status`, e envia os 36 atributos para `/ml/preview` com o token da sessão. A autenticação e a autorização definitivas são feitas pela API.
+
+**Valores originais** oferece um formulário com as escalas esperadas e um exemplo explicitamente fictício. O servidor aplica as médias/desvios recuperados do notebook, fixos e compatíveis com o CSV do modelo. **Valores pré-processados** aceita um objeto JSON sem `classe` e não repete essa transformação. Campos ausentes não recebem valores inventados.
+
+O resultado apresenta as três probabilidades e a versão do modelo. O candidato permanece uma prévia técnica; a previsão não é associada automaticamente às matrículas nem usada para treino. Notas do demo em escala 0–10 não são enviadas automaticamente ao modelo que espera médias semestrais 0–20. O contrato completo está em `docs/ml-preprocessing.md` na branch backend ou de integração.
+
+## Verificações do aplicativo
 
 `npm run typecheck`, `npm run lint`, `npm test` e `npx expo export --platform web`.
 
