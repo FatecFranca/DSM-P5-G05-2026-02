@@ -3,6 +3,34 @@ import { test } from 'node:test';
 
 import { ApiClient, ApiError } from './api.ts';
 
+test('transporte não recebe ApiClient como this no navegador', async () => {
+  const transport: typeof fetch = function (this: unknown) {
+    assert.equal(this, undefined);
+    return Promise.resolve(Response.json({ status: 'ok' }));
+  };
+  assert.deepEqual(await new ApiClient('http://localhost:3000', transport).health(), { status: 'ok' });
+});
+
+test('upload preserva multipart e download preserva bytes', async () => {
+  const form = new FormData();
+  form.append('arquivo', new Blob(['%PDF-test']), 'teste.pdf');
+  const client = new ApiClient('http://localhost:3000', async (_url, options) => {
+    assert.equal(options?.body, form);
+    assert.equal((options?.headers as Record<string, string>)['Content-Type'], undefined);
+    assert.equal((options?.headers as Record<string, string>).Authorization, 'token'.replace(/^/, 'Bearer '));
+    return Response.json({ id: 'arquivo' });
+  });
+  assert.deepEqual(await client.request('/arquivos', { method: 'POST', body: form, accessToken: 'token' }), { id: 'arquivo' });
+  const download = new ApiClient('http://localhost:3000', async () => new Response(new Uint8Array([1, 2, 3])));
+  assert.deepEqual(new Uint8Array(await download.request<ArrayBuffer>('/arquivos/id', { binary: true })), new Uint8Array([1, 2, 3]));
+});
+
+test('validação do servidor mantém mensagens úteis e rotas externas são rejeitadas', async () => {
+  const client = new ApiClient('http://localhost:3000', async () => Response.json({ message: ['Campo inválido', 'Nota acima do máximo'] }, { status: 400 }));
+  await assert.rejects(client.request('/avaliacoes', { method: 'POST' }), /Nota acima do máximo/);
+  await assert.rejects(client.request('//outro-servidor/'), /Rota inválida/);
+});
+
 test('login envia o contrato esperado pelo Nest', async () => {
   let receivedUrl = '';
   let receivedOptions: RequestInit | undefined;

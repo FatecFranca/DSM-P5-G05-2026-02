@@ -1,6 +1,6 @@
 # SGEI Mobile
 
-Protótipo Expo SDK 58 para Android, iOS e web. Login, sessão e consulta de usuários usam a API NestJS. As telas acadêmicas usam dados fictícios identificados como demonstração. O aplicativo não chama o serviço FastAPI.
+Aplicativo Expo SDK 58 para Android, iOS e web. Login real abre a área acadêmica conectada à API NestJS, com turmas, matrículas, frequência, notas, atividades, entregas e materiais. O aplicativo não chama o serviço FastAPI.
 
 ## Executar
 
@@ -12,6 +12,10 @@ Em desenvolvimento, a tela de login oferece acesso local aos perfis Admin, Profe
 
 ## Navegação e dados
 
+No login real, `/workspace` utiliza exclusivamente dados do backend. Admin gerencia estrutura e vínculos; professor lança dados das disciplinas em que está lotado; aluno consulta os próprios registros e envia entregas; coordenação e tutor consultam os dados autorizados. Formulários filtram campos e ações antes de enviar. O servidor autentica e autoriza novamente todas as operações. Documentos são enviados e baixados com autenticação.
+
+As telas abaixo pertencem somente ao modo demonstrativo:
+
 - Admin e Coordenação: Dashboard, Estudantes, Turmas, Simulações e Métricas. Os filtros, gráficos e detalhes existentes usam `src/demo/data.ts`.
 - Professor: painel, turmas vinculadas, chamada por aula, avaliações e notas, atividades e correções, materiais. Tutor pode consultar o fluxo, sem editar.
 - Aluno: painel individual, disciplinas, notas publicadas, frequência, atividades, entregas, materiais, calendário e avisos locais. O aluno não vê indicadores individuais de evasão.
@@ -19,10 +23,20 @@ Em desenvolvimento, a tela de login oferece acesso local aos perfis Admin, Profe
 - A fonte acadêmica compartilhada fica em `src/demo/academic.ts` e `src/demo/academic-store.tsx`. As alterações vivem apenas em memória até reiniciar o aplicativo. O seletor de documentos guarda somente o nome do arquivo; não há upload ou download real.
 - A média de notas do demo usa pesos ilustrativos e escala 0–10. Frequência e justificativas não inferem limite nem regra institucional. As regras definitivas virão da API.
 
-## Verificação
+## Prévia de ML com o modelo treinado
+
+Entre com uma conta ADMIN real e abra a seção **ML** em `/workspace`. A tela consulta `/ml/schema` e `/ml/status`, e envia os 36 atributos para `/ml/preview` com o token da sessão. A autenticação e a autorização definitivas são feitas pela API.
+
+**Valores originais** oferece um formulário com as escalas esperadas e um exemplo explicitamente fictício. O servidor aplica as médias/desvios recuperados do notebook, fixos e compatíveis com o CSV do modelo. **Valores pré-processados** aceita um objeto JSON sem `classe` e não repete essa transformação. Campos ausentes não recebem valores inventados.
+
+O resultado apresenta as três probabilidades e a versão do modelo. O candidato permanece uma prévia técnica; a previsão não é associada automaticamente às matrículas nem usada para treino. Notas do demo em escala 0–10 não são enviadas automaticamente ao modelo que espera médias semestrais 0–20. O contrato completo está em `docs/ml-preprocessing.md` na branch backend ou de integração.
+
+## Verificações do aplicativo
 
 `npm run typecheck`, `npm run lint`, `npm test` e `npx expo export --platform web`.
 
-## Integração pendente
+## Contrato e limites
 
-O NestJS atual oferece autenticação e usuários, mas ainda não possui endpoints acadêmicos ou de análises. Após definir os contratos no backend, substituir os dados de `src/demo/data.ts` e `src/demo/academic.ts` por serviços autenticados via NestJS. O backend deverá validar papel, instituição, matrícula e vínculo docente em cada operação, além de definir escala, pesos, prazos, auditoria e armazenamento privado dos arquivos. A interface não envia arquivos nem dados acadêmicos à API atual. Nunca chamar o FastAPI diretamente do mobile.
+Consulte `../../docs/academic-api.md` para rotas, permissões, regras e pendências. Na web, adicione `http://localhost:8081` às origens permitidas da API. O refresh token web fica somente em memória, portanto recarregar a página exige novo login. As rotas protegidas não montam as telas acadêmicas sem sessão e não exibem dados demonstrativos em uma sessão real.
+
+Calendário e Avisos da área real consultam a API, com filtros por disciplina e paginação. O calendário mostra aulas, avaliações e prazos; os avisos mostram publicações e correções autorizadas. Histórico de notificações, marcação de leitura/push, eventos institucionais independentes e análises ML individuais ainda não integram a área real. Testes em dispositivo físico continuam necessários para arquivos e ciclo de vida nativo.
