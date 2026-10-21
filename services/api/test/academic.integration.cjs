@@ -40,6 +40,28 @@ async function main() {
     people.push({ ...user, token: tokens.accessToken, refresh: tokens.refreshToken });
   }
   const [admin, teacher, student, peer, outsider] = people;
+  if (process.env.TEST_ML === 'true') {
+    const parameters = require('../../ml/app/preprocessing/notebook-zscore-v1.json');
+    const original = Object.fromEntries(parameters.features.map((name) => [name, parameters.categories[name]?.[0] ?? 0]));
+    Object.assign(original, { idade_matricula: 20, nota_admissao: 120, nota_qual_anterior: 120 });
+    const processed = Object.fromEntries(Object.entries(original).map(([name, value]) => {
+      const p = parameters.numeric[name];
+      return [name, p ? (value - p.mean) / p.std : value];
+    }));
+    await call('GET', '/ml/schema', null, null, 401);
+    await call('GET', '/ml/schema', student.token, null, 403);
+    await call('POST', '/ml/preview', student.token, { features: processed }, 403);
+    assert.equal((await call('GET', '/ml/schema', admin.token)).features.length, 36);
+    assert.equal((await call('GET', '/ml/status', admin.token)).originalInputReady, true);
+    const a = await call('POST', '/ml/preview', admin.token, { features: original, inputFormat: 'original' });
+    const b = await call('POST', '/ml/preview', admin.token, { features: processed, inputFormat: 'preprocessed' });
+    assert.deepEqual(a, b, 'Ambos os formatos devem gerar a mesma previsão real');
+    assert.ok(['Dropout', 'Enrolled', 'Graduate'].includes(a.predictedClass));
+    assert.ok(Math.abs(Object.values(a.probabilities).reduce((sum, value) => sum + value, 0) - 1) < 1e-6);
+    await call('POST', '/ml/preview', admin.token, { features: original, inputFormat: 'raw' }, 400);
+    await call('POST', '/ml/preview', admin.token, { features: { ...original, genero: 2 }, inputFormat: 'original' }, 400);
+    await call('POST', '/ml/preview', admin.token, { features: { ...original, pib: null } }, 400);
+  }
   const range = new URLSearchParams({ inicio: new Date(Date.now() - 10 * 86400000).toISOString(), fim: new Date(Date.now() + 2 * 86400000).toISOString() });
   const calendarPath = `/academico/calendario?${range}`;
   await call('GET', '/academico/resumo', null, null, 401);

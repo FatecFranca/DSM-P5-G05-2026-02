@@ -40,9 +40,11 @@ export const ML_FEATURES = [
 ] as const;
 
 export type MlClass = (typeof ML_CLASSES)[number];
+export type MlInputFormat = 'preprocessed' | 'original';
 export type MlFeatures = Record<(typeof ML_FEATURES)[number], number>;
 
 export interface MlBatchRequest {
+  input_format?: MlInputFormat;
   model_version: string;
   request_id: string;
   items: Array<{ ref: string; features: MlFeatures }>;

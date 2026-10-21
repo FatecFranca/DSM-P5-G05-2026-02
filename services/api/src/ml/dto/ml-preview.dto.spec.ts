@@ -21,4 +21,27 @@ describe('MlPreviewDto', () => {
     expect(errors({ ...complete, pib: '1' })).not.toHaveLength(0);
     expect(errors({ ...complete, pib: Infinity })).not.toHaveLength(0);
   });
+
+  it('valida o formato explicitamente sem aceitar null ou valores desconhecidos', () => {
+    for (const inputFormat of ['original', 'preprocessed', undefined]) {
+      expect(
+        validateSync(
+          Object.assign(new MlPreviewDto(), {
+            features: complete,
+            inputFormat,
+          }),
+        ),
+      ).toHaveLength(0);
+    }
+    for (const inputFormat of [null, 'raw', 1]) {
+      expect(
+        validateSync(
+          Object.assign(new MlPreviewDto(), {
+            features: complete,
+            inputFormat,
+          }),
+        ),
+      ).not.toHaveLength(0);
+    }
+  });
 });

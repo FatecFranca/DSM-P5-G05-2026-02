@@ -1,5 +1,5 @@
 import math
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -32,6 +32,7 @@ class PredictBatchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     model_version: Annotated[str, Field(min_length=1, max_length=100)]
+    input_format: Literal['preprocessed', 'original'] = 'preprocessed'
     request_id: UUID
     items: Annotated[list[PredictionItem], Field(min_length=1, max_length=100)]
 

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   ServiceUnavailableException,
@@ -13,6 +14,7 @@ import {
   type MlBatchResponse,
   type MlFeatures,
   type MlPreviewResponse,
+  type MlInputFormat,
 } from './ml.types';
 
 @Injectable()
@@ -32,6 +34,7 @@ export class MlClientService {
     configured: boolean;
     ready: boolean;
     modelVersion?: string;
+    originalInputReady?: boolean;
   }> {
     const baseUrl = this.config.get<string>('ML_SERVICE_URL');
     if (!baseUrl) return { configured: false, ready: false };
@@ -48,13 +51,17 @@ export class MlClientService {
         configured: true,
         ready: true,
         modelVersion: body.model_version,
+        originalInputReady: body.original_input_ready === true,
       };
     } catch {
       return { configured: true, ready: false };
     }
   }
 
-  async preview(features: MlFeatures): Promise<MlPreviewResponse> {
+  async preview(
+    features: MlFeatures,
+    inputFormat: MlInputFormat = 'preprocessed',
+  ): Promise<MlPreviewResponse> {
     if (this.config.get<string>('ML_PREVIEW_ENABLED') !== 'true') {
       throw new ForbiddenException('Prévia de ML desabilitada');
     }
@@ -62,9 +69,15 @@ export class MlClientService {
     if (!status.ready || !status.modelVersion) {
       throw new ServiceUnavailableException('Inferência indisponível');
     }
+    if (inputFormat === 'original' && !status.originalInputReady) {
+      throw new ServiceUnavailableException(
+        'Transformação dos dados originais indisponível para este modelo',
+      );
+    }
     const ref = randomUUID();
     const response = await this.predictBatch({
       model_version: status.modelVersion,
+      input_format: inputFormat,
       request_id: randomUUID(),
       items: [{ ref, features }],
     });
@@ -95,12 +108,18 @@ export class MlClientService {
           signal: AbortSignal.timeout(this.timeoutMs()),
         },
       );
+      if (response.status === 422) {
+        throw new BadRequestException(
+          'Atributos incompatíveis: confira os códigos do dataset, contagens inteiras e escalas das notas (ingresso 0–200; semestres 0–20).',
+        );
+      }
       if (!response.ok) throw new Error('Serviço de inferência indisponível');
       const body: unknown = await response.json();
       if (!this.validResponse(body, request))
         throw new Error('Resposta de inferência inválida');
       return body;
-    } catch {
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
       throw new ServiceUnavailableException('Inferência indisponível');
     }
   }
@@ -118,6 +137,8 @@ export class MlClientService {
       !request ||
       typeof request.model_version !== 'string' ||
       !request.model_version ||
+      (request.input_format !== undefined &&
+        !['preprocessed', 'original'].includes(request.input_format)) ||
       !isUUID(request.request_id) ||
       !Array.isArray(request.items) ||
       request.items.length < 1 ||

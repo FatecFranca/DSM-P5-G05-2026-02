@@ -34,6 +34,6 @@ export class MlController {
   @Header('Cache-Control', 'no-store')
   @HttpCode(HttpStatus.OK)
   preview(@Body() dto: MlPreviewDto) {
-    return this.ml.preview(dto.features);
+    return this.ml.preview(dto.features, dto.inputFormat);
   }
 }

@@ -1,7 +1,11 @@
-import { ValidateBy } from 'class-validator';
-import { ML_FEATURES, type MlFeatures } from '../ml.types';
+import { IsIn, ValidateIf, ValidateBy } from 'class-validator';
+import { ML_FEATURES, type MlFeatures, type MlInputFormat } from '../ml.types';
 
 export class MlPreviewDto {
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsIn(['preprocessed', 'original'])
+  inputFormat?: MlInputFormat;
+
   @ValidateBy({
     name: 'mlFeatures',
     validator: {

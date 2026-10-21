@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .features import FEATURES
 from .model_loader import LoadedModel, load_approved_model
+from .preprocessing import prepare_features, supports_original
 from .schemas import PredictBatchRequest, PredictBatchResponse, PredictionResult
 
 logger = logging.getLogger(__name__)
@@ -57,9 +58,10 @@ def health() -> dict[str, str]:
 
 
 @app.get("/ready")
-def ready(request: Request) -> dict[str, str]:
+def ready(request: Request) -> dict[str, object]:
     model = active_model(request)
-    return {"status": "ready", "model_version": model.metadata.version}
+    return {"status": "ready", "model_version": model.metadata.version,
+            "original_input_ready": supports_original(model.metadata.dataset_sha256)}
 
 
 @app.get("/internal/models/{version}", dependencies=[Depends(require_service_token)])
@@ -85,7 +87,11 @@ def predict_batch(payload: PredictBatchRequest, request: Request) -> PredictBatc
     if payload.model_version != model.metadata.version:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Versão do modelo incompatível")
 
-    rows = [[item.features[name] for name in FEATURES] for item in payload.items]
+    try:
+        rows = [prepare_features(item.features, payload.input_format, model.metadata.dataset_sha256)
+                for item in payload.items]
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     probabilities = model.pipeline.predict_proba(rows)
     classes = list(model.pipeline.classes_)
     results: list[PredictionResult] = []
