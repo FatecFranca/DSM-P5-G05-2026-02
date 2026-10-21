@@ -1,6 +1,5 @@
-import { Redirect } from 'expo-router';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions, type TextInputInstance } from 'react-native';
 
 import { useSession } from '@/auth/session';
 import { BrandMark, PrimaryButton, Screen, TextButton } from '@/components/primitives';
@@ -17,8 +16,11 @@ export default function LoginScreen() {
   const [senha, setSenha] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const emailRef = useRef<TextInputInstance>(null);
+  const senhaRef = useRef<TextInputInstance>(null);
 
-  if (state.status === 'signedIn') return <Redirect href="/home" />;
+  // Com a sessão aberta, o guard do layout raiz troca esta tela pela área do perfil.
+  if (state.status === 'signedIn') return null;
 
   async function submit() {
     if (!uuidPattern.test(instituicaoId.trim())) {
@@ -57,7 +59,6 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen>
         <View style={[styles.layout, width >= 760 && styles.layoutWide]}>
         <View style={styles.hero}>
@@ -98,11 +99,11 @@ export default function LoginScreen() {
             </View>
           ) : null}
           <Text style={styles.label}>ID da instituição</Text>
-          <TextInput accessibilityLabel="ID da instituição" autoCapitalize="none" autoCorrect={false} placeholder="UUID da instituição" placeholderTextColor={palette.muted} value={instituicaoId} onChangeText={setInstituicaoId} style={styles.input} />
+          <TextInput accessibilityLabel="ID da instituição" autoCapitalize="none" autoCorrect={false} placeholder="UUID da instituição" placeholderTextColor={palette.muted} value={instituicaoId} onChangeText={setInstituicaoId} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => emailRef.current?.focus()} style={styles.input} />
           <Text style={styles.label}>E-mail institucional</Text>
-          <TextInput accessibilityLabel="E-mail institucional" autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="voce@instituicao.edu" placeholderTextColor={palette.muted} value={email} onChangeText={setEmail} style={styles.input} />
+          <TextInput ref={emailRef} accessibilityLabel="E-mail institucional" autoCapitalize="none" autoCorrect={false} autoComplete="email" textContentType="emailAddress" keyboardType="email-address" returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => senhaRef.current?.focus()} placeholder="voce@instituicao.edu" placeholderTextColor={palette.muted} value={email} onChangeText={setEmail} style={styles.input} />
           <Text style={styles.label}>Senha</Text>
-          <TextInput accessibilityLabel="Senha" autoComplete="current-password" secureTextEntry placeholder="Sua senha" placeholderTextColor={palette.muted} value={senha} onChangeText={setSenha} style={styles.input} />
+          <TextInput ref={senhaRef} accessibilityLabel="Senha" autoComplete="current-password" textContentType="password" secureTextEntry returnKeyType="go" onSubmitEditing={() => void submit()} placeholder="Sua senha" placeholderTextColor={palette.muted} value={senha} onChangeText={setSenha} style={styles.input} />
           {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
           <PrimaryButton title="Entrar" onPress={() => void submit()} loading={busy} disabled={state.status === 'loading'} />
         </View>
@@ -114,12 +115,10 @@ export default function LoginScreen() {
         </View> : null}
         <Text style={styles.footer}>Seus dados acadêmicos são acessados conforme seu perfil e sua instituição.</Text>
       </Screen>
-    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   layout: { gap: 18 },
   layoutWide: { flexDirection: 'row', alignItems: 'stretch' },
   hero: { flex: 1, backgroundColor: palette.primary, borderRadius: 15, overflow: 'hidden', padding: 27, gap: 32, minHeight: 360 },
