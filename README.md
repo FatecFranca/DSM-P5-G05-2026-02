@@ -78,18 +78,17 @@ As previsões individuais de risco são destinadas apenas aos perfis autorizados
 
 ## Organização do desenvolvimento
 
-O projeto está organizado em **branches por componente**, permitindo evolução independente dos serviços. A branch `main` serve como página de apresentação do projeto.
+As branches mantidas são `main`, `back/prototype` e `mobile/prototype`.
 
-| Componente | Branch |
+| Branch | Responsabilidade |
 | --- | --- |
-| Frontend web | [`frontweb/prototype`](../../tree/frontweb/prototype) |
-| Backend / API principal | [`back/prototype`](../../tree/back/prototype) |
-| Aplicativo mobile | [`mobile/prototype`](../../tree/mobile/prototype) |
-| Machine Learning / FastAPI | [`ml/prototype`](../../tree/ml/prototype) |
-| Infraestrutura e integração | [`infra/prototype`](../../tree/infra/prototype) |
-| Documentação técnica | [`docs/prototype`](../../tree/docs/prototype) |
+| `main` | Apresentação e integração futura, preservada; sem merges automáticos |
+| `back/prototype` | API NestJS, Prisma, PostgreSQL, ML/FastAPI e infraestrutura dos serviços |
+| `mobile/prototype` | Aplicativo Expo/React Native e integração com os contratos da API |
 
-> Os links apontam para as branches planejadas e estarão disponíveis à medida que elas forem criadas no repositório remoto. O código-fonte e as instruções de execução de cada componente serão disponibilizados na respectiva branch.
+Antes de editar, confira `git branch --show-current` e trabalhe na branch do componente. Não recrie branches `infra/*` ou `ml/*`. Mudanças que atravessam componentes são feitas nas duas branches, respeitando os contratos da API. Não mover toda a integração para uma terceira branch.
+
+Para executar localmente: na branch backend, inicie os serviços Docker; na branch mobile, inicie o Expo. Os containers usam as imagens construídas no backend. Recompilar serviços exige voltar à branch backend. Alternativamente, use checkouts separados dessas mesmas branches, sem criar novas branches.
 
 ## Evolução do projeto
 

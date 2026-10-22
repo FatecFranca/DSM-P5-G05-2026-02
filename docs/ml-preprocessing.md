@@ -21,7 +21,7 @@ Os parâmetros agregados e hashes das fontes estão em `services/ml/app/preproce
 - `original`: o serviço ML aplica os parâmetros fixos antes de chamar o pipeline treinado. A transformação só fica disponível se o hash do dataset registrado no modelo corresponder ao hash verificado. `GET /ml/status` informa `originalInputReady`.
 - Os códigos de categorias devem pertencer ao conjunto suportado. As notas de ingresso usam escala 0–200; médias semestrais usam 0–20. Não converter automaticamente notas de outra instituição sem um mapeamento definido.
 - Não há ajuste das médias/desvios, exclusão de novos alunos por IQR, imputação usando a classe ou treinamento durante consultas. Dados ausentes são rejeitados.
-- Os cadastros acadêmicos ainda não contêm todos os atributos. Esta etapa oferece entrada explícita para prévia, sem vincular automaticamente previsões às matrículas.
+- As previsões por matrícula usam atributos persistidos em PerfilMl. Consulte [ML integrado às matrículas](ml-matriculas.md) para cadastro, seed e rotas operacionais.
 
 ## Limitação de avaliação preservada
 

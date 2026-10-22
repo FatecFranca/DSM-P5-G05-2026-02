@@ -133,11 +133,26 @@ model Matricula {
   presencas     Presenca[]
   notas         Nota[]
   entregas      Entrega[]
+  perfilMl      PerfilMl?
 
   @@unique([instituicaoId, id])
   @@unique([instituicaoId, turmaId, alunoId])
   @@unique([instituicaoId, registro])
   @@map("matricula")
+}
+
+model PerfilMl {
+  matriculaId   String    @id @db.Uuid
+  instituicaoId String    @db.Uuid
+  features      Json
+  fonte         String    @default("Cadastro institucional") @db.VarChar(200)
+  resultado     Json?
+  versao        Int       @default(1)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@map("perfil_ml")
 }
 
 model Lotacao {

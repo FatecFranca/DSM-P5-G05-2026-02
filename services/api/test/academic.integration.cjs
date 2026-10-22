@@ -81,6 +81,36 @@ async function main() {
   const enrol = await call('POST', '/matriculas', admin.token, { turmaId: turma.id, alunoId: student.id, registro: 'R1' }, 201);
   const peerEnrol = await call('POST', '/matriculas', admin.token, { turmaId: turma.id, alunoId: peer.id, registro: 'R2' }, 201);
   await call('GET', `/academico/resumo?turmaId=${turma.id}`, outsider.token, null, 404);
+  if (process.env.TEST_ML === 'true') {
+    const { demoProfile } = require('../dist/ml/demo-profiles');
+    const path = `/ml/matriculas/${enrol.id}`;
+    await call('GET', path, null, null, 401);
+    await call('GET', path, student.token, null, 403);
+    await call('GET', path, outsider.token, null, 404);
+    const emptyProfile = await call('GET', path, admin.token);
+    assert.equal(emptyProfile.faltantes.length, 36);
+    assert.equal((await call('POST', `${path}/analisar`, admin.token)).status, 'INSUFICIENTE');
+    await call('PUT', path, teacher.token, { versao: 0, features: demoProfile(0) }, 403);
+    await call('PUT', path, admin.token, { versao: 0, features: { genero: 2 } }, 400);
+    const saved = await call('PUT', path, admin.token, { versao: 0, features: demoProfile(0) });
+    assert.equal(saved.faltantes.length, 0);
+    const calculated = await call('POST', `${path}/analisar`, admin.token);
+    assert.equal(calculated.status, 'CALCULADO');
+    assert.equal(calculated.matriculaId, enrol.id);
+    assert.equal(calculated.resultado.perfilVersao, 1);
+    assert.ok(calculated.resultado.modelVersion);
+    assert.equal((await call('GET', path, admin.token)).resultado.calculadoEm, calculated.resultado.calculadoEm);
+    const persisted = await db.perfilMl.findUnique({ where: { matriculaId: enrol.id } });
+    assert.deepEqual(persisted.resultado.features, demoProfile(0));
+    const teacherView = await call('GET', path, teacher.token);
+    assert.equal(teacherView.features, undefined);
+    assert.equal(teacherView.resultado.features, undefined);
+    const refreshed = await call('PUT', path, admin.token, { versao: 1, features: { pib: 1 } });
+    assert.equal(refreshed.resultado, null);
+    assert.equal(refreshed.versao, 2);
+    await call('PUT', path, admin.token, { versao: 1, features: demoProfile(0) }, 409);
+    assert.equal((await call('POST', `${path}/analisar`, admin.token)).status, 'INSUFICIENTE');
+  }
   const aula = await call('POST', '/aulas', teacher.token, { disciplinaId: subject.id, data: new Date(Date.now() - 1000).toISOString(), tema: 'Aula 1' }, 201);
   await call('PUT', `/aulas/${aula.id}/frequencia`, teacher.token, { itens: [{ matriculaId: enrol.id, situacao: 'PRESENTE' }, { matriculaId: peerEnrol.id, situacao: 'FALTA' }] });
   await call('PUT', `/aulas/${aula.id}/frequencia`, teacher.token, { itens: [{ matriculaId: randomUUID(), situacao: 'PRESENTE' }] }, 400);

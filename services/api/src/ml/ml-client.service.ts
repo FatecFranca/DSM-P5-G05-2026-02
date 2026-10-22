@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { isUUID } from 'class-validator';
 import { randomUUID } from 'node:crypto';
+import { ML_CATEGORIES } from './input-categories';
 import {
   ML_CLASSES,
   ML_FEATURES,
@@ -27,6 +28,7 @@ export class MlClientService {
       classes: ML_CLASSES,
       mode: 'TECHNICAL_PREVIEW' as const,
       previewEnabled: this.config.get<string>('ML_PREVIEW_ENABLED') === 'true',
+      categories: ML_CATEGORIES,
     };
   }
 
@@ -65,6 +67,13 @@ export class MlClientService {
     if (this.config.get<string>('ML_PREVIEW_ENABLED') !== 'true') {
       throw new ForbiddenException('Prévia de ML desabilitada');
     }
+    return this.predict(features, inputFormat);
+  }
+
+  async predict(
+    features: MlFeatures,
+    inputFormat: MlInputFormat = 'original',
+  ): Promise<MlPreviewResponse> {
     const status = await this.status();
     if (!status.ready || !status.modelVersion) {
       throw new ServiceUnavailableException('Inferência indisponível');

@@ -32,7 +32,7 @@ As migrations criam a estrutura do banco. A carga de contas é separada para que
 | TUTOR | `tutor.demo@sgei.example` |
 | ALUNO | `aluno.demo@sgei.example` |
 
-Use o mesmo `DEMO_INSTITUICAO_ID` no login do mobile. Os perfis têm login funcional, mas os vínculos acadêmicos ainda não existem no esquema atual; assim, não há dados reais de turma ou estudante para acessar.
+Use o mesmo `DEMO_INSTITUICAO_ID` no login do mobile. Os vínculos acadêmicos e perfis de ML podem ser criados pela seed documentada em [ML por matrícula](../../docs/ml-matriculas.md).
 
 ## Contrato inicial
 
@@ -51,7 +51,7 @@ Use o mesmo `DEMO_INSTITUICAO_ID` no login do mobile. Os perfis têm login funci
 
 Use `Authorization: Bearer <accessToken>` nas rotas protegidas. O servidor resolve o perfil e a instituição a partir da sessão no banco; campos enviados pelo cliente não alteram o escopo. Respostas de usuários não incluem `senhaHash`.
 
-O cliente interno de ML é configurado por `ML_SERVICE_URL`, `ML_SERVICE_TOKEN` e `ML_CLIENT_TIMEOUT_MS`. Ele envia apenas o contrato de 36 atributos, usa timeout e rejeita respostas incompatíveis. A prévia exige `ML_PREVIEW_ENABLED=true` e aceita `{ "features": { ... } }` com todas as 36 colunas de entrada; use somente dados sintéticos ou de teste. Consulte `services/ml/README.md` para treino, aprovação e limites atuais. Não há endpoint de previsão de alunos até que a estrutura acadêmica, o mapeamento dos atributos e as regras de autorização estejam implementados.
+O cliente interno de ML é configurado por `ML_SERVICE_URL`, `ML_SERVICE_TOKEN` e `ML_CLIENT_TIMEOUT_MS`. Ele envia apenas o contrato de 36 atributos, usa timeout e rejeita respostas incompatíveis. A prévia exige `ML_PREVIEW_ENABLED=true` e aceita `{ "features": { ... } }` com todas as 36 colunas de entrada; use somente dados sintéticos ou de teste. Consulte `services/ml/README.md` para treino, aprovação e limites atuais. A análise persistida por matrícula está disponível em `POST /ml/matriculas/:id/analisar`; consulte [contrato e seed](../../docs/ml-matriculas.md).
 
 ## Verificação
 
