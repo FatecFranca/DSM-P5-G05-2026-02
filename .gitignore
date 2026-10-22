@@ -24,3 +24,10 @@
 Thumbs.db
 /services/api/uploads/
 /services/api/.cache/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.expo/
+**/expo-env.d.ts
+/services/ml/datasets/
+/services/ml/artifacts/
