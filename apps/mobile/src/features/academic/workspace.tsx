@@ -9,7 +9,8 @@ import type { UserSummary } from '@/services/api';
 import { Editor, type EditorConfig, type Field } from './editor';
 import { chooseFile, saveFile } from './files';
 import { AcademicFeed } from './feed';
-import { MlPreview } from './ml-preview';
+import { MlEnrollments } from './ml-enrollment';
+import { canReadMl } from '@/services/ml';
 
 const text = (key: string, label: string): Field => ({ key, label });
 const number = (key: string, label: string, initial = '10'): Field => ({ key, label, type: 'number', initial });
@@ -71,7 +72,7 @@ export default function Workspace() {
     return form ? request<AcademicFile>('/arquivos', { method: 'POST', body: form }) : null;
   }
   const download = (file: AcademicFile) => void run(async () => saveFile(file, await request<ArrayBuffer>(`/arquivos/${file.id}`, { binary: true })));
-  const visibleSections = sections.filter((s) => (!['Estrutura', 'ML'].includes(s) || role === 'ADMIN') && (s !== 'Materiais' || role !== 'TUTOR'));
+  const visibleSections = sections.filter((s) => (s !== 'Estrutura' || role === 'ADMIN') && (s !== 'ML' || canReadMl(role)) && (s !== 'Materiais' || role !== 'TUTOR'));
   const slice = <T,>(items: T[]) => items.slice(page * 20, (page + 1) * 20);
   const rows = snapshot ? section === 'Frequência' ? snapshot.aulas.length : section === 'Notas' ? snapshot.avaliacoes.length : section === 'Atividades' ? snapshot.atividades.length : section === 'Materiais' ? snapshot.materiais.length : snapshot.matriculas.length : 0;
   return <Screen>
@@ -131,7 +132,7 @@ export default function Workspace() {
         {slice(snapshot.materiais).map((m) => <Panel key={m.id}><PanelTitle>{m.titulo}</PanelTitle><BodyText>{subjectName(m.disciplinaId)} · {m.arquivo.nome}</BodyText><BodyText>{m.descricao}</BodyText><ActionButton title="Baixar material" disabled={busy} onPress={() => download(m.arquivo)} /></Panel>)}
       </>}
       {(section === 'Calendário' || section === 'Avisos') && <AcademicFeed key={`${section}:${snapshot.turmaId}`} kind={section === 'Calendário' ? 'calendario' : 'avisos'} turmaId={snapshot.turmaId} subjects={snapshot.disciplinas} />}
-      {section === 'ML' && role === 'ADMIN' && <MlPreview />}
+      {section === 'ML' && canReadMl(role) && <MlEnrollments key={snapshot.turmaId} matriculas={enrollmentOptions} />}
       {!['Estrutura', 'Calendário', 'Avisos', 'ML'].includes(section) && rows === 0 && <BodyText>Nenhum registro disponível nesta seção.</BodyText>}
       {!['Estrutura', 'Calendário', 'Avisos', 'ML'].includes(section) && rows > 20 && <View style={academicStyles.chips}><ActionButton title="Anterior" disabled={page === 0} onPress={() => setPage((p) => p - 1)} /><BodyText>Página {page + 1}</BodyText><ActionButton title="Próxima" disabled={(page + 1) * 20 >= rows} onPress={() => setPage((p) => p + 1)} /></View>}
       </>}

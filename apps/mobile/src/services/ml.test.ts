@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ML_FIELD_LABELS, ML_SYNTHETIC_EXAMPLE, parseMlFeatures, parseOriginalMlFields } from './ml.ts';
+import { canReadMl, canEditMl, parsePartialMlFields, parseMlFeatures, parseOriginalMlFields } from './ml.ts';
 
 test('formulário ML preserva zero, decimais e negativos sem preencher ausências', () => {
   assert.deepEqual(parseOriginalMlFields({ pib: '-1,2', ucs_1sem_creditadas: '0' }, ['pib', 'ucs_1sem_creditadas']), { pib: -1.2, ucs_1sem_creditadas: 0 });
@@ -17,8 +17,18 @@ test('JSON tratado preserva escala e rejeita target, campos extras e valores inv
   }
 });
 
-test('exemplo fictício fornece os 36 campos identificados, sem classe nem dados pessoais', () => {
-  const names = Object.keys(ML_FIELD_LABELS);
-  assert.equal(names.length, 36);
-  assert.deepEqual(parseMlFeatures(JSON.stringify(ML_SYNTHETIC_EXAMPLE), names), ML_SYNTHETIC_EXAMPLE);
+test('cadastro parcial omite ausências, preserva zero e valida categorias', () => {
+  const schema = { features: ['pib', 'genero'], categories: { genero: [0, 1] }, classes: [] };
+  assert.deepEqual(parsePartialMlFields({ genero: '0', pib: '' }, schema), { genero: 0 });
+  assert.throws(() => parsePartialMlFields({ genero: '3' }, schema));
+});
+
+test('interface filtra acesso ao ML sem substituir autorização do servidor', () => {
+  assert.equal(canReadMl('ALUNO'), false);
+  assert.equal(canReadMl(null), false);
+  for (const role of ['ADMIN', 'COORDENACAO', 'PROFESSOR', 'TUTOR']) assert.equal(canReadMl(role), true);
+  assert.equal(canEditMl('PROFESSOR'), false);
+  assert.equal(canEditMl('TUTOR'), false);
+  assert.equal(canEditMl('ADMIN'), true);
+  assert.equal(canEditMl('COORDENACAO'), true);
 });

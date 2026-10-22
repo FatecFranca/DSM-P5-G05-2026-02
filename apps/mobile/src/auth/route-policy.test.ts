@@ -26,7 +26,16 @@ test('professor lança notas e admin gerencia a estrutura', () => {
 test('prévia ML é enviada somente por ADMIN e nunca libera rotas de treino', () => {
   for (const role of ['ADMIN', 'PROFESSOR', 'ALUNO', 'COORDENACAO', 'TUTOR'] as const) {
     assert.equal(canSend(role, 'POST', '/ml/preview'), role === 'ADMIN');
-    assert.equal(canSend(role, 'GET', '/ml/schema'), role === 'ADMIN');
+    assert.equal(canSend(role, 'GET', '/ml/schema'), role === 'ADMIN' || role === 'COORDENACAO');
     assert.equal(canSend(role, 'POST', '/ml/treinos'), false);
+  }
+});
+
+test('análise usa a matrícula; cadastro limitado a administração e coordenação', () => {
+  for (const role of ['ADMIN', 'PROFESSOR', 'ALUNO', 'COORDENACAO', 'TUTOR'] as const) {
+    assert.equal(canSend(role, 'GET', '/ml/matriculas/abc'), role !== 'ALUNO');
+    assert.equal(canSend(role, 'POST', '/ml/matriculas/abc/analisar'), role !== 'ALUNO');
+    assert.equal(canSend(role, 'PUT', '/ml/matriculas/abc'), role === 'ADMIN' || role === 'COORDENACAO');
+    assert.equal(canSend(role, 'POST', '/ml/matriculas/abc/treinar'), false);
   }
 });

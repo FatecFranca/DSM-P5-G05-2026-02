@@ -23,13 +23,15 @@ As telas abaixo pertencem somente ao modo demonstrativo:
 - A fonte acadêmica compartilhada fica em `src/demo/academic.ts` e `src/demo/academic-store.tsx`. As alterações vivem apenas em memória até reiniciar o aplicativo. O seletor de documentos guarda somente o nome do arquivo; não há upload ou download real.
 - A média de notas do demo usa pesos ilustrativos e escala 0–10. Frequência e justificativas não inferem limite nem regra institucional. As regras definitivas virão da API.
 
-## Prévia de ML com o modelo treinado
+## ML por matrícula
 
-Entre com uma conta ADMIN real e abra a seção **ML** em `/workspace`. A tela consulta `/ml/schema` e `/ml/status`, e envia os 36 atributos para `/ml/preview` com o token da sessão. A autenticação e a autorização definitivas são feitas pela API.
+Entre com autenticação da API, selecione uma turma e abra **ML** em `/workspace`. ADMIN/COORDENACAO cadastram os atributos; PROFESSOR/TUTOR consultam somente alunos vinculados. O aluno não visualiza risco.
 
-**Valores originais** oferece um formulário com as escalas esperadas e um exemplo explicitamente fictício. O servidor aplica as médias/desvios recuperados do notebook, fixos e compatíveis com o CSV do modelo. **Valores pré-processados** aceita um objeto JSON sem `classe` e não repete essa transformação. Campos ausentes não recebem valores inventados.
+Selecione uma matrícula e use **Calcular previsão**. O backend obtém os atributos do PostgreSQL, aplica a normalização do notebook, executa o modelo e salva a previsão vinculada à matrícula. A tela mostra P(Dropout), as três classes, versão e data. Não envia exemplos fixos nem um vetor de atributos na solicitação de análise.
 
-O resultado apresenta as três probabilidades e a versão do modelo. O candidato permanece uma prévia técnica; a previsão não é associada automaticamente às matrículas nem usada para treino. Notas do demo em escala 0–10 não são enviadas automaticamente ao modelo que espera médias semestrais 0–20. O contrato completo está em `docs/ml-preprocessing.md` na branch backend ou de integração.
+Se faltarem dados, use **Cadastrar / editar dados do aluno**. Campos vazios permanecem ausentes. Salvar uma alteração invalida o resultado anterior; calcule novamente. A seed da branch backend cria dois alunos completos com notas e vínculos para validar o fluxo integrado. Os dados criados são demonstrativos; os resultados vêm do modelo real.
+
+Consulte [contrato e seed](../../docs/ml-matriculas.md). Desenvolva somente em `mobile/prototype`; API/Prisma/ML/infraestrutura ficam em `back/prototype`, mantendo `main` preservada.
 
 ## Verificações do aplicativo
 
@@ -39,4 +41,4 @@ O resultado apresenta as três probabilidades e a versão do modelo. O candidato
 
 Consulte `../../docs/academic-api.md` para rotas, permissões, regras e pendências. Na web, adicione `http://localhost:8081` às origens permitidas da API. O refresh token web fica somente em memória, portanto recarregar a página exige novo login. As rotas protegidas não montam as telas acadêmicas sem sessão e não exibem dados demonstrativos em uma sessão real.
 
-Calendário e Avisos da área real consultam a API, com filtros por disciplina e paginação. O calendário mostra aulas, avaliações e prazos; os avisos mostram publicações e correções autorizadas. Histórico de notificações, marcação de leitura/push, eventos institucionais independentes e análises ML individuais ainda não integram a área real. Testes em dispositivo físico continuam necessários para arquivos e ciclo de vida nativo.
+Calendário e Avisos da área real consultam a API, com filtros por disciplina e paginação. O calendário mostra aulas, avaliações e prazos; os avisos mostram publicações e correções autorizadas. Histórico de notificações, marcação de leitura/push, eventos institucionais independentes ainda não integram a área real. Testes em dispositivo físico continuam necessários para arquivos e ciclo de vida nativo.

@@ -110,7 +110,7 @@ export default function LoginScreen() {
         </View>
         {__DEV__ ? <View style={styles.demoCard}>
           <Text style={styles.demoTitle}>Explorar a demonstração</Text>
-          <Text style={styles.formDescription}>Perfis locais fictícios. Nenhum dado é enviado à API ou salvo no banco.</Text>
+          <Text style={styles.formDescription}>Exploração visual sem conexão. Para consultar alunos do banco e calcular previsões de ML, use o formulário de login acima.</Text>
           <View style={styles.demoActions}>{(['ADMIN', 'PROFESSOR', 'ALUNO'] as const).map((role) => <Pressable key={role} accessibilityRole="button" disabled={busy || state.status === 'loading'} onPress={() => void enterDemo(role)} style={styles.demoButton}><Text style={styles.demoButtonText}>{role === 'ADMIN' ? 'Admin' : role === 'PROFESSOR' ? 'Professor' : 'Aluno'}</Text></Pressable>)}</View>
         </View> : null}
         <Text style={styles.footer}>Seus dados acadêmicos são acessados conforme seu perfil e sua instituição.</Text>
