@@ -25,6 +25,13 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('instituicoes')
+  instituicoes() {
+    return this.auth.listInstituicoes();
+  }
+
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')

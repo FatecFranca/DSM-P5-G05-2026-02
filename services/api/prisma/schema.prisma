@@ -25,6 +25,7 @@ enum Perfil {
 model Instituicao {
   id         String      @id @default(uuid()) @db.Uuid
   nome       String      @db.VarChar(160)
+  codigoCps  String?     @unique @map("codigo_cps") @db.VarChar(3)
   ativa      Boolean     @default(true)
   criadaEm   DateTime    @default(now()) @map("criada_em")
   usuarios   Usuario[]

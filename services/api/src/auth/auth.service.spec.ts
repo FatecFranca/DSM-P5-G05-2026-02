@@ -12,6 +12,7 @@ describe('AuthService', () => {
   const userId = randomUUID();
   const sessionId = randomUUID();
   const findUnique = jest.fn();
+  const institutionFindMany = jest.fn();
   const sessionFindUnique = jest.fn();
   const sessionCreate = jest.fn().mockResolvedValue({ id: sessionId });
   const sessionUpdateMany = jest.fn();
@@ -32,6 +33,7 @@ describe('AuthService', () => {
       }),
   );
   const prisma = {
+    instituicao: { findMany: institutionFindMany },
     usuario: { findUnique },
     sessao: { findUnique: sessionFindUnique },
     $transaction: transaction,
@@ -42,6 +44,20 @@ describe('AuthService', () => {
   const service = new AuthService(prisma, new JwtService(), config);
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('lista somente instituições ativas com nome e identificador', async () => {
+    institutionFindMany.mockResolvedValue([
+      { id: institutionId, nome: 'Fatec São Paulo' },
+    ]);
+    await expect(service.listInstituicoes()).resolves.toEqual([
+      { id: institutionId, nome: 'Fatec São Paulo' },
+    ]);
+    expect(institutionFindMany).toHaveBeenCalledWith({
+      where: { ativa: true },
+      select: { id: true, nome: true },
+      orderBy: { nome: 'asc' },
+    });
+  });
 
   it('persiste somente o hash do refresh token', async () => {
     const senha = 'senha-segura-de-teste';

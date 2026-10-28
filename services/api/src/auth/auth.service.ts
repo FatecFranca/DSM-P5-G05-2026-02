@@ -25,6 +25,14 @@ export class AuthService {
     return { status: 'ok' };
   }
 
+  listInstituicoes() {
+    return this.prisma.instituicao.findMany({
+      where: { ativa: true },
+      select: { id: true, nome: true },
+      orderBy: { nome: 'asc' },
+    });
+  }
+
   async login(dto: LoginDto) {
     const user = await this.prisma.usuario.findUnique({
       where: {

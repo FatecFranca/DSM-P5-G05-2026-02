@@ -11,6 +11,7 @@
 
 - O primeiro incremento implementa o início do marco 1 da seção 15 de `CONTEXT.md`: infraestrutura local, schema de instituição/usuário/sessão/auditoria e autenticação. Os módulos acadêmicos seguem nos marcos seguintes.
 - A API usa NestJS 11 e Prisma 7. O Prisma 8 ainda é release candidate na data desta decisão; o Prisma 7 tem suporte ativo e permite fixar dependências estáveis para a base do sistema.
-- O login recebe `instituicaoId` porque o e-mail é único por instituição e ainda não existe sessão. Nas demais rotas, a instituição é derivada da sessão autenticada.
+- Antes do login, `GET /auth/instituicoes` lista somente `id` e `nome` das instituições ativas. O app permite buscar pelo nome e envia o `instituicaoId` selecionado em `POST /auth/login`, pois o e-mail é único por instituição. Nas demais rotas, a instituição é derivada da sessão autenticada.
+- A migração `20261028010000_fatec_directory` cadastra 84 Fatecs em atividade conforme o [diretório oficial do CPS](https://dados.cps.sp.gov.br/onde-estudar-fatecs/), atualizado em 23/10/2026. As unidades anunciadas para 2027 não entram até o início das atividades. Cada unidade recebe o código CPS público para permitir atualização sem alterar seu UUID interno.
 - Access tokens duram 15 minutos e carregam somente IDs de usuário e sessão. A autorização lê o perfil atual do banco. Refresh tokens aleatórios duram 7 dias, têm apenas hash SHA-256 persistido e são rotacionados em transação. A revogação da sessão invalida imediatamente o access token correspondente.
 - A criação do primeiro administrador ocorre por comando operacional com variáveis de ambiente, sem rota pública de cadastro institucional.
