@@ -1,17 +1,35 @@
-import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions, type TextInputInstance } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions, type TextInputInstance } from 'react-native';
 
 import { useSession } from '@/auth/session';
+import { filterInstituicoes } from '@/auth/instituicoes';
 import { BrandMark, PrimaryButton, Screen, TextButton } from '@/components/primitives';
 import { palette } from '@/constants/design';
-import { ApiError } from '@/services/api';
+import { ApiError, type InstituicaoOption } from '@/services/api';
+import { api } from '@/services/api-config';
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const INSTITUICAO_KEY = 'sgei.instituicaoId';
+
+async function readSavedInstituicao() {
+  return Platform.OS === 'web' ? window.localStorage.getItem(INSTITUICAO_KEY) : SecureStore.getItemAsync(INSTITUICAO_KEY);
+}
+
+async function saveInstituicao(id: string) {
+  if (Platform.OS === 'web') window.localStorage.setItem(INSTITUICAO_KEY, id);
+  else await SecureStore.setItemAsync(INSTITUICAO_KEY, id);
+}
 
 export default function LoginScreen() {
   const { width } = useWindowDimensions();
   const { state, signIn, demoSignIn, retryRestore } = useSession();
   const [instituicaoId, setInstituicaoId] = useState('');
+  const [instituicaoQuery, setInstituicaoQuery] = useState('');
+  const [instituicoes, setInstituicoes] = useState<InstituicaoOption[]>([]);
+  const [showInstituicoes, setShowInstituicoes] = useState(false);
+  const [instituicoesLoading, setInstituicoesLoading] = useState(true);
+  const [instituicoesError, setInstituicoesError] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [error, setError] = useState('');
@@ -19,12 +37,35 @@ export default function LoginScreen() {
   const emailRef = useRef<TextInputInstance>(null);
   const senhaRef = useRef<TextInputInstance>(null);
 
+  useEffect(() => {
+    let mounted = true;
+    void Promise.all([api.listInstituicoes(), readSavedInstituicao().catch(() => null)])
+      .then(([options, savedId]) => {
+        if (!mounted) return;
+        setInstituicoes(options);
+        const saved = options.find(({ id }) => id === savedId);
+        if (saved) {
+          setInstituicaoId(saved.id);
+          setInstituicaoQuery(saved.nome);
+        }
+      })
+      .catch(() => {
+        if (mounted) setInstituicoesError('Não foi possível carregar as instituições.');
+      })
+      .finally(() => {
+        if (mounted) setInstituicoesLoading(false);
+      });
+    return () => { mounted = false; };
+  }, [loadAttempt]);
+
+  const matches = filterInstituicoes(instituicoes, instituicaoQuery);
+
   // Com a sessão aberta, o guard do layout raiz troca esta tela pela área do perfil.
   if (state.status === 'signedIn') return null;
 
   async function submit() {
-    if (!uuidPattern.test(instituicaoId.trim())) {
-      setError('Informe o ID da instituição no formato UUID.');
+    if (!instituicaoId) {
+      setError('Selecione sua instituição na lista.');
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
@@ -39,6 +80,7 @@ export default function LoginScreen() {
     setBusy(true);
     try {
       await signIn(instituicaoId, email, senha);
+      void saveInstituicao(instituicaoId).catch(() => undefined);
     } catch (cause: unknown) {
       setError(cause instanceof ApiError ? cause.message : 'Não foi possível entrar. Tente novamente.');
     } finally {
@@ -98,14 +140,26 @@ export default function LoginScreen() {
               <TextButton title="Tentar novamente" onPress={() => void retryRestore()} />
             </View>
           ) : null}
-          <Text style={styles.label}>ID da instituição</Text>
-          <TextInput accessibilityLabel="ID da instituição" autoCapitalize="none" autoCorrect={false} placeholder="UUID da instituição" placeholderTextColor={palette.muted} value={instituicaoId} onChangeText={setInstituicaoId} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => emailRef.current?.focus()} style={styles.input} />
+          <Text style={styles.label}>Instituição</Text>
+          <TextInput accessibilityLabel="Pesquisar instituição" autoCapitalize="none" autoCorrect={false} placeholder={instituicoesLoading ? 'Carregando instituições...' : 'Digite o nome da Fatec'} placeholderTextColor={palette.muted} editable={!instituicoesLoading && !instituicoesError} value={instituicaoQuery} onFocus={() => setShowInstituicoes(true)} onChangeText={(value) => { setInstituicaoQuery(value); setInstituicaoId(''); setError(''); setShowInstituicoes(true); }} style={styles.input} />
+          {instituicoesError ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.noticeText}>{instituicoesError}</Text><TextButton title="Tentar novamente" onPress={() => { setInstituicoesLoading(true); setInstituicoesError(''); setLoadAttempt((attempt) => attempt + 1); }} /></View> : null}
+          {showInstituicoes && !instituicoesLoading && !instituicoesError ? (
+            <View style={styles.instituicoesList}>
+              {matches.length ? matches.map((option) => (
+                <Pressable key={option.id} accessibilityRole="button" accessibilityLabel={`Selecionar ${option.nome}`} onPress={() => { setInstituicaoId(option.id); setInstituicaoQuery(option.nome); setError(''); setShowInstituicoes(false); emailRef.current?.focus(); }} style={styles.instituicaoOption}>
+                  <Text style={styles.instituicaoOptionText}>{option.nome}</Text>
+                </Pressable>
+              )) : <Text style={styles.instituicoesHint}>Nenhuma instituição encontrada.</Text>}
+              {matches.length === 8 ? <Text style={styles.instituicoesHint}>Digite mais letras para refinar a busca.</Text> : null}
+            </View>
+          ) : null}
+          {instituicaoId && !showInstituicoes ? <View style={styles.selectedInstitutionRow}><Text style={styles.selectedInstitution}>Instituição selecionada</Text><TextButton title="Trocar instituição" onPress={() => { setInstituicaoId(''); setInstituicaoQuery(''); setShowInstituicoes(true); }} /></View> : null}
           <Text style={styles.label}>E-mail institucional</Text>
           <TextInput ref={emailRef} accessibilityLabel="E-mail institucional" autoCapitalize="none" autoCorrect={false} autoComplete="email" textContentType="emailAddress" keyboardType="email-address" returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => senhaRef.current?.focus()} placeholder="voce@instituicao.edu" placeholderTextColor={palette.muted} value={email} onChangeText={setEmail} style={styles.input} />
           <Text style={styles.label}>Senha</Text>
           <TextInput ref={senhaRef} accessibilityLabel="Senha" autoComplete="current-password" textContentType="password" secureTextEntry returnKeyType="go" onSubmitEditing={() => void submit()} placeholder="Sua senha" placeholderTextColor={palette.muted} value={senha} onChangeText={setSenha} style={styles.input} />
           {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-          <PrimaryButton title="Entrar" onPress={() => void submit()} loading={busy} disabled={state.status === 'loading'} />
+          <PrimaryButton title="Entrar" onPress={() => void submit()} loading={busy} disabled={state.status === 'loading' || instituicoesLoading || !!instituicoesError} />
         </View>
         </View>
         {__DEV__ ? <View style={styles.demoCard}>
@@ -142,6 +196,12 @@ const styles = StyleSheet.create({
   formDescription: { color: palette.muted, fontSize: 14, marginBottom: 8 },
   label: { color: palette.ink, fontSize: 13, fontWeight: '700', marginTop: 4 },
   input: { minHeight: 52, borderWidth: 1, borderColor: palette.line, borderRadius: 9, backgroundColor: palette.surface, color: palette.ink, paddingHorizontal: 15, fontSize: 15 },
+  instituicoesList: { borderWidth: 1, borderColor: palette.line, borderRadius: 9, overflow: 'hidden' },
+  instituicaoOption: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: palette.line },
+  instituicaoOptionText: { color: palette.ink, fontSize: 14 },
+  instituicoesHint: { color: palette.muted, fontSize: 12, padding: 12 },
+  selectedInstitution: { color: palette.primary, fontSize: 12 },
+  selectedInstitutionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' },
   error: { color: palette.danger, fontSize: 13, lineHeight: 18, marginVertical: 4 },
   notice: { backgroundColor: palette.goldSoft, borderRadius: 14, padding: 12 },
   noticeText: { color: palette.ink, fontSize: 13 },

@@ -53,6 +53,19 @@ test('login envia o contrato esperado pelo Nest', async () => {
   assert.equal((receivedOptions?.headers as Record<string, string>)?.Authorization, undefined);
 });
 
+test('lista instituições sem autenticação para a escolha no login', async () => {
+  let receivedUrl = '';
+  let authorization: string | undefined;
+  const client = new ApiClient('http://localhost:3000', async (url, options) => {
+    receivedUrl = String(url);
+    authorization = (options?.headers as Record<string, string>).Authorization;
+    return Response.json([{ id: 'id-interno', nome: 'Fatec São Paulo' }]);
+  });
+  assert.deepEqual(await client.listInstituicoes(), [{ id: 'id-interno', nome: 'Fatec São Paulo' }]);
+  assert.equal(receivedUrl, 'http://localhost:3000/auth/instituicoes');
+  assert.equal(authorization, undefined);
+});
+
 test('requisição protegida envia Bearer e preserva 401', async () => {
   let authorization = '';
   const transport: typeof fetch = async (_url, options) => {

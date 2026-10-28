@@ -17,6 +17,11 @@ export interface UserSummary {
   criadoEm: string;
 }
 
+export interface InstituicaoOption {
+  id: string;
+  nome: string;
+}
+
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
@@ -112,6 +117,10 @@ export class ApiClient {
 
   health() {
     return this.request<{ status: 'ok' }>('/auth/health');
+  }
+
+  listInstituicoes() {
+    return this.request<InstituicaoOption[]>('/auth/instituicoes');
   }
 
   login(instituicaoId: string, email: string, senha: string) {
