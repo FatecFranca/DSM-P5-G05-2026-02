@@ -48,8 +48,8 @@ export default function ProfileScreen() {
         <Field label="Perfil de acesso" value={roleLabel[user.perfil]} />
       </View>
       {user.perfil === 'ADMIN' && state.mode === 'api' ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="Usuários da instituição" onPress={() => router.push('/users')} style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
-          <View style={styles.linkText}><Text style={styles.linkTitle}>Usuários da instituição</Text><Text style={styles.linkCaption}>Consultar contas cadastradas</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Pessoas das Fatecs" onPress={() => router.push('/connected/people')} style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
+          <View style={styles.linkText}><Text style={styles.linkTitle}>Pessoas das Fatecs</Text><Text style={styles.linkCaption}>Consultar contas cadastradas</Text></View>
           <Text style={styles.linkArrow}>→</Text>
         </Pressable>
       ) : null}

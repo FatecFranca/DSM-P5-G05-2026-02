@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Redirect } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen } from '@/components/primitives';
 import { AcademicHeader, ActionButton, BodyText, Chip, Feedback, Panel, PanelTitle, academicStyles, formatAcademicNumber } from '@/demo/academic-ui';
 import type { AcademicFile, AcademicSnapshot, AttendanceStatus } from '@/services/academic';
-import type { UserSummary } from '@/services/api';
+import type { InstituicaoOption, UserSummary } from '@/services/api';
+import { api } from '@/services/api-config';
+import { roleLabel } from '@/constants/design';
 import { Editor, type EditorConfig, type Field } from './editor';
 import { chooseFile, saveFile } from './files';
 import { AcademicFeed } from './feed';
@@ -20,11 +22,14 @@ const sections = ['Resumo', 'Estrutura', 'Frequência', 'Notas', 'Atividades', '
 type Section = typeof sections[number];
 
 export default function Workspace() {
+  const { turmaId, instituicaoId, secao } = useLocalSearchParams<{ turmaId?: string; instituicaoId?: string; secao?: string }>();
   const { state, request } = useSession();
   const [snapshot, setSnapshot] = useState<AcademicSnapshot | null>(null);
   const [users, setUsers] = useState<UserSummary[]>([]);
-  const [selected, setSelected] = useState<string>();
-  const [section, setSection] = useState<Section>('Resumo');
+  const [instituicoes, setInstituicoes] = useState<InstituicaoOption[]>([]);
+  const [selectedInstitution, setSelectedInstitution] = useState<string | undefined>(instituicaoId);
+  const [selected, setSelected] = useState<string | undefined>(turmaId);
+  const [section, setSection] = useState<Section>(sections.find((item) => item === secao) ?? 'Resumo');
   const [page, setPage] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -40,14 +45,22 @@ export default function Workspace() {
     setBusy(true); setError('');
     setNow(Date.now());
     try {
+      const options = role === 'ADMIN' ? await api.listInstituicoes() : [];
+      const institutionId = selectedInstitution ?? options.find((item) => item.codigoCps === '109')?.id;
+      if (seq !== sequence.current) return;
+      setInstituicoes(options);
+      if (institutionId && !selectedInstitution) setSelectedInstitution(institutionId);
+      const parameters = new URLSearchParams();
+      if (selected) parameters.set('turmaId', selected);
+      if (institutionId) parameters.set('instituicaoId', institutionId);
       const [data, people] = await Promise.all([
-        request<AcademicSnapshot>(`/academico/resumo${selected ? `?turmaId=${encodeURIComponent(selected)}` : ''}`),
-        role === 'ADMIN' ? request<UserSummary[]>('/usuarios') : Promise.resolve([]),
+        request<AcademicSnapshot>(`/academico/resumo${parameters.size ? `?${parameters}` : ''}`),
+        role === 'ADMIN' ? request<UserSummary[]>(`/usuarios${institutionId ? `?instituicaoId=${encodeURIComponent(institutionId)}` : ''}`) : Promise.resolve([]),
       ]);
       if (seq === sequence.current) { setSnapshot(data); setUsers(people); }
     } catch (cause) { if (seq === sequence.current) { setSnapshot(null); setError(cause instanceof Error ? cause.message : 'Falha ao carregar.'); } }
     finally { if (seq === sequence.current) setBusy(false); }
-  }, [real, request, role, selected]);
+  }, [real, request, role, selected, selectedInstitution]);
   useEffect(() => { let active = true; void Promise.resolve().then(() => { if (active) return load(); }); return () => { active = false; sequence.current += 1; }; }, [load]);
   if (!real) return <Redirect href="/home" />;
   const turma = snapshot?.turmas.find((t) => t.id === snapshot.turmaId);
@@ -76,7 +89,8 @@ export default function Workspace() {
   const slice = <T,>(items: T[]) => items.slice(page * 20, (page + 1) * 20);
   const rows = snapshot ? section === 'Frequência' ? snapshot.aulas.length : section === 'Notas' ? snapshot.avaliacoes.length : section === 'Atividades' ? snapshot.atividades.length : section === 'Materiais' ? snapshot.materiais.length : snapshot.matriculas.length : 0;
   return <Screen>
-    <AcademicHeader title="Área acadêmica" subtitle={`${role} · ${turma ? `${turma.nome} / ${turma.periodo}` : 'Selecione ou cadastre uma turma'}`} />
+    <AcademicHeader title="Área acadêmica" subtitle={`${roleLabel[role ?? ''] ?? ''} · ${turma ? `${turma.nome} / ${turma.periodo}` : 'Selecione ou cadastre uma turma'}`} />
+    {role === 'ADMIN' && <View style={academicStyles.chips}>{instituicoes.map((item) => <Chip key={item.id} label={item.nome} selected={selectedInstitution === item.id} onPress={() => { setSelectedInstitution(item.id); setSelected(undefined); setSnapshot(null); setEditor(null); }} />)}</View>}
     <View style={academicStyles.chips}>{visibleSections.map((s) => <Chip key={s} label={s} selected={section === s} onPress={() => { setSection(s); setPage(0); setEditor(null); }} />)}</View>
     <ActionButton title={busy ? 'Carregando…' : 'Atualizar'} disabled={busy} secondary onPress={() => void load()} />
     {!!error && <Feedback error message={error} />}{!!notice && <Feedback message={notice} />}
@@ -86,8 +100,8 @@ export default function Workspace() {
       {turma?.fechada && <BodyText>Período fechado para alterações acadêmicas.</BodyText>}
       {editor ? <Editor key={editor.title} config={editor} close={() => setEditor(null)} /> : <>
       {section === 'Estrutura' && <Panel><PanelTitle>Administração</PanelTitle>
-        <ActionButton title="Criar turma" onPress={() => open('Criar turma', [text('nome', 'Nome'), text('curso', 'Curso'), text('periodo', 'Período')], '/turmas', (v) => v)} />
-        <ActionButton title="Criar usuário" onPress={() => open('Criar usuário', [text('nome', 'Nome'), text('email', 'E-mail'), { key: 'senha', label: 'Senha (mínimo 12 caracteres)', type: 'password' }, { key: 'perfil', label: 'Perfil', options: ['ADMIN', 'COORDENACAO', 'PROFESSOR', 'TUTOR', 'ALUNO'].map((p) => ({ id: p, label: p })) }], '/usuarios', (v) => v)} />
+        <ActionButton title="Criar turma" onPress={() => open('Criar turma', [text('nome', 'Nome'), text('curso', 'Curso'), text('periodo', 'Período')], '/turmas', (v) => ({ ...v, instituicaoId: selectedInstitution }))} />
+        <ActionButton title="Criar usuário" onPress={() => open('Criar usuário', [text('nome', 'Nome'), text('email', 'E-mail'), { key: 'senha', label: 'Senha (mínimo 12 caracteres)', type: 'password' }, { key: 'perfil', label: 'Perfil', options: ['ADMIN', 'COORDENACAO', 'PROFESSOR', 'TUTOR', 'ALUNO'].map((p) => ({ id: p, label: roleLabel[p] })) }], '/usuarios', (v) => ({ ...v, instituicaoId: selectedInstitution }))} />
         {!!turma && <>
           <ActionButton disabled={turma.fechada} title="Adicionar disciplina" onPress={() => open('Adicionar disciplina', [text('nome', 'Nome')], '/disciplinas', (v) => ({ ...v, turmaId: turma.id }))} />
           <ActionButton disabled={turma.fechada} title="Matricular aluno" onPress={() => open('Matricular aluno', [person('ALUNO', 'alunoId'), text('registro', 'Registro da matrícula')], '/matriculas', (v) => ({ ...v, turmaId: turma.id }))} />

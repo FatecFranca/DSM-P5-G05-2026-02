@@ -15,11 +15,19 @@ export interface UserSummary {
   perfil: Perfil;
   ativo: boolean;
   criadoEm: string;
+  instituicao?: { nome: string; codigoCps: string | null };
+}
+
+export interface UserDetail extends UserSummary {
+  matriculas: { id: string; registro: string; turma: { id: string; nome: string; curso: string; periodo: string } }[];
+  lotacoes?: { disciplina: { nome: string; turma: { nome: string } } }[];
+  tutorias?: { matricula: { registro: string; aluno: { nome: string } } }[];
 }
 
 export interface InstituicaoOption {
   id: string;
   nome: string;
+  codigoCps?: string | null;
 }
 
 export interface TokenResponse {

@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { canSend } from './route-policy.ts';
 
-test('aluno só envia arquivos e a própria entrega; bloqueia notas e administração', () => {
+test('aluno consulta somente sua pessoa e envia autodeclaração; bloqueia notas e administração', () => {
   assert.equal(canSend('ALUNO', 'PUT', '/atividades/abc/entrega'), true);
   assert.equal(canSend('ALUNO', 'PUT', '/avaliacoes/abc/notas'), false);
-  assert.equal(canSend('ALUNO', 'GET', '/usuarios'), false);
+  assert.equal(canSend('ALUNO', 'GET', '/usuarios'), true);
+  assert.equal(canSend('ALUNO', 'GET', '/ml/matriculas/abc/autodeclaracao'), true);
+  assert.equal(canSend('ALUNO', 'PUT', '/ml/matriculas/abc/autodeclaracao'), true);
+  assert.equal(canSend('PROFESSOR', 'PUT', '/ml/matriculas/abc/autodeclaracao'), false);
   assert.equal(canSend('ALUNO', 'POST', '/ml/preview'), false);
 });
 test('coordenação e tutor consultam sem liberar mutações', () => {

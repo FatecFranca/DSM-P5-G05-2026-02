@@ -40,6 +40,7 @@ function Navigation() {
     <Stack.Protected guard={signedIn} redirectTo="/home"><Stack.Screen name="profile" /></Stack.Protected>
     <Stack.Protected guard={signedIn && !demo} redirectTo="/home"><Stack.Screen name="workspace" /></Stack.Protected>
     <Stack.Protected guard={signedIn && !demo && state.user.perfil === 'ADMIN'} redirectTo="/home"><Stack.Screen name="users" /></Stack.Protected>
+    <Stack.Protected guard={signedIn && !demo} redirectTo="/home"><Stack.Screen name="connected" /><Stack.Screen name="person/[id]" /></Stack.Protected>
     <Stack.Protected guard={demo} redirectTo="/home">
       <Stack.Screen name="(tabs)" /><Stack.Screen name="professor" /><Stack.Screen name="student" />
       <Stack.Screen name="students/[id]" /><Stack.Screen name="classes/[id]" />

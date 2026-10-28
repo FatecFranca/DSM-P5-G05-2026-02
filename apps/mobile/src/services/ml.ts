@@ -12,6 +12,7 @@ export interface EnrollmentMl {
   faltantes: string[];
   versao: number;
   status?: 'CALCULADO' | 'INSUFICIENTE';
+  impedimentos?: string[];
   resultado: (MlPrediction & { calculadoEm: string; perfilVersao: number }) | null;
 }
 

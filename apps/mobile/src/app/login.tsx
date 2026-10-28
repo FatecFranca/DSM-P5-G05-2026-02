@@ -47,6 +47,12 @@ export default function LoginScreen() {
         if (saved) {
           setInstituicaoId(saved.id);
           setInstituicaoQuery(saved.nome);
+        } else {
+          const principal = options.find(({ codigoCps }) => codigoCps === '109');
+          if (principal) {
+            setInstituicaoId(principal.id);
+            setInstituicaoQuery(principal.nome);
+          }
         }
       })
       .catch(() => {

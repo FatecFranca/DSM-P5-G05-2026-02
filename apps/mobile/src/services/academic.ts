@@ -2,7 +2,7 @@ export interface AcademicFile { id: string; nome: string; mime: string; tamanho:
 export type AttendanceStatus = 'PRESENTE' | 'FALTA' | 'FALTA_JUSTIFICADA';
 export interface AcademicSnapshot {
   turmaId: string | null;
-  turmas: { id: string; nome: string; curso: string; periodo: string; fechada: boolean }[];
+  turmas: { id: string; instituicaoId: string; nome: string; curso: string; periodo: string; fechada: boolean }[];
   disciplinas: { id: string; turmaId: string; nome: string }[];
   matriculas: { id: string; alunoId: string; registro: string; aluno: { nome: string } }[];
   aulas: { id: string; disciplinaId: string; data: string; tema: string }[];
