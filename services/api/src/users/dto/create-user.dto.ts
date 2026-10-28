@@ -2,12 +2,17 @@ import {
   IsEmail,
   IsEnum,
   IsString,
+  IsOptional,
+  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
 import { Perfil } from '../../generated/prisma/enums';
 
 export class CreateUserDto {
+  @IsOptional()
+  @IsUUID()
+  instituicaoId?: string;
   @IsEmail()
   @MaxLength(254)
   email!: string;

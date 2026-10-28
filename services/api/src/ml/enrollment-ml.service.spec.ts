@@ -1,6 +1,7 @@
 import {
   ConflictException,
   ForbiddenException,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { EnrollmentMlService } from './enrollment-ml.service';
@@ -8,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MlClientService } from './ml-client.service';
 import { demoProfile } from './demo-profiles';
 import type { AuthUser } from '../auth/auth-user';
+import { TurnoDeclarado } from './dto/self-report.dto';
 
 describe('ML por matrícula', () => {
   const actor: AuthUser = {
@@ -18,20 +20,29 @@ describe('ML por matrícula', () => {
   };
   function setup(features: Record<string, number> = demoProfile(0)) {
     const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const upsert = jest.fn().mockResolvedValue({});
     const create = jest.fn();
     const db = {
       matricula: {
         findFirst: jest.fn().mockResolvedValue({
+          instituicaoId: 'tenant',
           aluno: { nome: 'Aluno' },
           registro: 'R1',
           perfilMl: { features, versao: 1, resultado: null },
         }) as unknown,
       },
       $transaction: jest.fn((fn: (tx: unknown) => unknown) =>
-        fn({ perfilMl: { updateMany }, auditoria: { create } }),
+        fn({
+          matricula: {
+            findFirst: jest.fn().mockResolvedValue({ perfilMl: { features } }),
+          },
+          perfilMl: { updateMany, upsert },
+          auditoria: { create },
+        }),
       ),
     };
     const ml = {
+      fatecEligibility: jest.fn().mockReturnValue({ valid: true, reason: '' }),
       predict: jest.fn().mockResolvedValue({
         modelVersion: 'v1',
         predictedClass: 'Graduate',
@@ -46,6 +57,7 @@ describe('ML por matrícula', () => {
       db,
       ml,
       updateMany,
+      upsert,
       create,
     };
   }
@@ -55,6 +67,42 @@ describe('ML por matrícula', () => {
     expect(response.status).toBe('INSUFICIENTE');
     expect(response.faltantes).toHaveLength(35);
     expect(ml.predict).not.toHaveBeenCalled();
+  });
+  it('não gera previsão operacional sem validação para Fatecs', async () => {
+    const { service, ml, updateMany } = setup();
+    ml.fatecEligibility.mockReturnValue({
+      valid: false,
+      reason: 'Validação local ausente',
+    });
+    const result = await service.analyze(actor, 'matricula');
+    expect(result.status).toBe('INSUFICIENTE');
+    expect(result.impedimentos).toContain('Validação local ausente');
+    expect(ml.predict).not.toHaveBeenCalled();
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+  it('converte respostas do aluno no servidor sem revelar códigos nem risco', async () => {
+    const { service, upsert } = setup({});
+    const student = { ...actor, perfil: 'ALUNO' as const };
+    const response = await service.saveSelfReport(student, 'matricula', {
+      idadeNoIngresso: 22,
+      turno: TurnoDeclarado.NOTURNO,
+    });
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          features: { idade_matricula: 22, periodo_aula: 0 },
+        }) as unknown,
+      }),
+    );
+    expect(response).not.toHaveProperty('features');
+    expect(response).not.toHaveProperty('resultado');
+  });
+  it('nega autodeclaração de matrícula alheia', async () => {
+    const { service, db } = setup({});
+    (db.matricula.findFirst as jest.Mock).mockResolvedValue(null);
+    await expect(
+      service.getSelfReport({ ...actor, perfil: 'ALUNO' }, 'outra'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
   it('consulta dados persistidos e grava snapshot, versão e probabilidades', async () => {
     const { service, ml, updateMany } = setup();
@@ -73,6 +121,45 @@ describe('ML por matrícula', () => {
       }),
     );
     expect(result.resultado).not.toHaveProperty('features');
+  });
+  it('permite ao administrador consultar e analisar matrícula de outra Fatec autorizada', async () => {
+    const { service, db, updateMany, create } = setup();
+    (db.matricula.findFirst as jest.Mock).mockResolvedValue({
+      instituicaoId: 'franca',
+      aluno: { nome: 'Aluna de Franca' },
+      registro: 'F1',
+      perfilMl: { features: demoProfile(0), versao: 1, resultado: null },
+    });
+    const result = await service.analyze(actor, 'matricula-franca');
+    expect(result.status).toBe('CALCULADO');
+    expect(result).not.toHaveProperty('instituicaoId');
+    expect(db.matricula.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 'matricula-franca',
+          turma: {
+            instituicao: {
+              ativa: true,
+              codigoCps: { in: ['109', '002', '276', '284'] },
+            },
+          },
+        },
+      }),
+    );
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          matriculaId: 'matricula-franca',
+          instituicaoId: 'franca',
+          versao: 1,
+        },
+      }),
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ instituicaoId: 'franca' }) as unknown,
+      }),
+    );
   });
   it('recusa gravação se o perfil mudou durante a inferência', async () => {
     const { service, updateMany, create } = setup();

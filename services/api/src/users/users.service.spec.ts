@@ -11,6 +11,7 @@ import { UsersService } from './users.service';
 describe('UsersService: isolamento por instituição', () => {
   const findMany = jest.fn();
   const findFirst = jest.fn();
+  const institutionFindFirst = jest.fn();
   const create = jest.fn();
   const auditCreate = jest.fn();
   const transaction = jest.fn(
@@ -23,6 +24,7 @@ describe('UsersService: isolamento por instituição', () => {
   );
   const prisma = {
     usuario: { findMany, findFirst },
+    instituicao: { findFirst: institutionFindFirst },
     $transaction: transaction,
   } as unknown as PrismaService;
   const service = new UsersService(prisma);
@@ -39,34 +41,60 @@ describe('UsersService: isolamento por instituição', () => {
     perfil: Perfil.PROFESSOR,
   };
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    institutionFindFirst.mockResolvedValue({ id: 'instituicao-a' });
+  });
 
-  it('filtra a listagem pela instituição do usuário autenticado', async () => {
+  it('permite ao administrador consultar as quatro Fatecs sem expor hash', async () => {
     findMany.mockResolvedValue([]);
-    await service.list('instituicao-a');
+    await service.list(actor);
     const calls: unknown = findMany.mock.calls;
     const args = (
       calls as Array<
         [
           {
-            where: { instituicaoId: string };
+            where: { AND: Array<{ OR?: unknown[] }> };
             select: Record<string, boolean>;
           },
         ]
       >
     )[0][0];
-    expect(args.where.instituicaoId).toBe('instituicao-a');
+    expect(args.where.AND[0].OR).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ instituicaoId: actor.instituicaoId }),
+        expect.objectContaining({ instituicao: expect.any(Object) as unknown }),
+      ]),
+    );
     expect(args.select.senhaHash).toBeUndefined();
   });
 
-  it('não encontra usuário fora da instituição', async () => {
+  it('restringe professor aos alunos das suas turmas', async () => {
+    findMany.mockResolvedValue([]);
+    await service.list({ ...actor, perfil: Perfil.PROFESSOR });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            expect.objectContaining({
+              instituicaoId: actor.instituicaoId,
+              perfil: 'ALUNO',
+              matriculas: { some: expect.any(Object) as unknown },
+            }),
+          ],
+        },
+      }),
+    );
+  });
+
+  it('não encontra usuário fora do escopo', async () => {
     findFirst.mockResolvedValue(null);
     await expect(
-      service.findOne('instituicao-a', 'usuario-b'),
+      service.findOne({ ...actor, perfil: Perfil.PROFESSOR }, 'usuario-b'),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'usuario-b', instituicaoId: 'instituicao-a' },
+        where: { AND: [expect.any(Object) as unknown, { id: 'usuario-b' }] },
       }),
     );
   });
@@ -109,6 +137,14 @@ describe('UsersService: isolamento por instituição', () => {
     expect(auditArgs.data.instituicaoId).toBe(actor.instituicaoId);
     expect(auditArgs.data.autorId).toBe(actor.id);
     expect(auditArgs.data.recursoId).toBe('novo-id');
+  });
+
+  it('recusa Fatec fora do conjunto permitido', async () => {
+    institutionFindFirst.mockResolvedValue(null);
+    await expect(
+      service.create(actor, { ...dto, instituicaoId: 'outra' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it('rejeita nome composto apenas por espaços', async () => {

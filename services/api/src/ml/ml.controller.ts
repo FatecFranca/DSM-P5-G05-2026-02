@@ -19,6 +19,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { AuthRequest } from '../auth/auth-user';
 import { EnrollmentMlService } from './enrollment-ml.service';
 import { MlProfileDto } from './dto/ml-profile.dto';
+import { SelfReportDto } from './dto/self-report.dto';
 
 @Roles(Perfil.ADMIN)
 @Controller('ml')
@@ -27,6 +28,24 @@ export class MlController {
     private readonly ml: MlClientService,
     private readonly enrollmentMl: EnrollmentMlService,
   ) {}
+
+  @Get('matriculas/:id/autodeclaracao')
+  @Roles(Perfil.ALUNO)
+  @Header('Cache-Control', 'no-store')
+  selfReport(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.enrollmentMl.getSelfReport(req.currentUser, id);
+  }
+
+  @Put('matriculas/:id/autodeclaracao')
+  @Roles(Perfil.ALUNO)
+  @Header('Cache-Control', 'no-store')
+  saveSelfReport(
+    @Req() req: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SelfReportDto,
+  ) {
+    return this.enrollmentMl.saveSelfReport(req.currentUser, id, dto);
+  }
 
   @Get('matriculas/:id')
   @Roles(Perfil.ADMIN, Perfil.COORDENACAO, Perfil.PROFESSOR, Perfil.TUTOR)

@@ -12,6 +12,8 @@ Desenvolvimento: `back/prototype` contém API, banco, ML e infraestrutura; `mobi
 
 O modelo não é retreinado com dados do banco. A coluna `classe` nunca é enviada. Não há resultado predefinido no mobile nem preenchimento automático de atributos ausentes.
 
+**Estado atual da integração operacional:** o artefato v2 está marcado `CANDIDATE` e foi avaliado apenas no dataset externo. A API não calcula previsões para matrículas das Fatecs; responde `INSUFICIENTE` e informa a falta de validação local, equivalência de categorias e revisão de vieses. O fluxo técnico de prévia continua separado. O aluno pode declarar sua idade no ingresso e turno em linguagem comum; o mapeamento versionado `fatec-v1` acontece no backend. Os demais atributos, inclusive agregados semestrais e indicadores macroeconômicos, não são inferidos de notas, frequência ou valores presumidos.
+
 ## Rotas
 
 | Rota | Contrato |

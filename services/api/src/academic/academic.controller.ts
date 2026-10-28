@@ -36,11 +36,15 @@ export class AcademicController {
 
   @Get('academico/resumo')
   summary(@Req() req: AuthRequest, @Query() query: D.ResumoQuery) {
-    return this.academic.snapshot(req.currentUser, query.turmaId);
+    return this.academic.snapshot(
+      req.currentUser,
+      query.turmaId,
+      query.instituicaoId,
+    );
   }
   @Get('turmas')
-  classes(@Req() req: AuthRequest) {
-    return this.academic.classes(req.currentUser);
+  classes(@Req() req: AuthRequest, @Query() query: D.ResumoQuery) {
+    return this.academic.classes(req.currentUser, query.instituicaoId);
   }
   @Post('turmas')
   @Roles(Perfil.ADMIN)

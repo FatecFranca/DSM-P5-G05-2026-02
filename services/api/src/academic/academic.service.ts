@@ -9,6 +9,7 @@ import type { AuthUser } from '../auth/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../generated/prisma/client';
 import type { Perfil } from '../generated/prisma/enums';
+import { FATEC_CODES } from '../fatecs';
 import * as D from './academic.dto';
 import {
   enrollmentScope,
@@ -58,10 +59,23 @@ export class AcademicService {
     }
   }
 
-  classes(actor: AuthUser) {
+  classes(actor: AuthUser, instituicaoId?: string) {
     return this.db.turma.findMany({
       where: {
-        instituicaoId: actor.instituicaoId,
+        ...(actor.perfil === 'ADMIN'
+          ? {
+              OR: [
+                { instituicaoId: actor.instituicaoId },
+                {
+                  instituicao: {
+                    ativa: true,
+                    codigoCps: { in: [...FATEC_CODES] },
+                  },
+                },
+              ],
+            }
+          : { instituicaoId: actor.instituicaoId }),
+        ...(instituicaoId ? { instituicaoId } : {}),
         ...(['ADMIN', 'COORDENACAO'].includes(actor.perfil)
           ? {}
           : { disciplinas: { some: subjectScope(actor) } }),
@@ -71,11 +85,21 @@ export class AcademicService {
     });
   }
 
-  async snapshot(actor: AuthUser, turmaId?: string) {
-    const turmas = await this.classes(actor);
+  async snapshot(
+    originalActor: AuthUser,
+    turmaId?: string,
+    instituicaoId?: string,
+  ) {
+    const turmas = await this.classes(originalActor, instituicaoId);
     const selected = turmaId ?? turmas[0]?.id;
     if (turmaId && !turmas.some((t) => t.id === turmaId))
       throw new NotFoundException('Turma não encontrada');
+    const actor = {
+      ...originalActor,
+      instituicaoId:
+        turmas.find((t) => t.id === selected)?.instituicaoId ??
+        originalActor.instituicaoId,
+    };
     const [disciplinas, matriculas] = await Promise.all([
       this.db.disciplina.findMany({
         where: {
@@ -214,72 +238,88 @@ export class AcademicService {
     };
   }
 
-  createClass(actor: AuthUser, dto: D.TurmaDto) {
+  async createClass(actor: AuthUser, dto: D.TurmaDto) {
     requireRole(actor, ['ADMIN']);
+    const target = await this.adminInstitution(
+      actor,
+      dto.instituicaoId ?? actor.instituicaoId,
+    );
     return this.change(actor, 'CRIAR_TURMA', (tx) =>
-      tx.turma.create({ data: { ...dto, instituicaoId: actor.instituicaoId } }),
+      tx.turma.create({
+        data: {
+          nome: dto.nome,
+          curso: dto.curso,
+          periodo: dto.periodo,
+          instituicaoId: target,
+        },
+      }),
     );
   }
-  createSubject(actor: AuthUser, dto: D.DisciplinaDto) {
+  async createSubject(actor: AuthUser, dto: D.DisciplinaDto) {
     requireRole(actor, ['ADMIN']);
+    const scoped = await this.adminActorForClass(actor, dto.turmaId);
     return this.change(actor, 'CRIAR_DISCIPLINA', async (tx) => {
-      await this.openClass(tx, actor, dto.turmaId);
+      await this.openClass(tx, scoped, dto.turmaId);
       return tx.disciplina.create({
-        data: { ...dto, instituicaoId: actor.instituicaoId },
+        data: { ...dto, instituicaoId: scoped.instituicaoId },
       });
     });
   }
-  enroll(actor: AuthUser, dto: D.MatriculaDto) {
+  async enroll(actor: AuthUser, dto: D.MatriculaDto) {
     requireRole(actor, ['ADMIN']);
+    const scoped = await this.adminActorForClass(actor, dto.turmaId);
     return this.change(actor, 'MATRICULAR_ALUNO', async (tx) => {
-      await this.openClass(tx, actor, dto.turmaId);
-      await this.userWithRole(tx, actor, dto.alunoId, 'ALUNO');
+      await this.openClass(tx, scoped, dto.turmaId);
+      await this.userWithRole(tx, scoped, dto.alunoId, 'ALUNO');
       return tx.matricula.create({
-        data: { ...dto, instituicaoId: actor.instituicaoId },
+        data: { ...dto, instituicaoId: scoped.instituicaoId },
       });
     });
   }
-  assignTeacher(actor: AuthUser, dto: D.LotacaoDto) {
+  async assignTeacher(actor: AuthUser, dto: D.LotacaoDto) {
     requireRole(actor, ['ADMIN']);
+    const scoped = await this.adminActorForSubject(actor, dto.disciplinaId);
     return this.change(actor, 'LOTAR_PROFESSOR', async (tx) => {
       const subject = await tx.disciplina.findFirst({
-        where: { id: dto.disciplinaId, instituicaoId: actor.instituicaoId },
+        where: { id: dto.disciplinaId, instituicaoId: scoped.instituicaoId },
       });
       if (!subject) throw new NotFoundException('Disciplina não encontrada');
-      await this.openClass(tx, actor, subject.turmaId);
-      await this.userWithRole(tx, actor, dto.professorId, 'PROFESSOR');
+      await this.openClass(tx, scoped, subject.turmaId);
+      await this.userWithRole(tx, scoped, dto.professorId, 'PROFESSOR');
       return tx.lotacao.create({
-        data: { ...dto, instituicaoId: actor.instituicaoId },
+        data: { ...dto, instituicaoId: scoped.instituicaoId },
       });
     });
   }
-  assignTutor(actor: AuthUser, dto: D.TutoriaDto) {
+  async assignTutor(actor: AuthUser, dto: D.TutoriaDto) {
     requireRole(actor, ['ADMIN']);
+    const scoped = await this.adminActorForEnrollment(actor, dto.matriculaId);
     return this.change(actor, 'VINCULAR_TUTOR', async (tx) => {
       const enrollment = await tx.matricula.findFirst({
-        where: { id: dto.matriculaId, instituicaoId: actor.instituicaoId },
+        where: { id: dto.matriculaId, instituicaoId: scoped.instituicaoId },
       });
       if (!enrollment) throw new NotFoundException('Matrícula não encontrada');
-      await this.openClass(tx, actor, enrollment.turmaId);
-      await this.userWithRole(tx, actor, dto.tutorId, 'TUTOR');
+      await this.openClass(tx, scoped, enrollment.turmaId);
+      await this.userWithRole(tx, scoped, dto.tutorId, 'TUTOR');
       return tx.tutoria.create({
-        data: { ...dto, instituicaoId: actor.instituicaoId },
+        data: { ...dto, instituicaoId: scoped.instituicaoId },
       });
     });
   }
-  closeClass(actor: AuthUser, id: string, fechada: boolean) {
+  async closeClass(actor: AuthUser, id: string, fechada: boolean) {
     requireRole(actor, ['ADMIN']);
+    const scoped = await this.adminActorForClass(actor, id);
     return this.change(
       actor,
       fechada ? 'FECHAR_PERIODO' : 'REABRIR_PERIODO',
       async (tx) => {
         const turma = await tx.turma.findFirst({
-          where: { id, instituicaoId: actor.instituicaoId },
+          where: { id, instituicaoId: scoped.instituicaoId },
         });
         if (!turma) throw new NotFoundException('Turma não encontrada');
         return tx.turma.update({
           where: {
-            instituicaoId_id: { instituicaoId: actor.instituicaoId, id },
+            instituicaoId_id: { instituicaoId: scoped.instituicaoId, id },
           },
           data: { fechada },
         });
@@ -531,6 +571,85 @@ export class AcademicService {
     )
       throw new NotFoundException('Arquivo não encontrado');
   }
+  private async adminInstitution(actor: AuthUser, instituicaoId: string) {
+    requireRole(actor, ['ADMIN']);
+    const institution = await this.db.instituicao.findFirst({
+      where: {
+        id: instituicaoId,
+        ativa: true,
+        OR: [
+          { id: actor.instituicaoId },
+          { codigoCps: { in: [...FATEC_CODES] } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!institution) throw new NotFoundException('Fatec não disponível');
+    return institution.id;
+  }
+
+  private async adminActorForClass(
+    actor: AuthUser,
+    id: string,
+  ): Promise<AuthUser> {
+    const turma = await this.db.turma.findFirst({
+      where: {
+        id,
+        OR: [
+          { instituicaoId: actor.instituicaoId },
+          { instituicao: { ativa: true, codigoCps: { in: [...FATEC_CODES] } } },
+        ],
+      },
+      select: { instituicaoId: true },
+    });
+    if (!turma) throw new NotFoundException('Turma não encontrada');
+    return { ...actor, instituicaoId: turma.instituicaoId };
+  }
+
+  private async adminActorForSubject(
+    actor: AuthUser,
+    id: string,
+  ): Promise<AuthUser> {
+    const disciplina = await this.db.disciplina.findFirst({
+      where: {
+        id,
+        OR: [
+          { instituicaoId: actor.instituicaoId },
+          {
+            turma: {
+              instituicao: { ativa: true, codigoCps: { in: [...FATEC_CODES] } },
+            },
+          },
+        ],
+      },
+      select: { instituicaoId: true },
+    });
+    if (!disciplina) throw new NotFoundException('Disciplina não encontrada');
+    return { ...actor, instituicaoId: disciplina.instituicaoId };
+  }
+
+  private async adminActorForEnrollment(
+    actor: AuthUser,
+    id: string,
+  ): Promise<AuthUser> {
+    const matricula = await this.db.matricula.findFirst({
+      where: {
+        id,
+        OR: [
+          { instituicaoId: actor.instituicaoId },
+          {
+            turma: {
+              instituicao: { ativa: true, codigoCps: { in: [...FATEC_CODES] } },
+            },
+          },
+        ],
+      },
+      select: { instituicaoId: true },
+    });
+    if (!matricula) throw new NotFoundException('Matrícula não encontrada');
+    return { ...actor, instituicaoId: matricula.instituicaoId };
+  }
+
   private async openClass(
     tx: Prisma.TransactionClient,
     actor: AuthUser,

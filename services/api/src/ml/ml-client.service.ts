@@ -22,6 +22,16 @@ import {
 export class MlClientService {
   constructor(private readonly config: ConfigService) {}
 
+  fatecEligibility() {
+    // O artefato atual foi avaliado somente no dataset externo. Não há validação
+    // retrospectiva, equivalência de cursos ou estudo de vieses para as Fatecs.
+    return {
+      valid: false,
+      reason:
+        'O modelo disponível não foi validado para alunos das Fatecs. Faltam equivalência dos atributos, avaliação local e revisão de vieses.',
+    } as const;
+  }
+
   schema() {
     return {
       features: ML_FEATURES,

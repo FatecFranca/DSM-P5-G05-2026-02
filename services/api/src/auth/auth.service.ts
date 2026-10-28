@@ -7,6 +7,7 @@ import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { FATEC_CODES } from '../fatecs';
 
 const REFRESH_LIFETIME_DAYS = 7;
 
@@ -27,9 +28,9 @@ export class AuthService {
 
   listInstituicoes() {
     return this.prisma.instituicao.findMany({
-      where: { ativa: true },
-      select: { id: true, nome: true },
-      orderBy: { nome: 'asc' },
+      where: { ativa: true, codigoCps: { in: [...FATEC_CODES] } },
+      select: { id: true, nome: true, codigoCps: true },
+      orderBy: { codigoCps: 'asc' },
     });
   }
 

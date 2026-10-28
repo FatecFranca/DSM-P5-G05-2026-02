@@ -24,6 +24,7 @@ const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
 export class TurmaDto {
+  @IsOptional() @IsUUID() instituicaoId?: string;
   @Transform(trim) @IsString() @Matches(/\S/) @MaxLength(120) nome!: string;
   @Transform(trim) @IsString() @Matches(/\S/) @MaxLength(120) curso!: string;
   @Transform(trim) @IsString() @Matches(/\S/) @MaxLength(40) periodo!: string;
@@ -113,6 +114,7 @@ export class FechamentoDto {
 }
 export class ResumoQuery {
   @IsOptional() @IsUUID() turmaId?: string;
+  @IsOptional() @IsUUID() instituicaoId?: string;
 }
 
 export class FeedQuery extends ResumoQuery {
