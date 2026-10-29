@@ -52,32 +52,48 @@ export class UsersService {
 
   list(actor: AuthUser, query: ListUsersDto = {}) {
     const busca = query.busca?.trim();
-    return this.prisma.usuario.findMany({
-      where: {
-        AND: [
-          this.scope(actor),
-          ...(query.instituicaoId
-            ? [{ instituicaoId: query.instituicaoId }]
-            : []),
-          ...(query.perfil ? [{ perfil: query.perfil }] : []),
-          ...(busca
-            ? [
-                {
-                  OR: [
-                    { nome: { contains: busca, mode: 'insensitive' as const } },
-                    {
-                      email: { contains: busca, mode: 'insensitive' as const },
-                    },
-                  ],
-                },
-              ]
-            : []),
-        ],
-      },
-      select: safeUser,
-      orderBy: [{ nome: 'asc' }, { id: 'asc' }],
-      take: 500,
-    });
+    const where: Prisma.UsuarioWhereInput = {
+      AND: [
+        this.scope(actor),
+        ...(query.instituicaoId
+          ? [{ instituicaoId: query.instituicaoId }]
+          : []),
+        ...(query.perfil ? [{ perfil: query.perfil }] : []),
+        ...(busca
+          ? [
+              {
+                OR: [
+                  { nome: { contains: busca, mode: 'insensitive' as const } },
+                  { email: { contains: busca, mode: 'insensitive' as const } },
+                ],
+              },
+            ]
+          : []),
+      ],
+    };
+    const orderBy = [{ nome: 'asc' as const }, { id: 'asc' as const }];
+    if (query.pagina === undefined && query.tamanho === undefined) {
+      return this.prisma.usuario.findMany({
+        where,
+        select: safeUser,
+        orderBy,
+        take: 500,
+      });
+    }
+    const pagina = query.pagina ?? 1;
+    const tamanho = query.tamanho ?? 50;
+    return this.prisma
+      .$transaction([
+        this.prisma.usuario.findMany({
+          where,
+          select: safeUser,
+          orderBy,
+          skip: (pagina - 1) * tamanho,
+          take: tamanho,
+        }),
+        this.prisma.usuario.count({ where }),
+      ])
+      .then(([itens, total]) => ({ itens, total, pagina, tamanho }));
   }
 
   async findOne(actor: AuthUser, id: string) {

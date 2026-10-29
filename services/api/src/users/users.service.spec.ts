@@ -10,20 +10,26 @@ import { UsersService } from './users.service';
 
 describe('UsersService: isolamento por instituição', () => {
   const findMany = jest.fn();
+  const count = jest.fn();
   const findFirst = jest.fn();
   const institutionFindFirst = jest.fn();
   const create = jest.fn();
   const auditCreate = jest.fn();
   const transaction = jest.fn(
     async (
-      callback: (tx: {
-        usuario: { create: typeof create };
-        auditoria: { create: typeof auditCreate };
-      }) => Promise<unknown>,
-    ) => callback({ usuario: { create }, auditoria: { create: auditCreate } }),
+      input:
+        | Promise<unknown>[]
+        | ((tx: {
+            usuario: { create: typeof create };
+            auditoria: { create: typeof auditCreate };
+          }) => Promise<unknown>),
+    ) =>
+      Array.isArray(input)
+        ? Promise.all(input)
+        : input({ usuario: { create }, auditoria: { create: auditCreate } }),
   );
   const prisma = {
-    usuario: { findMany, findFirst },
+    usuario: { findMany, findFirst, count },
     instituicao: { findFirst: institutionFindFirst },
     $transaction: transaction,
   } as unknown as PrismaService;
@@ -85,6 +91,50 @@ describe('UsersService: isolamento por instituição', () => {
         },
       }),
     );
+  });
+
+  it('pagina com o mesmo escopo e filtros sem mudar a resposta legada', async () => {
+    findMany.mockResolvedValue([{ id: 'aluno-a' }]);
+    count.mockResolvedValue(26);
+    const professor = { ...actor, perfil: Perfil.PROFESSOR };
+    await expect(
+      service.list(professor, {
+        pagina: 2,
+        tamanho: 25,
+        instituicaoId: actor.instituicaoId,
+        perfil: Perfil.ALUNO,
+        busca: 'Ana',
+      }),
+    ).resolves.toEqual({
+      itens: [{ id: 'aluno-a' }],
+      total: 26,
+      pagina: 2,
+      tamanho: 25,
+    });
+    const args = (
+      findMany.mock.calls as unknown as Array<
+        [{ where: unknown; skip: number; take: number }]
+      >
+    )[0][0];
+    expect(args.skip).toBe(25);
+    expect(args.take).toBe(25);
+    expect(args.where).toEqual({
+      AND: [
+        expect.objectContaining({
+          instituicaoId: actor.instituicaoId,
+          matriculas: { some: expect.any(Object) as unknown },
+        }),
+        { instituicaoId: actor.instituicaoId },
+        { perfil: Perfil.ALUNO },
+        {
+          OR: [
+            { nome: { contains: 'Ana', mode: 'insensitive' } },
+            { email: { contains: 'Ana', mode: 'insensitive' } },
+          ],
+        },
+      ],
+    });
+    expect(count).toHaveBeenCalledWith({ where: args.where });
   });
 
   it('não encontra usuário fora do escopo', async () => {

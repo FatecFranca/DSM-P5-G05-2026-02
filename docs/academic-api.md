@@ -25,6 +25,7 @@ Nesta demonstração, `/auth/instituicoes` mostra somente Fatec Franca (109), S�
 | GET `/academico/avisos` | Publicações e correções acessíveis; filtros opcionais `turmaId`, `disciplinaId`, `pagina` e `tamanho` |
 | GET `/turmas` | Turmas acessíveis |
 | GET `/usuarios?instituicaoId=&perfil=&busca=` | Pessoas no escopo do perfil; até 500, ordenadas por nome |
+| GET `/usuarios?pagina=1&tamanho=50&instituicaoId=&perfil=&busca=` | Mesmo escopo e filtros; retorno `{ itens, total, pagina, tamanho }`, com `tamanho` de 1 a 100 |
 | GET `/usuarios/:id` | Detalhes e matrículas visíveis no escopo do perfil |
 | POST `/usuarios` | ADMIN; aceita `instituicaoId` de uma das quatro Fatecs, além de nome, e-mail, perfil e senha |
 | POST `/turmas` | `nome`, `curso`, `periodo` |
