@@ -1,0 +1,19 @@
+services:
+  seed-dev:
+    build:
+      context: ./services/api
+      target: build
+    command: npm run db:seed:dev
+    env_file: ./services/api/.env
+    environment:
+      DEMO_SEED_ENABLED: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  api:
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      seed-dev:
+        condition: service_completed_successfully
