@@ -69,7 +69,7 @@ Criações retornam 201; consultas e PUT/PATCH retornam 200. Erros: 400 validaç
 
 ## Dados locais de demonstração
 
-A limpeza das fixtures excedentes e a inclusão de histórico sintético nas quatro Fatecs foram operações manuais no banco local de desenvolvimento. Esses dados não são aplicados por migration nem fazem parte da entrega versionada. As notas sintéticas não servem para validação ou treinamento de ML.
+A migração `20261029010000_limit_fatec_catalog` mantém somente Franca, São Paulo, Campinas e Ribeirão Preto no diretório CPS. Se alguma das demais unidades tiver usuários, sessões, auditoria ou turmas vinculados, a migração falha sem apagar instituições; dados de outras instituições sem código CPS também permanecem preservados. O histórico acadêmico sintético usado nos testes locais foi criado manualmente e não faz parte das migrations ou da entrega versionada. Suas notas não servem para validação ou treinamento de ML.
 
 ## Execução e verificação
 
