@@ -12,6 +12,11 @@ import { MlProfileDto } from './dto/ml-profile.dto';
 import { SelfReportDto, TurnoDeclarado } from './dto/self-report.dto';
 import { enrollmentScope, requireRole } from '../academic/academic.policy';
 import { FATEC_CODES } from '../fatecs';
+import {
+  FATEC_DEMO_ML_SOURCE,
+  FATEC_DEMO_REGISTRATIONS,
+} from './fatec-demo-profile';
+import { validProfile } from './profile-validation';
 
 @Injectable()
 export class EnrollmentMlService {
@@ -162,6 +167,25 @@ export class EnrollmentMlService {
     return this.visible(actor, await this.profile(actor, id));
   }
 
+  async demoPreview(actor: AuthUser, id: string) {
+    const profile = await this.profile(actor, id);
+    if (
+      profile.aluno !== 'Aluno Demo SGEI' ||
+      !FATEC_DEMO_REGISTRATIONS.includes(profile.registro) ||
+      profile.fonte !== FATEC_DEMO_ML_SOURCE
+    ) {
+      throw new NotFoundException('Demonstração não encontrada');
+    }
+    if (profile.faltantes.length || !validProfile(profile.features)) {
+      throw new ConflictException('Ficha demonstrativa incompleta');
+    }
+    const prediction = await this.ml.preview(
+      profile.features as MlFeatures,
+      'original',
+    );
+    return { ...prediction, demonstracao: true, fonte: profile.fonte };
+  }
+
   private visible(
     actor: AuthUser,
     profile: Awaited<ReturnType<EnrollmentMlService['profile']>>,
@@ -223,7 +247,7 @@ export class EnrollmentMlService {
         }
         await tx.auditoria.create({
           data: {
-            instituicaoId: enrollment.instituicaoId,
+            instituicaoId: actor.instituicaoId,
             autorId: actor.id,
             acao: 'SALVAR_PERFIL_ML',
             recurso: 'MATRICULA',
@@ -276,7 +300,7 @@ export class EnrollmentMlService {
         );
       await tx.auditoria.create({
         data: {
-          instituicaoId: profile.instituicaoId,
+          instituicaoId: actor.instituicaoId,
           autorId: actor.id,
           acao: 'CALCULAR_PREVISAO_ML',
           recurso: 'MATRICULA',

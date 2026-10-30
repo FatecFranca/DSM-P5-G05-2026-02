@@ -54,6 +54,14 @@ export class MlController {
     return this.enrollmentMl.get(req.currentUser, id);
   }
 
+  @Get('matriculas/:id/demonstracao')
+  @Roles(Perfil.ADMIN, Perfil.COORDENACAO, Perfil.PROFESSOR, Perfil.TUTOR)
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  demoPreview(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.enrollmentMl.demoPreview(req.currentUser, id);
+  }
+
   @Put('matriculas/:id')
   @Roles(Perfil.ADMIN, Perfil.COORDENACAO)
   @Header('Cache-Control', 'no-store')

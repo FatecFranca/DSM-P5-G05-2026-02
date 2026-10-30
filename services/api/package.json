@@ -20,6 +20,7 @@
     "db:seed:demo": "node dist/seed-demo.js",
     "db:seed:dev": "node dist/seed-dev.js",
     "db:seed:ml": "node dist/seed-ml.js",
+    "db:seed:fatec-ml": "node dist/seed-fatec-demo-ml.js",
     "bootstrap": "node dist/bootstrap.js",
     "test": "jest",
     "test:integration:academic": "node test/academic.integration.cjs",

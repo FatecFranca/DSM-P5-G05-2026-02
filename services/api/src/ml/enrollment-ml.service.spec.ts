@@ -8,6 +8,7 @@ import { EnrollmentMlService } from './enrollment-ml.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MlClientService } from './ml-client.service';
 import { demoProfile } from './demo-profiles';
+import { FATEC_DEMO_ML_SOURCE } from './fatec-demo-profile';
 import type { AuthUser } from '../auth/auth-user';
 import { TurnoDeclarado } from './dto/self-report.dto';
 
@@ -43,6 +44,11 @@ describe('ML por matrícula', () => {
     };
     const ml = {
       fatecEligibility: jest.fn().mockReturnValue({ valid: true, reason: '' }),
+      preview: jest.fn().mockResolvedValue({
+        modelVersion: 'v1',
+        predictedClass: 'Graduate',
+        probabilities: { Dropout: 0.1, Enrolled: 0.2, Graduate: 0.7 },
+      }),
       predict: jest.fn().mockResolvedValue({
         modelVersion: 'v1',
         predictedClass: 'Graduate',
@@ -79,6 +85,48 @@ describe('ML por matrícula', () => {
     expect(result.impedimentos).toContain('Validação local ausente');
     expect(ml.predict).not.toHaveBeenCalled();
     expect(updateMany).not.toHaveBeenCalled();
+  });
+  it('mostra prévia apenas da matrícula fictícia e sem salvar resultado operacional', async () => {
+    const { service, db, ml, updateMany } = setup();
+    (db.matricula.findFirst as jest.Mock).mockResolvedValue({
+      instituicaoId: 'tenant',
+      registro: 'SGEI-DEMO-109',
+      aluno: { nome: 'Aluno Demo SGEI' },
+      perfilMl: {
+        features: demoProfile(0),
+        versao: 1,
+        fonte: FATEC_DEMO_ML_SOURCE,
+        resultado: null,
+      },
+    });
+    const result = await service.demoPreview(actor, 'matricula');
+    expect(result.demonstracao).toBe(true);
+    expect(ml.preview).toHaveBeenCalledWith(demoProfile(0), 'original');
+    expect(updateMany).not.toHaveBeenCalled();
+    await expect(
+      service.demoPreview({ ...actor, perfil: 'ALUNO' }, 'matricula'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+  it('não exibe a prévia para um perfil comum ou incompleto', async () => {
+    const { service, db, ml } = setup();
+    await expect(
+      service.demoPreview(actor, 'matricula'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    (db.matricula.findFirst as jest.Mock).mockResolvedValue({
+      instituicaoId: 'tenant',
+      registro: 'SGEI-DEMO-109',
+      aluno: { nome: 'Aluno Demo SGEI' },
+      perfilMl: {
+        features: {},
+        versao: 1,
+        fonte: FATEC_DEMO_ML_SOURCE,
+        resultado: null,
+      },
+    });
+    await expect(
+      service.demoPreview(actor, 'matricula'),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(ml.preview).not.toHaveBeenCalled();
   });
   it('converte respostas do aluno no servidor sem revelar códigos nem risco', async () => {
     const { service, upsert } = setup({});
@@ -157,7 +205,44 @@ describe('ML por matrícula', () => {
     );
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ instituicaoId: 'franca' }) as unknown,
+        data: expect.objectContaining({
+          instituicaoId: actor.instituicaoId,
+          autorId: actor.id,
+          recursoId: 'matricula-franca',
+        }) as unknown,
+      }),
+    );
+  });
+  it('salva perfil de outra Fatec e registra a auditoria na instituição do autor', async () => {
+    const { service, db, updateMany, create } = setup();
+    (db.matricula.findFirst as jest.Mock).mockResolvedValue({
+      instituicaoId: 'franca',
+      aluno: { nome: 'Aluna de Franca' },
+      registro: 'F1',
+      perfilMl: { features: {}, versao: 1, resultado: null },
+    });
+
+    await service.save(actor, 'matricula-franca', {
+      versao: 1,
+      features: { idade_matricula: 22 },
+    });
+
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          matriculaId: 'matricula-franca',
+          instituicaoId: 'franca',
+          versao: 1,
+        },
+      }),
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          instituicaoId: actor.instituicaoId,
+          autorId: actor.id,
+          recursoId: 'matricula-franca',
+        }) as unknown,
       }),
     );
   });
