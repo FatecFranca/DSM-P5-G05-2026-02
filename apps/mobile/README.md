@@ -4,7 +4,7 @@ Aplicativo Expo SDK 58 para Android, iOS e web. Login real abre a área acadêmi
 
 ## Executar
 
-Use Node.js 22.13 ou superior. Em `apps/mobile`, execute `npm ci` e `npx expo start`. Configure `EXPO_PUBLIC_API_URL` em `.env` para alcançar o backend: o padrão é `http://10.0.2.2:3000` no emulador Android e `http://localhost:3000` no simulador iOS e na web. Em aparelho físico, use um endereço HTTPS acessível ao aparelho. A URL é pública no bundle; não coloque credenciais nela.
+Use Node.js 22.13 ou superior. Em `apps/mobile`, execute `npm ci` e `npx expo start`. O arquivo `.env` é opcional: sem ele, o app usa `http://10.0.2.2:3000` no emulador Android e `http://localhost:3000` no simulador iOS e na web. Para usar outra API, crie `apps/mobile/.env` com `EXPO_PUBLIC_API_URL=<endereço>`; `.env.example` é apenas um modelo e não é carregado automaticamente. Em aparelho físico, use um endereço HTTPS acessível ao aparelho. A URL é pública no bundle; não coloque credenciais nela.
 
 Para criar contas demonstrativas dos cinco perfis no Docker, siga `services/api/README.md`. O login exige UUID da instituição, e-mail e senha configurados na carga. Tokens de refresh ficam no SecureStore em Android/iOS e apenas em memória na web.
 
