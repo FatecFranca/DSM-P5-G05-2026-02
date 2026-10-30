@@ -21,6 +21,10 @@ test('cadastro parcial omite ausências, preserva zero e valida categorias', () 
   const schema = { features: ['pib', 'genero'], categories: { genero: [0, 1] }, classes: [] };
   assert.deepEqual(parsePartialMlFields({ genero: '0', pib: '' }, schema), { genero: 0 });
   assert.throws(() => parsePartialMlFields({ genero: '3' }, schema));
+  assert.deepEqual(parsePartialMlFields({ pib: '-1,2' }, schema), { pib: -1.2 });
+  for (const [name, value] of [['idade_matricula', '20,5'], ['ucs_1sem_aprovadas', '-1'], ['nota_admissao', '201'], ['ucs_2sem_nota', '21']]) {
+    assert.throws(() => parsePartialMlFields({ [name]: value }, { ...schema, features: [name] }));
+  }
 });
 
 test('interface filtra acesso ao ML sem substituir autorização do servidor', () => {

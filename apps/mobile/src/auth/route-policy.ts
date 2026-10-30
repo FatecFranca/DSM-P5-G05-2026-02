@@ -8,6 +8,7 @@ export function canSend(perfil: Perfil, method: string, path: string): boolean {
     const editor = perfil === 'ADMIN' || perfil === 'COORDENACAO';
     const reader = editor || perfil === 'PROFESSOR' || perfil === 'TUTOR';
     if (/^\/ml\/matriculas\/[\w-]+$/.test(route)) return (method === 'GET' && reader) || (method === 'PUT' && editor);
+    if (/^\/ml\/matriculas\/[\w-]+\/demonstracao$/.test(route)) return method === 'GET' && reader;
     if (/^\/ml\/matriculas\/[\w-]+\/analisar$/.test(route)) return method === 'POST' && reader;
     if (route === '/ml/schema') return method === 'GET' && editor;
     return perfil === 'ADMIN' && ((method === 'GET' && route === '/ml/status') || (method === 'POST' && route === '/ml/preview'));

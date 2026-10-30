@@ -1,7 +1,8 @@
-export interface MlSchema { features: string[]; classes: string[]; categories: Record<string, number[]> }
+export interface MlSchema { features: string[]; classes: string[]; categories: Record<string, number[]>; previewEnabled?: boolean }
 export interface MlStatus { configured: boolean; ready: boolean; modelVersion?: string; originalInputReady?: boolean }
 export type MlInputFormat = 'original' | 'preprocessed';
 export interface MlPrediction { modelVersion: string; predictedClass: 'Dropout' | 'Enrolled' | 'Graduate'; probabilities: Record<'Dropout' | 'Enrolled' | 'Graduate', number> }
+export interface DemoMlPrediction extends MlPrediction { demonstracao: true; fonte: string }
 
 export interface EnrollmentMl {
   matriculaId: string;
@@ -30,6 +31,16 @@ export function parsePartialMlFields(fields: Record<string, string>, schema: MlS
   for (const name of names) {
     if (schema.categories[name] && !schema.categories[name].includes(result[name])) {
       throw new Error(`Código inválido para ${ML_FIELD_LABELS[name] ?? name}.`);
+    }
+    if (((name.startsWith('ucs_') && !name.endsWith('_nota')) || ['idade_matricula', 'ordem_candidatura'].includes(name)) &&
+      (!Number.isSafeInteger(result[name]) || result[name] < 0)) {
+      throw new Error(`${ML_FIELD_LABELS[name] ?? name} deve ser um inteiro não negativo.`);
+    }
+    if (['nota_admissao', 'nota_qual_anterior'].includes(name) && (result[name] < 0 || result[name] > 200)) {
+      throw new Error(`${ML_FIELD_LABELS[name] ?? name} deve estar entre 0 e 200.`);
+    }
+    if (['ucs_1sem_nota', 'ucs_2sem_nota'].includes(name) && (result[name] < 0 || result[name] > 20)) {
+      throw new Error(`${ML_FIELD_LABELS[name] ?? name} deve estar entre 0 e 20.`);
     }
   }
   return result;
