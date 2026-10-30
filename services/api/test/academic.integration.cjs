@@ -1,4 +1,4 @@
-// Local integration test: creates and removes two isolated institutions.
+// Local integration test: uses two catalog Fatecs and removes only records it creates.
 // Run after build + migration, with the API and PostgreSQL available locally.
 require('dotenv').config({ quiet: true });
 const assert = require('node:assert/strict');
@@ -14,7 +14,10 @@ assert.ok(['localhost', '127.0.0.1'].includes(dbUrl.hostname), 'Teste permitido 
 const base = process.env.TEST_API_URL ?? 'http://127.0.0.1:3000';
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(base).hostname));
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: dbUrl.toString() }) });
-const tenants = [randomUUID(), randomUUID()];
+const tenants = [];
+const runId = randomUUID();
+const className = `Teste acadêmico ${runId}`;
+const testUserIds = [];
 const uploaded = [];
 let checks = 0;
 async function call(method, path, token, body, expected = 200) {
@@ -32,10 +35,15 @@ async function call(method, path, token, body, expected = 200) {
 async function main() {
   const senha = randomUUID() + 'A!';
   const senhaHash = await argon2.hash(senha);
-  for (const id of tenants) await db.instituicao.create({ data: { id, nome: 'Teste isolado acadêmico' } });
+  for (const codigoCps of ['109', '002']) {
+    const fatec = await db.instituicao.findUnique({ where: { codigoCps }, select: { id: true, ativa: true } });
+    assert.ok(fatec?.ativa, `Fatec ${codigoCps} deve existir e estar ativa`);
+    tenants.push(fatec.id);
+  }
   const people = [];
-  for (const [index, perfil] of ['ADMIN', 'PROFESSOR', 'ALUNO', 'ALUNO', 'ADMIN'].entries()) {
-    const user = await db.usuario.create({ data: { instituicaoId: tenants[index === 4 ? 1 : 0], email: `p${index}@example.test`, nome: `Pessoa de teste ${index}`, senhaHash, perfil } });
+  for (const [index, perfil] of ['ADMIN', 'PROFESSOR', 'ALUNO', 'ALUNO', 'ALUNO'].entries()) {
+    const user = await db.usuario.create({ data: { instituicaoId: tenants[index === 4 ? 1 : 0], email: `p${index}.${runId}@example.test`, nome: `Pessoa de teste ${index}`, senhaHash, perfil } });
+    testUserIds.push(user.id);
     const tokens = await call('POST', '/auth/login', null, { instituicaoId: user.instituicaoId, email: user.email, senha });
     people.push({ ...user, token: tokens.accessToken, refresh: tokens.refreshToken });
   }
@@ -71,15 +79,17 @@ async function main() {
   await call('GET', '/academico/avisos?tamanho=51', student.token, null, 400);
   const empty = await call('GET', '/academico/resumo', student.token);
   assert.equal(empty.turmas.length, 0);
-  await call('POST', '/turmas', student.token, { nome: 'Teste', curso: 'Teste', periodo: '2026/2' }, 403);
-  await call('POST', '/turmas', admin.token, { nome: 'Teste', curso: 'Teste', periodo: '2026/2', instituicaoId: tenants[1] }, 400);
-  const turma = await call('POST', '/turmas', admin.token, { nome: 'Teste', curso: 'Teste', periodo: '2026/2' }, 201);
+  await call('POST', '/turmas', student.token, { nome: className, curso: 'Teste', periodo: '2026/2' }, 403);
+  await call('POST', '/turmas', admin.token, { nome: className, curso: 'Teste', periodo: '2026/2', instituicaoId: randomUUID() }, 404);
+  const otherClass = await call('POST', '/turmas', admin.token, { nome: className, curso: 'Teste', periodo: '2026/2', instituicaoId: tenants[1] }, 201);
+  assert.equal(otherClass.instituicaoId, tenants[1]);
+  const turma = await call('POST', '/turmas', admin.token, { nome: className, curso: 'Teste', periodo: '2026/2' }, 201);
   const subject = await call('POST', '/disciplinas', admin.token, { turmaId: turma.id, nome: 'Matemática' }, 201);
-  await call('POST', '/disciplinas', outsider.token, { turmaId: turma.id, nome: 'Intrusão' }, 404);
+  await call('POST', '/disciplinas', outsider.token, { turmaId: turma.id, nome: 'Intrusão' }, 403);
   await call('POST', '/aulas', teacher.token, { disciplinaId: subject.id, data: new Date().toISOString(), tema: 'Sem lotação' }, 404);
   await call('POST', '/lotacoes', admin.token, { disciplinaId: subject.id, professorId: teacher.id }, 201);
-  const enrol = await call('POST', '/matriculas', admin.token, { turmaId: turma.id, alunoId: student.id, registro: 'R1' }, 201);
-  const peerEnrol = await call('POST', '/matriculas', admin.token, { turmaId: turma.id, alunoId: peer.id, registro: 'R2' }, 201);
+  const enrol = await call('POST', '/matriculas', admin.token, { turmaId: turma.id, alunoId: student.id, registro: `R1-${runId.slice(0, 8)}` }, 201);
+  const peerEnrol = await call('POST', '/matriculas', admin.token, { turmaId: turma.id, alunoId: peer.id, registro: `R2-${runId.slice(0, 8)}` }, 201);
   await call('GET', `/academico/resumo?turmaId=${turma.id}`, outsider.token, null, 404);
   if (process.env.TEST_ML === 'true') {
     const { demoProfile } = require('../dist/ml/demo-profiles');
@@ -182,7 +192,7 @@ async function main() {
   await call('GET', `/arquivos/${materialFile.id}`, peer.token, null, 404);
   await call('POST', '/aulas', peer.token, { disciplinaId: subject.id, data: new Date().toISOString(), tema: 'Negado' }, 403);
   await db.usuario.update({ where: { id: peer.id }, data: { perfil: 'COORDENACAO' } });
-  assert.equal((await call('GET', '/academico/resumo', peer.token)).matriculas.length, 2);
+  assert.equal((await call('GET', `/academico/resumo?turmaId=${turma.id}`, peer.token)).matriculas.length, 2);
   await call('POST', '/turmas', peer.token, { nome: 'Negada', curso: 'Teste', periodo: '2026/2' }, 403);
   await call('PATCH', `/turmas/${turma.id}/fechamento`, admin.token, { fechada: true });
   await call('PUT', `/avaliacoes/${exam.id}/notas`, teacher.token, { itens: [{ matriculaId: enrol.id, valor: 10 }] }, 403);
@@ -193,11 +203,45 @@ async function main() {
 }
 main().catch((error) => { console.error(error.message); process.exitCode = 1; }).finally(async () => {
   try {
-    // Only rows belonging to the randomly generated test institutions are removed.
-    await db.$transaction(async (tx) => {
-      for (const model of ['entrega', 'material', 'arquivo', 'nota', 'presenca', 'avaliacao', 'atividade', 'aula', 'tutoria', 'lotacao', 'matricula', 'disciplina', 'turma', 'auditoria', 'sessao', 'usuario']) await tx[model].deleteMany({ where: { instituicaoId: { in: tenants } } });
-      await tx.instituicao.deleteMany({ where: { id: { in: tenants } } });
-    });
-    if (uploaded.length) execFileSync('docker', ['compose', 'exec', '-T', 'api', 'node', '-e', 'const fs=require("node:fs");for(const id of process.argv.slice(1)){if(!/^[0-9a-f-]{36}$/.test(id))throw Error("id");fs.rmSync("/app/uploads/"+id,{force:true})}', ...uploaded], { cwd: require('node:path').resolve(__dirname, '../../..'), stdio: 'pipe' });
+    const ownedFiles = [];
+    if (testUserIds.length) await db.$transaction(async (tx) => {
+      const turmas = await tx.turma.findMany({ where: { instituicaoId: { in: tenants }, nome: className, periodo: '2026/2' }, select: { id: true } });
+      const turmaIds = turmas.map(({ id }) => id);
+      const disciplinas = await tx.disciplina.findMany({ where: { instituicaoId: { in: tenants }, turmaId: { in: turmaIds } }, select: { id: true } });
+      const disciplinaIds = disciplinas.map(({ id }) => id);
+      const matriculas = await tx.matricula.findMany({ where: { instituicaoId: tenants[0], alunoId: { in: testUserIds } }, select: { id: true } });
+      const matriculaIds = matriculas.map(({ id }) => id);
+      const avaliacoes = await tx.avaliacao.findMany({ where: { instituicaoId: tenants[0], disciplinaId: { in: disciplinaIds } }, select: { id: true } });
+      const avaliacaoIds = avaliacoes.map(({ id }) => id);
+      const aulas = await tx.aula.findMany({ where: { instituicaoId: tenants[0], disciplinaId: { in: disciplinaIds } }, select: { id: true } });
+      const aulaIds = aulas.map(({ id }) => id);
+      const atividades = await tx.atividade.findMany({ where: { instituicaoId: tenants[0], disciplinaId: { in: disciplinaIds } }, select: { id: true } });
+      const atividadeIds = atividades.map(({ id }) => id);
+      const files = await tx.arquivo.findMany({ where: { autorId: { in: testUserIds } }, select: { id: true } });
+      const fileIds = files.map(({ id }) => id);
+      ownedFiles.push(...fileIds);
+      await tx.entrega.deleteMany({ where: { OR: [{ matriculaId: { in: matriculaIds } }, { atividadeId: { in: atividadeIds } }, { arquivoId: { in: fileIds } }] } });
+      await tx.material.deleteMany({ where: { OR: [{ disciplinaId: { in: disciplinaIds } }, { arquivoId: { in: fileIds } }] } });
+      await tx.perfilMl.deleteMany({ where: { matriculaId: { in: matriculaIds } } });
+      await tx.nota.deleteMany({ where: { OR: [{ matriculaId: { in: matriculaIds } }, { avaliacaoId: { in: avaliacaoIds } }] } });
+      await tx.presenca.deleteMany({ where: { OR: [{ matriculaId: { in: matriculaIds } }, { aulaId: { in: aulaIds } }] } });
+      await tx.avaliacao.deleteMany({ where: { id: { in: avaliacaoIds } } });
+      await tx.atividade.deleteMany({ where: { id: { in: atividadeIds } } });
+      await tx.aula.deleteMany({ where: { id: { in: aulaIds } } });
+      await tx.tutoria.deleteMany({ where: { matriculaId: { in: matriculaIds } } });
+      await tx.lotacao.deleteMany({ where: { disciplinaId: { in: disciplinaIds } } });
+      await tx.matricula.deleteMany({ where: { id: { in: matriculaIds } } });
+      await tx.disciplina.deleteMany({ where: { id: { in: disciplinaIds } } });
+      await tx.turma.deleteMany({ where: { id: { in: turmaIds } } });
+      await tx.arquivo.deleteMany({ where: { id: { in: fileIds } } });
+      await tx.auditoria.deleteMany({ where: { autorId: { in: testUserIds } } });
+      await tx.sessao.deleteMany({ where: { usuarioId: { in: testUserIds } } });
+      await tx.usuario.deleteMany({ where: { id: { in: testUserIds } } });
+    }, { timeout: 30000 });
+    const fileIds = [...new Set([...uploaded, ...ownedFiles])];
+    if (fileIds.length) execFileSync('docker', ['compose', 'exec', '-T', 'api', 'node', '-e', 'const fs=require("node:fs");for(const id of process.argv.slice(1)){if(!/^[0-9a-f-]{36}$/.test(id))throw Error("id");fs.rmSync("/app/uploads/"+id,{force:true})}', ...fileIds], { cwd: require('node:path').resolve(__dirname, '../../..'), stdio: 'pipe' });
+  } catch (error) {
+    console.error(`Falha na limpeza dos registros do teste: ${error.message}`);
+    process.exitCode = 1;
   } finally { await db.$disconnect(); }
 });

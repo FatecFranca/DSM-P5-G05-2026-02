@@ -77,7 +77,7 @@ Na raiz: `docker compose up -d --build api`. O serviço `migrate` aplica a migra
 
 Em `services/api`: `npm run db:generate`, `npm run db:validate`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm test -- --runInBand`.
 
-Com PostgreSQL e API locais ativos, execute `npm run test:integration:academic`. O teste cria duas instituições aleatórias, verifica isolamento, perfis, publicação, frequência, notas, uploads, downloads e revogação, e remove exclusivamente suas fixtures ao terminar. Requer Docker para limpar os arquivos enviados ao volume. O limite de cinco logins por minuto permanece ativo; aguarde a janela antes de repetir esse teste.
+Com PostgreSQL e API locais ativos, execute `npm run test:integration:academic`. O teste usa as Fatecs Franca (109) e São Paulo (002) já cadastradas, verifica isolamento, perfis, publicação, frequência, notas, uploads, downloads e revogação, e remove somente os usuários, turmas e demais registros criados na execução. Requer Docker para limpar os arquivos enviados ao volume. O limite de cinco logins por minuto permanece ativo; aguarde a janela antes de repetir esse teste.
 
 No mobile: `npm run typecheck`, `npm run lint`, `npm test`, `npx expo export --platform web`. Após criar rotas, `npx expo start` regenera os tipos do Expo Router. Validação em aparelho Android/iOS continua necessária para o seletor e compartilhamento nativos.
 

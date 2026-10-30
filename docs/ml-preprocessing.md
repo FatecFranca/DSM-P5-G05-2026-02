@@ -31,4 +31,4 @@ O notebook calculou médias/desvios e filtros antes da divisão de treino/teste.
 
 Execute `python -m pytest -q` em `services/ml`. Para repetir a conferência completa, execute `python -m training.recover_preprocessing --raw <CSV-original> --processed <CSV-tratado> --notebook <notebook> --output <JSON-temporário>`.
 
-Com API, banco e ML locais atualizados, execute o teste acadêmico com `TEST_ML=true`. Ele compara previsões reais nos dois formatos, verifica autenticação/autorização e rejeição de entradas inválidas, usando instituições temporárias removidas no final.
+Com API, banco e ML locais atualizados, execute o teste acadêmico com `TEST_ML=true`. Ele compara previsões reais nos dois formatos, verifica autenticação/autorização e rejeição de entradas inválidas, usando registros temporários nas Fatecs Franca e São Paulo, removidos ao final.

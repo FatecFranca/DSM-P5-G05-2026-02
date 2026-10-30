@@ -41,4 +41,4 @@ Escalas: ingresso 0–200; médias das unidades curriculares aprovadas 0–20; c
 
 ## Verificação
 
-`npm test -- --runInBand`, `npm run lint`, `npm run typecheck`, `npm run build` na API. Com os serviços locais ativos, `$env:TEST_ML='true'; npm run test:integration:academic` verifica inferência real, persistência, isolamento institucional, autorização, campos ausentes e invalidação após edição, usando instituições temporárias removidas ao final.
+`npm test -- --runInBand`, `npm run lint`, `npm run typecheck`, `npm run build` na API. Com os serviços locais ativos, `$env:TEST_ML='true'; npm run test:integration:academic` verifica inferência real, persistência, isolamento institucional, autorização, campos ausentes e invalidação após edição, usando registros temporários nas Fatecs Franca e São Paulo, removidos ao final.
