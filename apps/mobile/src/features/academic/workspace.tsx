@@ -89,7 +89,7 @@ export default function Workspace() {
   const slice = <T,>(items: T[]) => items.slice(page * 20, (page + 1) * 20);
   const rows = snapshot ? section === 'Frequência' ? snapshot.aulas.length : section === 'Notas' ? snapshot.avaliacoes.length : section === 'Atividades' ? snapshot.atividades.length : section === 'Materiais' ? snapshot.materiais.length : snapshot.matriculas.length : 0;
   return <Screen>
-    <AcademicHeader title="Área acadêmica" subtitle={`${roleLabel[role ?? ''] ?? ''} · ${turma ? `${turma.nome} / ${turma.periodo}` : 'Selecione ou cadastre uma turma'}`} />
+    <AcademicHeader back fallbackHref="/connected" title="Área acadêmica" subtitle={`${roleLabel[role ?? ''] ?? ''} · ${turma ? `${turma.nome} / ${turma.periodo}` : 'Selecione ou cadastre uma turma'}`} />
     {role === 'ADMIN' && <View style={academicStyles.chips}>{instituicoes.map((item) => <Chip key={item.id} label={item.nome} selected={selectedInstitution === item.id} onPress={() => { setSelectedInstitution(item.id); setSelected(undefined); setSnapshot(null); setEditor(null); }} />)}</View>}
     <View style={academicStyles.chips}>{visibleSections.map((s) => <Chip key={s} label={s} selected={section === s} onPress={() => { setSection(s); setPage(0); setEditor(null); }} />)}</View>
     <ActionButton title={busy ? 'Carregando…' : 'Atualizar'} disabled={busy} secondary onPress={() => void load()} />

@@ -75,7 +75,7 @@ export default function SelfReportScreen() {
   }
 
   return <Screen>
-    <AcademicHeader title="Minha situação" subtitle="Informações sobre seu ingresso e seus estudos" />
+    <AcademicHeader back fallbackHref="/connected" title="Minha situação" subtitle="Informações sobre seu ingresso e seus estudos" />
     {loading && <ActivityIndicator />}
     {!!error && <Feedback error message={error} />}
     {!!notice && <Feedback message={notice} />}
