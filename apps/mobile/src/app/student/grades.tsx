@@ -6,7 +6,7 @@ import { AcademicDemoNotice, AcademicHeader, EmptyState, Panel, PanelTitle, acad
 
 export default function StudentGrades() {
   const { data } = useAcademicDemo();
-  return <Screen><AcademicHeader title="Minhas notas" subtitle="Somente avaliações publicadas das disciplinas matriculadas." /><AcademicDemoNotice />
+  return <Screen><AcademicHeader back fallbackHref="/student" title="Minhas notas" subtitle="Somente avaliações publicadas das disciplinas matriculadas." /><AcademicDemoNotice />
     {demoStudentSubjects.map((subject) => {
       const assessments = data.assessments.filter((item) => item.subjectId === subject.id && item.published);
       const average = gradeAverage(assessments, data.grades, demoStudentId);

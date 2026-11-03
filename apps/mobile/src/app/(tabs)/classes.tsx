@@ -2,18 +2,19 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen, SectionTitle } from '@/components/primitives';
-import { TopBar } from '@/components/top-bar';
+import { TopBar, useGoBack } from '@/components/top-bar';
 import { palette } from '@/constants/design';
 import { demoClasses, studentsInClass, summarize } from '@/demo/data';
 import { Card, DemoBanner, Metric } from '@/demo/ui';
 
 export default function Classes() {
   const router = useRouter();
+  const goBack = useGoBack('/dashboard');
   const { state } = useSession();
   if (state.status !== 'signedIn') return null;
   if (state.user.perfil === 'ALUNO') return <Screen><SectionTitle title="Turmas" /><Card><Text style={styles.heading}>Sua turma estará disponível após o vínculo com a matrícula na API.</Text></Card></Screen>;
   const showRisk = true;
-  return <Screen><TopBar /><SectionTitle eyebrow="VISÃO POR TURMA" title="Turmas" /><DemoBanner />
+  return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow="VISÃO POR TURMA" title="Turmas" /><DemoBanner />
     {demoClasses.map((item) => {
       const summary = summarize(studentsInClass(item.id));
       return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Abrir turma ${item.name}`} onPress={() => router.push({ pathname: '/classes/[id]', params: { id: item.id } })}>

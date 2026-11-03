@@ -37,7 +37,7 @@ export default function ProfessorAttendance() {
     catch (error: unknown) { setFeedback(error instanceof Error ? error.message : 'Não foi possível salvar.'); }
   }
 
-  return <Screen><AcademicHeader title="Registro de presença" subtitle="Selecione disciplina e aula antes de marcar cada estudante." /><AcademicDemoNotice />
+  return <Screen><AcademicHeader back fallbackHref="/professor" title="Registro de presença" subtitle="Selecione disciplina e aula antes de marcar cada estudante." /><AcademicDemoNotice />
     <Panel><PanelTitle>Disciplina</PanelTitle><View style={academicStyles.chips}>{demoTeacherSubjects.map((item) => <Chip key={item.id} label={item.title} selected={subjectId === item.id} onPress={() => { setSubjectId(item.id); setLessonId(`${item.id}-aula-3`); setDraft({}); setFeedback(''); }} />)}</View></Panel>
     <Panel><PanelTitle>Aula</PanelTitle><View style={academicStyles.chips}>{lessons.map((item) => <Chip key={item.id} label={formatAcademicDate(item.date)} selected={lessonId === item.id} onPress={() => { setLessonId(item.id); setDraft({}); setFeedback(''); }} />)}</View><Text style={academicStyles.meta}>{lessons.find((item) => item.id === lessonId)?.topic} · {subject.title}</Text></Panel>
     <Panel><PanelTitle>Lista de chamada</PanelTitle><Text style={academicStyles.meta}>{counts.PRESENT} presentes · {counts.ABSENT} faltas · {counts.JUSTIFIED} justificadas · {students.length} matriculados</Text>

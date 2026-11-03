@@ -11,7 +11,7 @@ export default function StudentAttendance() {
   const { data } = useAcademicDemo();
   const ownLessons = data.lessons.filter((lesson) => demoStudentSubjects.some((subject) => subject.id === lesson.subjectId));
   const overall = attendanceSummary(ownLessons, data.attendance, demoStudentId);
-  return <Screen><AcademicHeader title="Minha frequência" subtitle="Presenças e faltas nas aulas com chamada registrada." /><AcademicDemoNotice />
+  return <Screen><AcademicHeader back fallbackHref="/student" title="Minha frequência" subtitle="Presenças e faltas nas aulas com chamada registrada." /><AcademicDemoNotice />
     <View style={academicStyles.grid}><Stat label="Presenças" value={String(overall.present)} /><Stat label="Faltas" value={String(overall.absent)} /><Stat label="Justificadas" value={String(overall.justified)} /><Stat label="Frequência demonstrativa" value={overall.percent === null ? '—' : `${Math.round(overall.percent)}%`} /></View>
     {demoStudentSubjects.map((subject) => {
       const lessons = data.lessons.filter((item) => item.subjectId === subject.id);

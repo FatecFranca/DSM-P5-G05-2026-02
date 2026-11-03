@@ -51,7 +51,7 @@ export default function ProfessorGrades() {
     catch (error: unknown) { setFeedback(error instanceof Error ? error.message : 'Não foi possível publicar.'); }
   }
 
-  return <Screen><AcademicHeader title="Lançamento de notas" subtitle="Avaliações, pesos e resultados da turma vinculada." /><AcademicDemoNotice />
+  return <Screen><AcademicHeader back fallbackHref="/professor" title="Lançamento de notas" subtitle="Avaliações, pesos e resultados da turma vinculada." /><AcademicDemoNotice />
     <Panel><PanelTitle>Disciplina</PanelTitle><View style={academicStyles.chips}>{demoTeacherSubjects.map((item) => <Chip key={item.id} label={item.title} selected={subjectId === item.id} onPress={() => { setSubjectId(item.id); setAssessmentId(`${item.id}-avaliacao-2`); setDraftScores({}); setFeedback(''); }} />)}</View></Panel>
     <Panel><PanelTitle>Avaliações</PanelTitle><View style={academicStyles.chips}>{assessments.map((item) => <Chip key={item.id} label={`${item.title}${item.published ? ' · publicada' : ' · rascunho'}`} selected={selected?.id === item.id} onPress={() => { setAssessmentId(item.id); setDraftScores({}); setFeedback(''); }} />)}</View>
       {selected ? <Text style={academicStyles.meta}>Peso {selected.weight} · nota máxima {selected.maxScore} · {formatAcademicDate(selected.date)}</Text> : null}</Panel>

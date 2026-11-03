@@ -11,7 +11,7 @@ export default function StudentAssignments() {
   const { data } = useAcademicDemo();
   const [now] = useState(() => Date.now());
   const assignments = data.assignments.filter((item) => item.status === 'PUBLISHED' && demoStudentSubjects.some((subject) => subject.id === item.subjectId));
-  return <Screen><AcademicHeader title="Minhas atividades" subtitle="Prazos, entregas e correções publicadas." /><AcademicDemoNotice />
+  return <Screen><AcademicHeader back fallbackHref="/student" title="Minhas atividades" subtitle="Prazos, entregas e correções publicadas." /><AcademicDemoNotice />
     {assignments.length ? assignments.map((assignment) => {
       const subject = demoStudentSubjects.find((item) => item.id === assignment.subjectId)!;
       const submission = data.submissions.find((item) => item.assignmentId === assignment.id && item.studentId === demoStudentId);

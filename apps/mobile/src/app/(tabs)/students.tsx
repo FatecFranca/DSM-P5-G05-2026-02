@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSession } from '@/auth/session';
-import { TopBar } from '@/components/top-bar';
+import { TopBar, useGoBack } from '@/components/top-bar';
 import { palette } from '@/constants/design';
 import { demoClasses, demoStudents, riskLevel } from '@/demo/data';
 import { DemoBanner, StudentRow } from '@/demo/ui';
@@ -13,6 +13,7 @@ type Sort = 'Nome' | 'Média' | 'Risco';
 
 export default function Students() {
   const router = useRouter();
+  const goBack = useGoBack('/dashboard');
   const { state } = useSession();
   const [search, setSearch] = useState('');
   const [classId, setClassId] = useState('all');
@@ -30,7 +31,7 @@ export default function Students() {
   if (state.status !== 'signedIn') return null;
   if (state.user.perfil === 'ALUNO') return <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}><View style={styles.content}><Text style={styles.title}>Estudantes</Text><Text style={styles.empty}>A análise individual estará disponível após o vínculo com sua matrícula na API.</Text></View></SafeAreaView>;
   return <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}><FlatList data={filtered} keyExtractor={(item) => item.id} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" ItemSeparatorComponent={() => <View style={{ height: 9 }} />} ListHeaderComponent={<View style={styles.header}>
-    <TopBar />
+    <TopBar onBack={goBack} />
     <Text style={styles.title}>Estudantes</Text><DemoBanner />
     <TextInput accessibilityLabel="Pesquisar estudantes" placeholder="Buscar nome ou matrícula" placeholderTextColor={palette.muted} value={search} onChangeText={setSearch} style={styles.input} />
     <Text style={styles.label}>Turma</Text><View style={styles.chips}>{[{ id: 'all', name: 'Todas' }, ...demoClasses].map((item) => <Chip key={item.id} label={item.name} active={classId === item.id} onPress={() => setClassId(item.id)} />)}</View>
