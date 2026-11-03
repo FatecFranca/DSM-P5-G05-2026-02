@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen, SectionTitle, TextButton } from '@/components/primitives';
-import { TopBar } from '@/components/top-bar';
+import { TopBar, useGoBack } from '@/components/top-bar';
 import { palette } from '@/constants/design';
 import { Card, Metric } from '@/demo/ui';
 import { DataNotice, InstitutionPicker, RequestState, connectedStyles } from './ui';
@@ -9,8 +9,9 @@ import { summarizeEnrollments, useAcademicOverview } from './overview';
 
 export function ConnectedClasses() {
   const router = useRouter();
+  const goBack = useGoBack('/connected');
   const overview = useAcademicOverview();
-  return <Screen><TopBar /><SectionTitle eyebrow="VISÃO POR TURMA" title="Turmas" />
+  return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow="VISÃO POR TURMA" title="Turmas" />
     <DataNotice>Turmas e indicadores da API. Médias são exibidas somente quando há notas publicadas.</DataNotice>
     <InstitutionPicker institutions={overview.institutions} selected={overview.institutionId} onSelect={overview.selectInstitution} />
     <RequestState loading={overview.loading} error={overview.error} onRetry={overview.refresh} />

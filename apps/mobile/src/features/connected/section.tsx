@@ -24,7 +24,7 @@ export function ConnectedSection({ section }: { section: AcademicSection }) {
     try { await saveFile(file, await request<ArrayBuffer>(`/arquivos/${file.id}`, { binary: true })); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível baixar o material.'); }
   }
-  return <Screen><AcademicHeader title={title} subtitle={student ? 'Seus registros acadêmicos' : 'Registros das turmas vinculadas'} />
+  return <Screen><AcademicHeader back fallbackHref="/connected" title={title} subtitle={student ? 'Seus registros acadêmicos' : 'Registros das turmas vinculadas'} />
     <DataNotice>Dados da API, filtrados pelos vínculos da sua conta. Registros não publicados permanecem fora da visão do estudante.</DataNotice>
     <RequestState loading={overview.loading} error={overview.error} onRetry={overview.refresh} />
     {!!error && <Text accessibilityRole="alert" style={academicStyles.meta}>{error}</Text>}

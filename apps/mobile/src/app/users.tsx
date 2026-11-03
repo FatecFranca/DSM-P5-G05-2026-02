@@ -5,7 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useSession } from '@/auth/session';
 import { SectionTitle, TextButton } from '@/components/primitives';
-import { TopBar } from '@/components/top-bar';
+import { TopBar, useGoBack } from '@/components/top-bar';
 import { palette, roleLabel } from '@/constants/design';
 import { Editor, type EditorConfig } from '@/features/academic/editor';
 import { DataNotice } from '@/features/connected/ui';
@@ -14,6 +14,7 @@ import { api } from '@/services/api-config';
 
 export default function UsersScreen() {
   const router = useRouter();
+  const goBack = useGoBack('/connected');
   const { bottom } = useSafeAreaInsets();
   const { state, request } = useSession();
   const role = state.status === 'signedIn' ? state.user.perfil : null;
@@ -96,7 +97,7 @@ export default function UsersScreen() {
         contentContainerStyle={[styles.list, { paddingBottom: 24 + bottom }]}
         ListHeaderComponent={
           <View style={styles.headerContent}>
-            <TopBar />
+            <TopBar onBack={goBack} />
             <SectionTitle title="Estudantes" />
             <DataNotice>Cadastros da API, conforme os vínculos e permissões da sua conta. Não há classificação de risco disponível.</DataNotice>
             <TextInput accessibilityLabel="Pesquisar estudantes e profissionais" autoCapitalize="none" placeholder="Buscar nome, e-mail ou Fatec" placeholderTextColor={palette.muted} value={query} onChangeText={setQuery} style={styles.search} />

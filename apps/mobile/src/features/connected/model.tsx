@@ -2,15 +2,16 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useSession } from '@/auth/session';
 import { Screen, SectionTitle } from '@/components/primitives';
-import { TopBar } from '@/components/top-bar';
+import { TopBar, useGoBack } from '@/components/top-bar';
 import { palette } from '@/constants/design';
 import { Card } from '@/demo/ui';
 import { DataNotice, connectedStyles } from './ui';
 
 export function ConnectedModel() {
   const { state } = useSession();
+  const goBack = useGoBack('/connected');
   if (state.status === 'signedIn' && !['ADMIN', 'COORDENACAO'].includes(state.user.perfil)) return <Redirect href="/connected" />;
-  return <Screen><TopBar /><SectionTitle eyebrow="AVALIAÇÃO DO MODELO" title="Qualidade do modelo" />
+  return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow="AVALIAÇÃO DO MODELO" title="Qualidade do modelo" />
     <DataNotice>O classificador disponível é candidato e não foi validado com dados de alunos das Fatecs.</DataNotice>
     <View style={styles.hero}><Text style={styles.heroLabel}>Estado para uso institucional</Text><Text style={styles.heroValue}>Não validado</Text><Text style={styles.heroCaption}>Nenhuma probabilidade operacional é apresentada até concluir a validação.</Text><View style={styles.heroRule} />
       <View style={styles.heroFooter}><Text style={styles.heroFootLabel}>Acurácia local</Text><Text style={styles.heroFootValue}>—</Text><Text style={styles.heroFootLabel}>Calibração local</Text><Text style={styles.heroFootValue}>—</Text></View>
