@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { TopBar } from '@/components/top-bar';
+import { TopBar, useGoBack } from '@/components/top-bar';
 import { palette } from '@/constants/design';
 
-export function AcademicHeader({ title, subtitle, back = false, backHref }: { title: string; subtitle?: string; back?: boolean; backHref?: Href }) {
+/** `backHref` leva sempre ao destino fixo; sem ele, Voltar usa o histórico e, sem histórico, `fallbackHref`. */
+export function AcademicHeader({ title, subtitle, back = false, backHref, fallbackHref = '/home' }: { title: string; subtitle?: string; back?: boolean; backHref?: Href; fallbackHref?: Href }) {
   const router = useRouter();
+  const goBack = useGoBack(fallbackHref);
   return <View style={styles.header}>
-    <TopBar onBack={back ? () => backHref ? router.replace(backHref) : router.back() : undefined} />
+    <TopBar onBack={back ? backHref ? () => router.replace(backHref) : goBack : undefined} />
     <Text style={styles.title}>{title}</Text>
     {subtitle ? <Text style={styles.body}>{subtitle}</Text> : null}
   </View>;
