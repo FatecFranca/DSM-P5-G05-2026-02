@@ -1,7 +1,9 @@
 import type { Perfil } from '@/services/api';
 
-export function homeForRole(role: Perfil): '/dashboard' | '/professor' | '/student' {
+export function homeForRole(role: Perfil): '/dashboard' | '/professor' | '/student' | '/secretaria' | '/financeiro' {
   if (role === 'ADMIN' || role === 'COORDENACAO') return '/dashboard';
+  if (role === 'SECRETARIA') return '/secretaria';
+  if (role === 'FINANCEIRO') return '/financeiro';
   if (role === 'ALUNO') return '/student';
   return '/professor';
 }

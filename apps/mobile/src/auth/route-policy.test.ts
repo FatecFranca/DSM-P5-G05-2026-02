@@ -9,6 +9,11 @@ test('aluno consulta somente sua pessoa e envia autodeclaração; bloqueia notas
   assert.equal(canSend('ALUNO', 'GET', '/ml/matriculas/abc/autodeclaracao'), true);
   assert.equal(canSend('ALUNO', 'PUT', '/ml/matriculas/abc/autodeclaracao'), true);
   assert.equal(canSend('PROFESSOR', 'PUT', '/ml/matriculas/abc/autodeclaracao'), false);
+  assert.equal(canSend('ALUNO', 'PUT', '/ml/matriculas/abc/declaracao-ingresso'), true);
+  assert.equal(canSend('ADMIN', 'POST', '/ml/importacoes'), true);
+  assert.equal(canSend('ADMIN', 'GET', '/ml/previsoes-automaticas'), true);
+  assert.equal(canSend('ALUNO', 'GET', '/ml/previsoes-automaticas'), false);
+  assert.equal(canSend('ALUNO', 'POST', '/ml/importacoes'), false);
   assert.equal(canSend('ALUNO', 'POST', '/ml/preview'), false);
 });
 test('coordenação e tutor consultam sem liberar mutações', () => {
@@ -42,4 +47,36 @@ test('análise usa a matrícula; cadastro limitado a administração e coordena�
     assert.equal(canSend(role, 'PUT', '/ml/matriculas/abc'), role === 'ADMIN' || role === 'COORDENACAO');
     assert.equal(canSend(role, 'POST', '/ml/matriculas/abc/treinar'), false);
   }
+});
+
+test('secretaria homologa ingresso e financeiro opera somente cobrança', () => {
+  assert.equal(canSend('SECRETARIA', 'GET', '/ml/ingressos/pendentes'), true);
+  assert.equal(canSend('SECRETARIA', 'GET', '/ml/ingressos/matriculas?registro=123'), true);
+  assert.equal(canSend('SECRETARIA', 'GET', '/ml/schema'), true);
+  assert.equal(canSend('SECRETARIA', 'PUT', '/ml/matriculas/abc/ingresso'), true);
+  assert.equal(canSend('SECRETARIA', 'PUT', '/ml/matriculas/abc/semestres/1'), true);
+  assert.equal(canSend('SECRETARIA', 'PUT', '/ml/matriculas/abc/coorte-macro'), true);
+  assert.equal(canSend('SECRETARIA', 'PUT', '/ml/fontes/macro/PT/2026'), false);
+  assert.equal(canSend('SECRETARIA', 'POST', '/ml/fontes/importacoes/semestres'), true);
+  assert.equal(canSend('SECRETARIA', 'POST', '/ml/fontes/importacoes/macro'), false);
+  assert.equal(canSend('ADMIN', 'POST', '/ml/fontes/importacoes/macro'), true);
+  assert.equal(canSend('ADMIN', 'PUT', '/ml/fontes/macro/PT/2026'), true);
+  assert.equal(canSend('SECRETARIA', 'POST', '/usuarios'), true);
+  assert.equal(canSend('SECRETARIA', 'POST', '/matriculas'), true);
+  assert.equal(canSend('SECRETARIA', 'POST', '/turmas'), false);
+  assert.equal(canSend('SECRETARIA', 'GET', '/faturas/matriculas?registro=123'), false);
+  assert.equal(canSend('FINANCEIRO', 'GET', '/faturas/matriculas?registro=123'), true);
+  assert.equal(canSend('FINANCEIRO', 'PUT', '/faturas/matriculas/abc/plano'), true);
+  assert.equal(canSend('FINANCEIRO', 'GET', '/faturas/matriculas/abc/plano'), true);
+  assert.equal(canSend('FINANCEIRO', 'POST', '/faturas/abc/pagamentos'), true);
+  assert.equal(canSend('FINANCEIRO', 'PUT', '/bolsas/matriculas/abc'), true);
+  assert.equal(canSend('FINANCEIRO', 'GET', '/academico/resumo'), false);
+  assert.equal(canSend('FINANCEIRO', 'GET', '/ml/matriculas/abc/ingresso'), false);
+  assert.equal(canSend('ALUNO', 'PUT', '/faturas/matriculas/abc/plano'), false);
+  assert.equal(canSend('ALUNO', 'GET', '/faturas/matriculas/abc'), true);
+  assert.equal(canSend('ALUNO', 'GET', '/faturas/matriculas/abc/semestres'), true);
+  assert.equal(canSend('ALUNO', 'POST', '/faturas/abc/simular-pagamento'), true);
+  assert.equal(canSend('FINANCEIRO', 'POST', '/faturas/abc/simular-pagamento'), false);
+  assert.equal(canSend('ADMIN', 'PUT', '/turmas/abc/duracao'), true);
+  assert.equal(canSend('FINANCEIRO', 'PUT', '/turmas/abc/duracao'), false);
 });

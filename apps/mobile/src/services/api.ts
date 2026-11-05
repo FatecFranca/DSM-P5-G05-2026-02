@@ -1,4 +1,4 @@
-export type Perfil = 'ADMIN' | 'COORDENACAO' | 'PROFESSOR' | 'TUTOR' | 'ALUNO';
+export type Perfil = 'ADMIN' | 'SECRETARIA' | 'FINANCEIRO' | 'COORDENACAO' | 'PROFESSOR' | 'TUTOR' | 'ALUNO';
 
 export interface AuthUser {
   id: string;

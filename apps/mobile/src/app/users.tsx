@@ -78,7 +78,7 @@ export default function UsersScreen() {
       { key: 'nome', label: 'Nome' },
       { key: 'email', label: 'E-mail' },
       { key: 'senha', label: 'Senha inicial (mínimo 12 caracteres)', type: 'password' },
-      { key: 'perfil', label: 'Perfil', options: (['ALUNO', 'PROFESSOR', 'TUTOR', 'COORDENACAO', 'ADMIN'] as Perfil[]).map((perfil) => ({ id: perfil, label: roleLabel[perfil] })) },
+      { key: 'perfil', label: 'Perfil', options: (['ALUNO', 'PROFESSOR', 'TUTOR', 'COORDENACAO', 'SECRETARIA', 'FINANCEIRO', 'ADMIN'] as Perfil[]).map((perfil) => ({ id: perfil, label: roleLabel[perfil] })) },
     ], submit: async (values) => {
       await request('/usuarios', { method: 'POST', body: values });
       setEditor(null); setNotice('Pessoa cadastrada. Vincule matrícula, disciplina ou tutoria na área acadêmica.');
@@ -102,7 +102,7 @@ export default function UsersScreen() {
             <DataNotice>Cadastros da API, conforme os vínculos e permissões da sua conta. Não há classificação de risco disponível.</DataNotice>
             <TextInput accessibilityLabel="Pesquisar estudantes e profissionais" autoCapitalize="none" placeholder="Buscar nome, e-mail ou Fatec" placeholderTextColor={palette.muted} value={query} onChangeText={setQuery} style={styles.search} />
             {role === 'ADMIN' && <><Text style={styles.label}>Fatec</Text><View style={styles.chips}><Chip label="Todas" selected={selectedInstitution === 'all'} onPress={() => setSelectedInstitution('all')} />{instituicoes.map((item) => <Chip key={item.id} label={item.nome} selected={selectedInstitution === item.id} onPress={() => setSelectedInstitution(item.id)} />)}</View></>}
-            <Text style={styles.label}>Perfil</Text><View style={styles.chips}><Chip label="Todos" selected={selectedRole === 'ALL'} onPress={() => setSelectedRole('ALL')} />{(['ALUNO', 'PROFESSOR', 'TUTOR', 'COORDENACAO', 'ADMIN'] as Perfil[]).filter((perfil) => role === 'ADMIN' || perfil === 'ALUNO').map((perfil) => <Chip key={perfil} label={roleLabel[perfil]} selected={selectedRole === perfil} onPress={() => setSelectedRole(perfil)} />)}</View>
+            <Text style={styles.label}>Perfil</Text><View style={styles.chips}><Chip label="Todos" selected={selectedRole === 'ALL'} onPress={() => setSelectedRole('ALL')} />{(['ALUNO', 'PROFESSOR', 'TUTOR', 'COORDENACAO', 'SECRETARIA', 'FINANCEIRO', 'ADMIN'] as Perfil[]).filter((perfil) => role === 'ADMIN' || perfil === 'ALUNO').map((perfil) => <Chip key={perfil} label={roleLabel[perfil]} selected={selectedRole === perfil} onPress={() => setSelectedRole(perfil)} />)}</View>
             <Text style={styles.label}>Ordenar</Text><View style={styles.chips}><Chip label="Nome" selected={sort === 'Nome'} onPress={() => setSort('Nome')} /><Chip label="Cadastro recente" selected={sort === 'Cadastro'} onPress={() => setSort('Cadastro')} /></View>
             <Text style={styles.countText}>{visibleUsers.length} pessoa(s) no recorte</Text>
             {role === 'ADMIN' && !editor && <TextButton title="Cadastrar pessoa" onPress={openCreate} />}

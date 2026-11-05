@@ -14,7 +14,7 @@ import type { DemoMlPrediction } from '@/services/ml';
 interface AcademicRecord { enrollmentId: string; registration: string; course: string; className: string; average: number | null; attendance: number | null }
 
 const CLASS_LABELS: Record<DemoMlPrediction['predictedClass'], string> = {
-  Dropout: 'Evasão', Enrolled: 'Matriculado', Graduate: 'Concluído',
+  Dropout: 'Evasão', Enrolled: 'Matriculado', Graduate: 'Graduate (classe do modelo)',
 };
 
 export default function PersonDetail() {
@@ -83,7 +83,7 @@ export default function PersonDetail() {
 
   const demoPerson = !!role && role !== 'ALUNO' && person?.nome === 'Aluno Demo SGEI' && person.matriculas.some((item) => /^SGEI-DEMO-(109|002|276|284)$/.test(item.registro));
   return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow={person?.perfil === 'ALUNO' ? 'ANÁLISE INDIVIDUAL' : 'CADASTRO'} title={person?.nome ?? 'Detalhes da pessoa'} />
-    <DataNotice>{demoPerson ? 'Dados fictícios. As probabilidades vêm do modelo português e não medem risco real nas Fatecs.' : 'Informações registradas na API. Nenhum risco ou probabilidade é exibido sem validação do modelo.'}</DataNotice>
+    <DataNotice>{demoPerson ? 'Dados fictícios. As probabilidades vêm do modelo português e não medem risco real nesta instituição.' : 'Informações registradas na API. Nenhum risco ou probabilidade é exibido sem validação do modelo.'}</DataNotice>
     {loading && <ActivityIndicator color={palette.primary} />}
     {!!error && <Card><Text accessibilityRole="alert" style={styles.error}>{error}</Text></Card>}
     {person && <>
@@ -96,7 +96,11 @@ export default function PersonDetail() {
           {demoPerson && <Card><Text style={styles.heading}>Análise demonstrativa · modelo português</Text>
             {predictionLoading && <ActivityIndicator color={palette.primary} />}
             {predictions[item.enrollmentId] && <>
-              {(['Dropout', 'Enrolled', 'Graduate'] as const).map((key) => <Bar key={key} label={CLASS_LABELS[key]} value={predictions[item.enrollmentId].probabilities[key]} color={classColor[key]} />)}
+              {(['Dropout', 'Enrolled', 'Graduate'] as const).map((key) => {
+                const value = predictions[item.enrollmentId].probabilities[key];
+                return typeof value === 'number' ? <Bar key={key} label={CLASS_LABELS[key]} value={value} color={classColor[key]} /> : null;
+              })}
+              {typeof predictions[item.enrollmentId].probabilities.Enrolled !== 'number' && <Text style={connectedStyles.body}>Modelo binário: Enrolled não é uma classe prevista.</Text>}
               <Text style={styles.text}>Classificação: {CLASS_LABELS[predictions[item.enrollmentId].predictedClass]}</Text>
               <Text style={connectedStyles.body}>Versão {predictions[item.enrollmentId].modelVersion} · 36 atributos sintéticos. Eles não correspondem necessariamente à média e à frequência acima. Resultado experimental, sem validação para alunos das Fatecs.</Text>
             </>}
@@ -104,7 +108,7 @@ export default function PersonDetail() {
           </Card>}
         </View>)}
         {!person.matriculas.length && <Card><Text style={connectedStyles.body}>Nenhuma matrícula vinculada.</Text></Card>}
-        {!demoPerson && <Card><Text style={styles.heading}>Análise acadêmica</Text><Text style={connectedStyles.body}>A previsão permanece indisponível até que os atributos e o modelo sejam validados para alunos das Fatecs.</Text></Card>}
+        {!demoPerson && <Card><Text style={styles.heading}>Análise acadêmica</Text><Text style={connectedStyles.body}>A previsão permanece indisponível até que os atributos e o modelo sejam validados para os alunos desta instituição.</Text></Card>}
       </>}
       {person.perfil === 'PROFESSOR' && <Card><Text style={styles.heading}>Disciplinas vinculadas</Text>{person.lotacoes?.length ? person.lotacoes.map((item, index) => <Text key={`${item.disciplina.nome}-${index}`} style={styles.text}>{item.disciplina.nome} · {item.disciplina.turma.nome}</Text>) : <Text style={connectedStyles.body}>Nenhuma disciplina vinculada.</Text>}</Card>}
       {person.perfil === 'TUTOR' && <Card><Text style={styles.heading}>Tutorias</Text>{person.tutorias?.length ? person.tutorias.map((item) => <Text key={item.matricula.registro} style={styles.text}>{item.matricula.aluno.nome} · {item.matricula.registro}</Text>) : <Text style={connectedStyles.body}>Nenhuma tutoria vinculada.</Text>}</Card>}

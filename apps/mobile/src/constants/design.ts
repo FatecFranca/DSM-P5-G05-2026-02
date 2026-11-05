@@ -7,5 +7,5 @@ export const palette = {
 
 export const roleLabel: Record<string, string> = {
   ADMIN: 'Administração', COORDENACAO: 'Coordenação', PROFESSOR: 'Docente',
-  TUTOR: 'Tutoria', ALUNO: 'Estudante',
+  TUTOR: 'Tutoria', ALUNO: 'Estudante', SECRETARIA: 'Secretaria', FINANCEIRO: 'Financeiro',
 };

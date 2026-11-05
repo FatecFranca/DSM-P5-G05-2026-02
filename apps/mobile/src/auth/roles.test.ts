@@ -8,6 +8,8 @@ test('redireciona cada perfil a uma navegação permitida', () => {
   assert.equal(homeForRole('PROFESSOR'), '/professor');
   assert.equal(homeForRole('TUTOR'), '/professor');
   assert.equal(homeForRole('ALUNO'), '/student');
+  assert.equal(homeForRole('SECRETARIA'), '/secretaria');
+  assert.equal(homeForRole('FINANCEIRO'), '/financeiro');
   assert.equal(canUseAdmin('PROFESSOR'), false);
   assert.equal(canUseProfessor('ALUNO'), false);
 });

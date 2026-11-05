@@ -1,8 +1,43 @@
 export interface MlSchema { features: string[]; classes: string[]; categories: Record<string, number[]>; previewEnabled?: boolean }
 export interface MlStatus { configured: boolean; ready: boolean; modelVersion?: string; originalInputReady?: boolean }
 export type MlInputFormat = 'original' | 'preprocessed';
-export interface MlPrediction { modelVersion: string; predictedClass: 'Dropout' | 'Enrolled' | 'Graduate'; probabilities: Record<'Dropout' | 'Enrolled' | 'Graduate', number> }
+export interface MlPrediction { modelVersion: string; predictedClass: 'Dropout' | 'Enrolled' | 'Graduate'; probabilities: Record<'Dropout' | 'Graduate', number> & Partial<Record<'Enrolled', number>> }
 export interface DemoMlPrediction extends MlPrediction { demonstracao: true; fonte: string }
+
+export interface MlImportResult {
+  modelVersion: string;
+  arquivoSha256: string;
+  total: number;
+  salvos: number;
+  repetidos: number;
+  erros: { linha: number; registro: string; motivo: string }[];
+  status: 'EXPERIMENTAL';
+}
+
+export interface MlImportedPrediction {
+  id: string;
+  registro: string;
+  modelVersion: string;
+  perfilVersao: number;
+  predictedClass: MlPrediction['predictedClass'];
+  probabilities: MlPrediction['probabilities'];
+  calculadoEm: string;
+  atual: boolean;
+  status: 'EXPERIMENTAL';
+}
+
+export interface MlAutomaticPrediction {
+  id: string;
+  registro: string;
+  modelVersion: string;
+  perfilVersao: number;
+  predictedClass: MlPrediction['predictedClass'];
+  probabilities: MlPrediction['probabilities'];
+  calculadoEm: string;
+  atual: boolean;
+  status: 'EXPERIMENTAL';
+  origem: 'AUTOMATICA';
+}
 
 export interface EnrollmentMl {
   matriculaId: string;

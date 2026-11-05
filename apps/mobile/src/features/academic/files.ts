@@ -15,6 +15,26 @@ export async function chooseFile(): Promise<FormData | null> {
   return form;
 }
 
+export async function chooseMlWorkbook(): Promise<FormData | null> {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    copyToCacheDirectory: true,
+    multiple: false,
+  });
+  if (result.canceled) return null;
+  const asset = result.assets[0];
+  if (!asset.name.toLowerCase().endsWith('.xlsx')) throw new Error('Selecione uma planilha .xlsx.');
+  if ((asset.size ?? 0) > 1024 * 1024) throw new Error('A planilha deve ter até 1 MB.');
+  const form = new FormData();
+  if (Platform.OS === 'web' && asset.file) form.append('arquivo', asset.file, asset.name);
+  else form.append('arquivo', {
+    uri: asset.uri,
+    name: asset.name,
+    type: asset.mimeType ?? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  } as unknown as Blob);
+  return form;
+}
+
 export async function saveFile(file: AcademicFile, bytes: ArrayBuffer) {
   if (Platform.OS === 'web') {
     const url = URL.createObjectURL(new Blob([bytes], { type: file.mime }));

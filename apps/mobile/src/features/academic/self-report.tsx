@@ -5,6 +5,7 @@ import { useSession } from '@/auth/session';
 import { Screen } from '@/components/primitives';
 import { AcademicHeader, ActionButton, BodyText, Chip, Feedback, FormField, Panel, PanelTitle, academicStyles } from '@/demo/academic-ui';
 import type { AcademicSnapshot } from '@/services/academic';
+import { IngressDeclaration } from './ingress-declaration';
 
 type Turno = 'DIURNO' | 'NOTURNO';
 interface SelfReport {
@@ -93,5 +94,6 @@ export default function SelfReportScreen() {
       <ActionButton title={saving ? 'Salvando…' : 'Salvar respostas'} disabled={saving} onPress={() => void save()} />
       <BodyText>{report.informacao}</BodyText>
     </Panel>}
+    {report && <IngressDeclaration key={selected} matriculaId={selected} />}
   </Screen>;
 }

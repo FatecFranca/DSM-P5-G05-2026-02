@@ -5,6 +5,7 @@ import { Screen } from '@/components/primitives';
 import { AcademicHeader, Panel, PanelTitle, Stat, academicStyles } from '@/demo/academic-ui';
 import { DataNotice, RequestState } from './ui';
 import { summarizeEnrollments, useAcademicOverview } from './overview';
+import { StudentBilling } from './student-billing';
 
 export function ConnectedHome() {
   const { state } = useSession();
@@ -36,6 +37,7 @@ export function ConnectedHome() {
         {data.classes.length ? data.classes.flatMap((item) => student ? item.snapshot.disciplinas.map((subject) => ({ id: subject.id, title: subject.nome, subtitle: `${item.course} · ${item.name}`, classId: item.id })) : [{ id: item.id, title: item.name, subtitle: `${item.course} · ${item.period}`, classId: item.id }]).slice(0, 5).map((item) => <View key={item.id} style={academicStyles.row}><View style={{ flex: 1 }}><Text style={academicStyles.strong}>{item.title}</Text><Text style={academicStyles.meta}>{item.subtitle}</Text></View><Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/connected/class/[id]', params: { id: item.classId } })}><Text style={academicStyles.link}>Detalhes</Text></Pressable></View>) : <Text style={academicStyles.meta}>Nenhuma turma vinculada.</Text>}
       </Panel>
       {student ? <>
+        <StudentBilling enrollments={data.enrollments} />
         <Panel><PanelTitle>Próximas entregas</PanelTitle>{pending.length ? pending.slice(0, 3).map((item) => <Text key={item.id} style={academicStyles.meta}>{item.titulo} · {item.className} · {new Date(item.prazo).toLocaleDateString('pt-BR')}</Text>) : <Text style={academicStyles.meta}>Nenhuma entrega pendente.</Text>}</Panel>
         <Panel><PanelTitle>Minha situação</PanelTitle><Text style={academicStyles.meta}>Conte sobre seu ingresso em linguagem comum. As respostas são vinculadas à sua matrícula.</Text><Pressable accessibilityRole="button" onPress={() => router.push('/connected/report')}><Text style={academicStyles.link}>Abrir formulário →</Text></Pressable></Panel>
       </> : <Panel><PanelTitle>Acesso rápido</PanelTitle><View style={academicStyles.chips}>

@@ -19,14 +19,14 @@ export function ConnectedScenarios() {
   const enrollments = overview.data?.enrollments.filter((item) => item.classId === selected?.id) ?? [];
   if (state.status === 'signedIn' && state.user.perfil === 'ALUNO') return <Redirect href="/connected/report" />;
   return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow="LABORATÓRIO ACADÊMICO" title="Cenários" />
-    <DataNotice>O modelo ainda não foi validado para alunos das Fatecs. Esta tela verifica a disponibilidade da análise com registros reais, sem simular probabilidades.</DataNotice>
+    <DataNotice>O modelo português ainda não foi validado para os alunos desta instituição. Esta tela verifica a disponibilidade da análise com registros reais.</DataNotice>
     <InstitutionPicker institutions={overview.institutions} selected={overview.institutionId} onSelect={(id) => { setClassId(null); overview.selectInstitution(id); }} />
     <RequestState loading={overview.loading} error={overview.error} onRetry={overview.refresh} />
     {overview.data && <>
       <Card><Text style={connectedStyles.heading}>Selecione uma turma</Text><View style={connectedStyles.chips}>{overview.data.classes.map((item) => <Chip key={item.id} label={item.name} selected={item.id === selected?.id} onPress={() => setClassId(item.id)} />)}</View>
         {!overview.data.classes.length && <Text style={connectedStyles.body}>Nenhuma turma acessível.</Text>}
       </Card>
-      {selected && <MlEnrollments key={selected.id} matriculas={enrollments.map((item) => ({ id: item.id, label: `${item.name} · ${item.registration}` }))} />}
+      <MlEnrollments key={selected?.id ?? 'sem-turma'} matriculas={enrollments.map((item) => ({ id: item.id, label: `${item.name} · ${item.registration}` }))} />
     </>}
   </Screen>;
 }
