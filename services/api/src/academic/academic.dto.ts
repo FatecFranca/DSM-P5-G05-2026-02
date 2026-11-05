@@ -28,6 +28,10 @@ export class TurmaDto {
   @Transform(trim) @IsString() @Matches(/\S/) @MaxLength(120) nome!: string;
   @Transform(trim) @IsString() @Matches(/\S/) @MaxLength(120) curso!: string;
   @Transform(trim) @IsString() @Matches(/\S/) @MaxLength(40) periodo!: string;
+  @IsOptional() @IsInt() @Min(1) @Max(20) duracaoSemestres?: number;
+}
+export class DuracaoCursoDto {
+  @IsInt() @Min(1) @Max(20) duracaoSemestres!: number;
 }
 export class DisciplinaDto {
   @IsUUID() turmaId!: string;

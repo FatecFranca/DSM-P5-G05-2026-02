@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { ML_CATEGORIES } from './input-categories';
 import {
   ML_CLASSES,
+  ML_BINARY_CLASSES,
   ML_FEATURES,
   type MlBatchRequest,
   type MlBatchResponse,
@@ -22,20 +23,21 @@ import {
 export class MlClientService {
   constructor(private readonly config: ConfigService) {}
 
-  fatecEligibility() {
+  operationalEligibility() {
     // O artefato atual foi avaliado somente no dataset externo. Não há validação
-    // retrospectiva, equivalência de cursos ou estudo de vieses para as Fatecs.
+    // retrospectiva, equivalência de cursos ou estudo de vieses para a instituição.
     return {
       valid: false,
       reason:
-        'O modelo disponível não foi validado para alunos das Fatecs. Faltam equivalência dos atributos, avaliação local e revisão de vieses.',
+        'O modelo disponível não foi validado para uso operacional nesta instituição. Faltam equivalência dos atributos, avaliação local e revisão de vieses.',
     } as const;
   }
 
-  schema() {
+  async schema() {
+    const status = await this.status();
     return {
       features: ML_FEATURES,
-      classes: ML_CLASSES,
+      classes: status.classes ?? ML_CLASSES,
       mode: 'TECHNICAL_PREVIEW' as const,
       previewEnabled: this.config.get<string>('ML_PREVIEW_ENABLED') === 'true',
       categories: ML_CATEGORIES,
@@ -47,6 +49,7 @@ export class MlClientService {
     ready: boolean;
     modelVersion?: string;
     originalInputReady?: boolean;
+    classes?: Array<(typeof ML_CLASSES)[number]>;
   }> {
     const baseUrl = this.config.get<string>('ML_SERVICE_URL');
     if (!baseUrl) return { configured: false, ready: false };
@@ -59,11 +62,16 @@ export class MlClientService {
       if (!this.isObject(body) || typeof body.model_version !== 'string') {
         return { configured: true, ready: false };
       }
+      const classes =
+        Array.isArray(body.classes) && this.validClasses(body.classes)
+          ? body.classes
+          : undefined;
       return {
         configured: true,
         ready: true,
         modelVersion: body.model_version,
         originalInputReady: body.original_input_ready === true,
+        classes,
       };
     } catch {
       return { configured: true, ready: false };
@@ -72,7 +80,7 @@ export class MlClientService {
 
   async preview(
     features: MlFeatures,
-    inputFormat: MlInputFormat = 'preprocessed',
+    inputFormat: MlInputFormat = 'original',
   ): Promise<MlPreviewResponse> {
     if (this.config.get<string>('ML_PREVIEW_ENABLED') !== 'true') {
       throw new ForbiddenException('Prévia de ML desabilitada');
@@ -151,6 +159,16 @@ export class MlClientService {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
+  private validClasses(
+    value: unknown[],
+  ): value is Array<(typeof ML_CLASSES)[number]> {
+    return [ML_CLASSES, ML_BINARY_CLASSES].some(
+      (allowed) =>
+        value.length === allowed.length &&
+        allowed.every((label, index) => value[index] === label),
+    );
+  }
+
   private validRequest(request: MlBatchRequest): boolean {
     if (
       !request ||
@@ -219,9 +237,14 @@ export class MlClientService {
         return false;
       seen.add(result.ref);
       const probabilities = result.probabilities;
-      if (Object.keys(probabilities).length !== ML_CLASSES.length) return false;
+      const labels = Object.keys(probabilities);
+      if (!this.validClasses(labels)) return false;
+      if (
+        !labels.includes(result.predicted_class as (typeof ML_CLASSES)[number])
+      )
+        return false;
       const values: number[] = [];
-      for (const label of ML_CLASSES) {
+      for (const label of labels) {
         const probability = probabilities[label];
         if (
           typeof probability !== 'number' ||

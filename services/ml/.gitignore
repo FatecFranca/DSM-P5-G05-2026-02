@@ -1,6 +1,10 @@
 .venv/
 __pycache__/
 .pytest_cache/
-artifacts/
+# Somente o modelo ativo da demonstração é distribuído pelo Git.
+/artifacts/*
+!/artifacts/externo-lr-sem-enrolled-v1/
+/artifacts/externo-lr-sem-enrolled-v1/*
+!/artifacts/externo-lr-sem-enrolled-v1/model.pkl
 datasets/
 *.pyc

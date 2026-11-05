@@ -9,7 +9,6 @@ import type { AuthUser } from '../auth/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../generated/prisma/client';
 import type { Perfil } from '../generated/prisma/enums';
-import { FATEC_CODES } from '../fatecs';
 import * as D from './academic.dto';
 import {
   enrollmentScope,
@@ -60,23 +59,12 @@ export class AcademicService {
   }
 
   classes(actor: AuthUser, instituicaoId?: string) {
+    if (instituicaoId && instituicaoId !== actor.instituicaoId)
+      throw new NotFoundException('Instituição não encontrada');
     return this.db.turma.findMany({
       where: {
-        ...(actor.perfil === 'ADMIN'
-          ? {
-              OR: [
-                { instituicaoId: actor.instituicaoId },
-                {
-                  instituicao: {
-                    ativa: true,
-                    codigoCps: { in: [...FATEC_CODES] },
-                  },
-                },
-              ],
-            }
-          : { instituicaoId: actor.instituicaoId }),
-        ...(instituicaoId ? { instituicaoId } : {}),
-        ...(['ADMIN', 'COORDENACAO'].includes(actor.perfil)
+        instituicaoId: actor.instituicaoId,
+        ...(['ADMIN', 'SECRETARIA', 'COORDENACAO'].includes(actor.perfil)
           ? {}
           : { disciplinas: { some: subjectScope(actor) } }),
       },
@@ -250,10 +238,43 @@ export class AcademicService {
           nome: dto.nome,
           curso: dto.curso,
           periodo: dto.periodo,
+          duracaoSemestres: dto.duracaoSemestres ?? 6,
           instituicaoId: target,
         },
       }),
     );
+  }
+  async setClassDuration(
+    actor: AuthUser,
+    id: string,
+    duracaoSemestres: number,
+  ) {
+    requireRole(actor, ['ADMIN']);
+    return this.change(actor, 'CONFIGURAR_DURACAO_CURSO', async (tx) => {
+      const turma = await tx.turma.findFirst({
+        where: { id, instituicaoId: actor.instituicaoId },
+        select: { id: true },
+      });
+      if (!turma) throw new NotFoundException('Turma não encontrada');
+      const billed = await tx.matricula.count({
+        where: {
+          turmaId: id,
+          instituicaoId: actor.instituicaoId,
+          OR: [
+            { planoMensalidade: { isNot: null } },
+            { faturas: { some: {} } },
+          ],
+        },
+      });
+      if (billed)
+        throw new ConflictException(
+          'Duração não pode mudar após a configuração de cobranças',
+        );
+      return tx.turma.update({
+        where: { instituicaoId_id: { instituicaoId: actor.instituicaoId, id } },
+        data: { duracaoSemestres },
+      });
+    });
   }
   async createSubject(actor: AuthUser, dto: D.DisciplinaDto) {
     requireRole(actor, ['ADMIN']);
@@ -266,7 +287,7 @@ export class AcademicService {
     });
   }
   async enroll(actor: AuthUser, dto: D.MatriculaDto) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['ADMIN', 'SECRETARIA']);
     const scoped = await this.adminActorForClass(actor, dto.turmaId);
     return this.change(actor, 'MATRICULAR_ALUNO', async (tx) => {
       await this.openClass(tx, scoped, dto.turmaId);
@@ -573,18 +594,16 @@ export class AcademicService {
   }
   private async adminInstitution(actor: AuthUser, instituicaoId: string) {
     requireRole(actor, ['ADMIN']);
+    if (instituicaoId !== actor.instituicaoId)
+      throw new NotFoundException('Instituição não encontrada');
     const institution = await this.db.instituicao.findFirst({
       where: {
         id: instituicaoId,
         ativa: true,
-        OR: [
-          { id: actor.instituicaoId },
-          { codigoCps: { in: [...FATEC_CODES] } },
-        ],
       },
       select: { id: true },
     });
-    if (!institution) throw new NotFoundException('Fatec não disponível');
+    if (!institution) throw new NotFoundException('Instituição não disponível');
     return institution.id;
   }
 
@@ -593,17 +612,11 @@ export class AcademicService {
     id: string,
   ): Promise<AuthUser> {
     const turma = await this.db.turma.findFirst({
-      where: {
-        id,
-        OR: [
-          { instituicaoId: actor.instituicaoId },
-          { instituicao: { ativa: true, codigoCps: { in: [...FATEC_CODES] } } },
-        ],
-      },
+      where: { id, instituicaoId: actor.instituicaoId },
       select: { instituicaoId: true },
     });
     if (!turma) throw new NotFoundException('Turma não encontrada');
-    return { ...actor, instituicaoId: turma.instituicaoId };
+    return actor;
   }
 
   private async adminActorForSubject(
@@ -611,21 +624,11 @@ export class AcademicService {
     id: string,
   ): Promise<AuthUser> {
     const disciplina = await this.db.disciplina.findFirst({
-      where: {
-        id,
-        OR: [
-          { instituicaoId: actor.instituicaoId },
-          {
-            turma: {
-              instituicao: { ativa: true, codigoCps: { in: [...FATEC_CODES] } },
-            },
-          },
-        ],
-      },
+      where: { id, instituicaoId: actor.instituicaoId },
       select: { instituicaoId: true },
     });
     if (!disciplina) throw new NotFoundException('Disciplina não encontrada');
-    return { ...actor, instituicaoId: disciplina.instituicaoId };
+    return actor;
   }
 
   private async adminActorForEnrollment(
@@ -633,21 +636,11 @@ export class AcademicService {
     id: string,
   ): Promise<AuthUser> {
     const matricula = await this.db.matricula.findFirst({
-      where: {
-        id,
-        OR: [
-          { instituicaoId: actor.instituicaoId },
-          {
-            turma: {
-              instituicao: { ativa: true, codigoCps: { in: [...FATEC_CODES] } },
-            },
-          },
-        ],
-      },
+      where: { id, instituicaoId: actor.instituicaoId },
       select: { instituicaoId: true },
     });
     if (!matricula) throw new NotFoundException('Matrícula não encontrada');
-    return { ...actor, instituicaoId: matricula.instituicaoId };
+    return actor;
   }
 
   private async openClass(

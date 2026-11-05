@@ -2,15 +2,17 @@
 
 ## Autenticação e escopo
 
-Todas as rotas abaixo exigem `Authorization: Bearer <accessToken>`. O backend recupera perfil, instituição e sessão do banco. O corpo não aceita `instituicaoId`, perfil ou identidade do autor. UUIDs, tipos, limites e campos extras são validados por DTOs. Alterações acadêmicas e auditoria são gravadas na mesma transação.
+Todas as rotas abaixo exigem `Authorization: Bearer <accessToken>`. O backend recupera perfil, instituição e sessão do banco. O corpo não determina a instituição ou a identidade do autor; quando `instituicaoId` é aceito, deve corresponder à instituição da sessão. UUIDs, tipos, limites e campos extras são validados por DTOs. Alterações acadêmicas e auditoria são gravadas na mesma transação.
 
 O mobile usa o perfil retornado por `/auth/me` para filtrar a navegação e as solicitações. Isso é conveniência de interface: requisições forjadas continuam sujeitas às regras do backend. Refresh tokens são rotacionados; respostas de sessões encerradas são descartadas pelo aplicativo.
 
-Nesta demonstração, `/auth/instituicoes` mostra somente Fatec Franca (109), São Paulo (002), Campinas (276) e Ribeirão Preto (284). `ADMIN` pode consultar e cadastrar usuários e estrutura acadêmica nessas quatro Fatecs. A instituição de cada usuário e vínculo permanece gravada e validada no servidor. `COORDENACAO` continua limitada à própria Fatec; professor, tutor e aluno só consultam pessoas e dados vinculados. Auditorias de ações administrativas entre Fatecs são registradas na instituição de origem do administrador.
+`/auth/instituicoes` lista as instituições ativas. Os nomes e códigos Fatec são dados de apresentação da demonstração; a autorização usa o `instituicaoId` da sessão. `ADMIN`, `SECRETARIA` e `FINANCEIRO` atuam somente na própria instituição. Professor, tutor e aluno consultam pessoas e dados vinculados. Cada ação administrativa é auditada na instituição do autor.
 
 | Perfil | Leitura | Escrita |
 | --- | --- | --- |
 | ADMIN | Instituição | Usuários, turmas, disciplinas, matrículas, lotações, tutorias e fechamento/reabertura |
+| SECRETARIA | Alunos e turmas da instituição | Cadastro de alunos e matrículas na instituição |
+| FINANCEIRO | Faturas da instituição | Planos, faturas e pagamentos; sem acesso acadêmico ou ao risco de evasão |
 | COORDENACAO | Instituição | Nenhuma neste módulo |
 | PROFESSOR | Disciplinas com lotação e respectivas matrículas | Aulas, frequência, avaliações, notas, atividades, correções e materiais dessas disciplinas |
 | TUTOR | Matrículas vinculadas; notas publicadas; sem materiais | Nenhuma neste módulo |
@@ -27,10 +29,10 @@ Nesta demonstração, `/auth/instituicoes` mostra somente Fatec Franca (109), S�
 | GET `/usuarios?instituicaoId=&perfil=&busca=` | Pessoas no escopo do perfil; até 500, ordenadas por nome |
 | GET `/usuarios?pagina=1&tamanho=50&instituicaoId=&perfil=&busca=` | Mesmo escopo e filtros; retorno `{ itens, total, pagina, tamanho }`, com `tamanho` de 1 a 100 |
 | GET `/usuarios/:id` | Detalhes e matrículas visíveis no escopo do perfil |
-| POST `/usuarios` | ADMIN; aceita `instituicaoId` de uma das quatro Fatecs, além de nome, e-mail, perfil e senha |
+| POST `/usuarios` | ADMIN cria perfis na própria instituição; SECRETARIA cria somente ALUNO. Recebe nome, e-mail, perfil e senha; `instituicaoId`, se enviado, deve ser o da sessão |
 | POST `/turmas` | `nome`, `curso`, `periodo` |
 | POST `/disciplinas` | `turmaId`, `nome` |
-| POST `/matriculas` | `turmaId`, `alunoId`, `registro` |
+| POST `/matriculas` | ADMIN ou SECRETARIA: `turmaId`, `alunoId`, `registro`, todos na própria instituição |
 | POST `/lotacoes` | `disciplinaId`, `professorId` |
 | POST `/tutorias` | `matriculaId`, `tutorId` |
 | PATCH `/turmas/:id/fechamento` | `fechada`: boolean |
@@ -64,8 +66,8 @@ Criações retornam 201; consultas e PUT/PATCH retornam 200. Erros: 400 validaç
 - Resumo possui limite de 2.000 registros por coleção. `truncated: true` sinaliza resultado incompleto e suprime indicadores. A interface pagina os registros recebidos em grupos de 20. Paginação no servidor e filtros adicionais ainda são necessários para instituições maiores.
 - Não há exclusão/retenção automática de uploads sem vínculo nesta versão. Isso requer política de retenção e coleta de arquivos órfãos antes de uso prolongado.
 - Não são produzidas previsões individuais com os dados acadêmicos deste contrato. O modelo atual utiliza 36 atributos externos; o mapeamento para registros operacionais requer definição e validação. Risco e probabilidades nunca são enviados ao aluno.
-- `GET/PUT /ml/matriculas/:id/autodeclaracao` permitem ao aluno consultar e informar **idade ao ingressar** e **turno** de sua própria matrícula. O servidor aplica o mapeamento `fatec-v1` (idade inteira; diurno → 1; noturno → 0), preserva os demais atributos já cadastrados e não retorna códigos ou risco. Estas respostas não completam o modelo por si só.
-- A análise operacional retorna `INSUFICIENTE` com `impedimentos` enquanto não houver validação de população, equivalência das categorias e revisão de vieses para as Fatecs. O artefato técnico candidato permanece disponível apenas para testes separados; não deve ser usado para orientar decisões institucionais.
+- `GET/PUT /ml/matriculas/:id/autodeclaracao` permitem ao aluno consultar e informar **idade ao ingressar** e **turno** de sua própria matrícula. O servidor aplica o mapeamento `uci-portugal-v1` (idade inteira; diurno → 1; noturno → 0), preserva os demais atributos já cadastrados e não retorna códigos ou risco. Estas respostas não completam o modelo por si só.
+- A análise operacional retorna `INSUFICIENTE` com `impedimentos` enquanto não houver validação da população da instituição, equivalência das categorias e revisão de vieses. O artefato técnico candidato permanece disponível apenas para testes separados; não deve ser usado para orientar decisões institucionais.
 
 ## Dados locais de demonstração
 

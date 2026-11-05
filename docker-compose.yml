@@ -38,6 +38,8 @@ services:
   api:
     build: ./services/api
     env_file: ./services/api/.env
+    environment:
+      SIMULATED_PAYMENTS_ENABLED: "true"
     volumes:
       - sgei_uploads:/app/uploads
     ports:
@@ -50,8 +52,8 @@ services:
     build: ./services/ml
     env_file: ./services/ml/.env
     environment:
-      ML_MODEL_PATH: /models/evasao-baseline-v2/model.joblib
-      ML_METADATA_PATH: /models/evasao-baseline-v2/metadata.json
+      ML_MODEL_PATH: /models/externo-lr-sem-enrolled-v1/model.pkl
+      ML_METADATA_PATH: /app/candidates/externo-lr-sem-enrolled-v1.json
     volumes:
       - ./services/ml/artifacts:/models:ro
     expose:

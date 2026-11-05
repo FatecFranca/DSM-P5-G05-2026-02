@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -22,7 +23,10 @@ describe('ML por matrícula', () => {
   function setup(features: Record<string, number> = demoProfile(0)) {
     const updateMany = jest.fn().mockResolvedValue({ count: 1 });
     const upsert = jest.fn().mockResolvedValue({});
+    const createEvents = jest.fn().mockResolvedValue({ count: 1 });
     const create = jest.fn();
+    const findInvoices = jest.fn().mockResolvedValue([]);
+    const findScholarship = jest.fn().mockResolvedValue(null);
     const db = {
       matricula: {
         findFirst: jest.fn().mockResolvedValue({
@@ -35,15 +39,25 @@ describe('ML por matrícula', () => {
       $transaction: jest.fn((fn: (tx: unknown) => unknown) =>
         fn({
           matricula: {
-            findFirst: jest.fn().mockResolvedValue({ perfilMl: { features } }),
+            findFirst: jest
+              .fn()
+              .mockResolvedValue({ perfilMl: { features, versao: 1 } }),
           },
           perfilMl: { updateMany, upsert },
+          atributoMlEvento: { createMany: createEvents },
+          fatura: { findMany: findInvoices },
+          bolsaMatricula: { findUnique: findScholarship },
+          resumoSemestreMl: { findMany: jest.fn().mockResolvedValue([]) },
+          indicadorMacro: { findUnique: jest.fn().mockResolvedValue(null) },
+          fonteIngressoMl: { findUnique: jest.fn().mockResolvedValue(null) },
           auditoria: { create },
         }),
       ),
     };
     const ml = {
-      fatecEligibility: jest.fn().mockReturnValue({ valid: true, reason: '' }),
+      operationalEligibility: jest
+        .fn()
+        .mockReturnValue({ valid: true, reason: '' }),
       preview: jest.fn().mockResolvedValue({
         modelVersion: 'v1',
         predictedClass: 'Graduate',
@@ -64,7 +78,10 @@ describe('ML por matrícula', () => {
       ml,
       updateMany,
       upsert,
+      createEvents,
       create,
+      findInvoices,
+      findScholarship,
     };
   }
   it('não inventa os atributos ausentes nem chama ML', async () => {
@@ -74,9 +91,9 @@ describe('ML por matrícula', () => {
     expect(response.faltantes).toHaveLength(35);
     expect(ml.predict).not.toHaveBeenCalled();
   });
-  it('não gera previsão operacional sem validação para Fatecs', async () => {
+  it('não gera previsão operacional sem validação institucional', async () => {
     const { service, ml, updateMany } = setup();
-    ml.fatecEligibility.mockReturnValue({
+    ml.operationalEligibility.mockReturnValue({
       valid: false,
       reason: 'Validação local ausente',
     });
@@ -129,7 +146,7 @@ describe('ML por matrícula', () => {
     expect(ml.preview).not.toHaveBeenCalled();
   });
   it('converte respostas do aluno no servidor sem revelar códigos nem risco', async () => {
-    const { service, upsert } = setup({});
+    const { service, upsert, createEvents } = setup({});
     const student = { ...actor, perfil: 'ALUNO' as const };
     const response = await service.saveSelfReport(student, 'matricula', {
       idadeNoIngresso: 22,
@@ -144,6 +161,22 @@ describe('ML por matrícula', () => {
     );
     expect(response).not.toHaveProperty('features');
     expect(response).not.toHaveProperty('resultado');
+    expect(createEvents).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          atributo: 'idade_matricula',
+          origem: 'AUTODECLARACAO',
+          versaoPerfil: 2,
+          valorAtual: 22,
+        }),
+        expect.objectContaining({
+          atributo: 'periodo_aula',
+          origem: 'AUTODECLARACAO',
+          versaoPerfil: 2,
+          valorAtual: 0,
+        }),
+      ]) as unknown,
+    });
   });
   it('nega autodeclaração de matrícula alheia', async () => {
     const { service, db } = setup({});
@@ -170,11 +203,11 @@ describe('ML por matrícula', () => {
     );
     expect(result.resultado).not.toHaveProperty('features');
   });
-  it('permite ao administrador consultar e analisar matrícula de outra Fatec autorizada', async () => {
+  it('permite ao administrador analisar apenas matrícula da própria instituição', async () => {
     const { service, db, updateMany, create } = setup();
     (db.matricula.findFirst as jest.Mock).mockResolvedValue({
-      instituicaoId: 'franca',
-      aluno: { nome: 'Aluna de Franca' },
+      instituicaoId: 'tenant',
+      aluno: { nome: 'Aluna da instituição' },
       registro: 'F1',
       perfilMl: { features: demoProfile(0), versao: 1, resultado: null },
     });
@@ -185,12 +218,7 @@ describe('ML por matrícula', () => {
       expect.objectContaining({
         where: {
           id: 'matricula-franca',
-          turma: {
-            instituicao: {
-              ativa: true,
-              codigoCps: { in: ['109', '002', '276', '284'] },
-            },
-          },
+          instituicaoId: 'tenant',
         },
       }),
     );
@@ -198,7 +226,7 @@ describe('ML por matrícula', () => {
       expect.objectContaining({
         where: {
           matriculaId: 'matricula-franca',
-          instituicaoId: 'franca',
+          instituicaoId: 'tenant',
           versao: 1,
         },
       }),
@@ -213,38 +241,94 @@ describe('ML por matrícula', () => {
       }),
     );
   });
-  it('salva perfil de outra Fatec e registra a auditoria na instituição do autor', async () => {
+  it('recusa salvar perfil de matrícula de outra instituição', async () => {
     const { service, db, updateMany, create } = setup();
-    (db.matricula.findFirst as jest.Mock).mockResolvedValue({
-      instituicaoId: 'franca',
-      aluno: { nome: 'Aluna de Franca' },
-      registro: 'F1',
-      perfilMl: { features: {}, versao: 1, resultado: null },
-    });
-
-    await service.save(actor, 'matricula-franca', {
+    (db.matricula.findFirst as jest.Mock).mockResolvedValue(null);
+    await expect(
+      service.save(actor, 'matricula-franca', {
+        versao: 1,
+        features: { idade_matricula: 22 },
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(db.matricula.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'matricula-franca', instituicaoId: actor.instituicaoId },
+      }),
+    );
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+  it('preserva os indicadores calculados pelas faturas e recusa edição manual conflitante', async () => {
+    const { service, findInvoices, updateMany, createEvents } = setup();
+    findInvoices.mockResolvedValue([
+      {
+        vencimento: new Date('2000-01-01T00:00:00Z'),
+        pagoCentavos: 0,
+        valorCentavos: 10000,
+      },
+    ]);
+    await service.save(actor, 'matricula', {
       versao: 1,
       features: { idade_matricula: 22 },
     });
-
     expect(updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          matriculaId: 'matricula-franca',
-          instituicaoId: 'franca',
-          versao: 1,
-        },
-      }),
-    );
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
         data: expect.objectContaining({
-          instituicaoId: actor.instituicaoId,
-          autorId: actor.id,
-          recursoId: 'matricula-franca',
+          features: { idade_matricula: 22, devedor: 1, mensalidade_em_dia: 0 },
         }) as unknown,
       }),
     );
+    expect(createEvents).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          atributo: 'devedor',
+          origem: 'FINANCEIRO',
+          valorAtual: 1,
+        }),
+        expect.objectContaining({
+          atributo: 'mensalidade_em_dia',
+          origem: 'FINANCEIRO',
+          valorAtual: 0,
+        }),
+      ]) as unknown,
+    });
+    await expect(
+      service.save(actor, 'matricula', {
+        versao: 1,
+        features: { devedor: 0, mensalidade_em_dia: 1 },
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(updateMany).toHaveBeenCalledTimes(1);
+  });
+  it('preserva o indicador de bolsa aprovado e recusa edição manual conflitante', async () => {
+    const { service, findScholarship, updateMany, createEvents } = setup();
+    findScholarship.mockResolvedValue({
+      inicio: new Date('2000-01-01T00:00:00Z'),
+      fim: null,
+      ativa: true,
+    });
+    await service.save(actor, 'matricula', {
+      versao: 1,
+      features: { idade_matricula: 22 },
+    });
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          features: { idade_matricula: 22, bolsista: 1 },
+        }) as unknown,
+      }),
+    );
+    expect(createEvents).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ atributo: 'bolsista', origem: 'BOLSA' }),
+      ]) as unknown,
+    });
+    await expect(
+      service.save(actor, 'matricula', {
+        versao: 1,
+        features: { bolsista: 0 },
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
   it('recusa gravação se o perfil mudou durante a inferência', async () => {
     const { service, updateMany, create } = setup();

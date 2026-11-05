@@ -1,6 +1,6 @@
 # Serviço interno de ML
 
-O NestJS continua sendo a única API pública. Este serviço FastAPI recebe lotes de **36 atributos numéricos** identificados apenas pelo UUID da matrícula e devolve `Dropout`, `Enrolled` ou `Graduate` com as probabilidades produzidas pelo pipeline. Não consulta o banco acadêmico, não recebe nomes ou e-mails e não executa treinamento durante requisições.
+O NestJS continua sendo a única API pública. Este serviço FastAPI recebe lotes de **36 atributos numéricos** identificados apenas pelo UUID da matrícula e devolve as probabilidades das classes do modelo ativo. O modelo binário atual retorna `Dropout` e `Graduate`; `Enrolled` não recebe probabilidade. Não consulta o banco acadêmico, não recebe nomes ou e-mails e não executa treinamento durante requisições.
 
 ## Treinamento offline
 
@@ -16,11 +16,19 @@ python -m venv .venv
 
 O treino separa treino/validação/teste em 70/15/15 por classe, ajusta o pré-processamento somente no treino e compara regressão logística com floresta aleatória por macro F1 de validação. O teste permanece fora da escolha. O artefato e `metadata.json` ficam ignorados pelo Git, marcados `CANDIDATE`. O relatório contém métricas por classe, matriz de confusão e Brier para `Dropout`; `calibrated=false` até avaliação de calibração. Métricas não equivalem a aprovação para uso com estudantes reais.
 
+O treinamento reproduzível do projeto continua usando o CSV **tratado** e mantém o candidato `evasao-baseline-v2`. Há um modo experimental `--input-format raw` para comparar a metodologia com o CSV original externo. Como o CSV tratado já foi filtrado e padronizado antes da divisão, suas métricas não eliminam esse risco de vazamento metodológico.
+
+### Modelo externo binário recebido
+
+O arquivo `modelo_lr_balanceada_sem_enrolled.pkl` foi copiado para `artifacts/externo-lr-sem-enrolled-v1/model.pkl` (SHA-256 `fbc7d381435551924dc09439da7a203aa02c5592a02d0d4fc963770887a2e5fd`). Por solicitação do projeto para reproduzir a demonstração em outro computador, **somente esse modelo ativo** foi liberado para versionamento; os modelos anteriores e o CSV tratado continuam ignorados. O manifesto em `candidates/externo-lr-sem-enrolled-v1.json` acompanha o artefato.
+
+A inspeção controlada identificou um pipeline de regressão logística balanceada com as mesmas 36 colunas, mas somente as classes `Dropout` e `Graduate`. O `StandardScaler` interno tem média 23,16 para idade e 125,98 para nota de admissão, enquanto essas colunas têm média aproximadamente zero no CSV tratado. Isso indica entrada na escala original: a API deve enviar `input_format=original`. Não há documentação de treinamento, hash do dataset, partição ou métricas que comprove sua procedência. O ambiente foi fixado em scikit-learn 1.8.0 e pandas 2.3.3 para carregá-lo. O Compose usa este arquivo na prévia técnica; o serviço verifica SHA-256, versão da biblioteca, 36 colunas e as duas classes, além de restringir os tipos aceitos pelo desserializador. Em outra instalação, confirme o hash do arquivo recebido antes de ativá-lo. `Graduate` é o rótulo da segunda classe treinada; não representa previsão confiável de conclusão para um aluno em curso.
+
 ## Publicação e operação
 
-Copie `.env.example` para `services/ml/.env`. O serviço só carrega um artefato `joblib` quando `ML_MODEL_APPROVED_SHA256` coincide com o hash do arquivo e dos metadados. Esta variável representa a aprovação explícita de uma versão revisada. `joblib` usa pickle e **nunca** deve carregar arquivos de origem não confiável. Defina também `ML_SERVICE_TOKEN` com ao menos 32 caracteres e configure o mesmo valor em `services/api/.env`, junto de `ML_SERVICE_URL=http://ml:8000`. O serviço de ML recebe apenas suas próprias variáveis, sem credenciais do NestJS ou do banco. Em Compose, o diretório `artifacts/` é montado somente para leitura e a porta 8000 não é publicada no host.
+Copie `.env.example` para `services/ml/.env`. O serviço só carrega o `.pkl` binário ativo quando `ML_MODEL_APPROVED_SHA256` coincide com o hash do arquivo e dos metadados; também verifica a versão do scikit-learn, a ordem das 36 entradas, as duas classes e as categorias aprendidas. Essa variável aprova o artefato técnico específico, sem aprovar seu uso institucional. O formato pickle **nunca** deve receber arquivos de origem não confiável. Defina também `ML_SERVICE_TOKEN` com ao menos 32 caracteres e configure o mesmo valor em `services/api/.env`, junto de `ML_SERVICE_URL=http://ml:8000`. O serviço de ML recebe apenas suas próprias variáveis, sem credenciais do NestJS ou do banco. Em Compose, o diretório `artifacts/` é montado somente para leitura e a porta 8000 não é publicada no host.
 
-O treino local `evasao-baseline-v2` produziu o artefato SHA-256 `7cd97ce79675511c083d855c136632b61946f92a3920465f1b369be43a62c7e4`. O `docker-compose.yml` aponta para esta versão. Para testar a integração localmente, configure o hash em `ML_MODEL_APPROVED_SHA256` no `.env` privado do ML, use o mesmo token nos dois serviços e habilite `ML_PREVIEW_ENABLED=true` no `.env` da API. Isso permite a prévia técnica; o candidato permanece `CANDIDATE` e não autoriza previsões para decisões sobre estudantes reais.
+O treino local `evasao-baseline-v2` produziu o artefato SHA-256 `7cd97ce79675511c083d855c136632b61946f92a3920465f1b369be43a62c7e4` e permanece disponível como histórico. O `docker-compose.yml` e o carregador aceitam somente o modelo binário externo. Para testar a integração localmente, configure o hash completo do manifesto em `ML_MODEL_APPROVED_SHA256` no `.env` privado do ML, use o mesmo token nos dois serviços e habilite `ML_PREVIEW_ENABLED=true` no `.env` da API. Isso permite a prévia técnica e a importação experimental do ADMIN; o candidato permanece `CANDIDATE` e não autoriza previsões para decisões sobre estudantes reais.
 
 - `GET /health`: processo ativo, mesmo sem modelo.
 - `GET /ready`: `503` enquanto não houver modelo aprovado.
@@ -28,6 +36,6 @@ O treino local `evasao-baseline-v2` produziu o artefato SHA-256 `7cd97ce79675511
 - `POST /internal/predict-batch`: contrato da seção 12.3 de `CONTEXT.md`, exige token; rejeita atributos faltantes/extras, valores não finitos, versão divergente e lotes com mais de 100 itens.
 - `GET /ml/status` na API NestJS: estado do serviço, restrito a `ADMIN`.
 
-O NestJS já possui um cliente interno tipado e valida a resposta do Python, mas ainda não há rota pública de previsão de alunos: faltam matrícula, dados acadêmicos, mapeamento dos códigos do CSV e autorização por vínculo. Também não há persistência de previsões nem retreinamento automático. Nenhum dado operacional entra no pipeline de treinamento.
+O NestJS possui cliente interno tipado e valida a resposta do Python. A rota por matrícula retorna `INSUFICIENTE` para alunos reais enquanto faltar validação institucional; apenas a prévia de perfis sintéticos é calculada automaticamente. Não há retreinamento automático e nenhum dado operacional entra no pipeline de treinamento.
 
-O candidato treinado com o CSV fornecido ao projeto teve macro F1 de teste de aproximadamente **0,718** e recall de `Dropout` de **0,746**. A classe `Enrolled` ficou em F1 de **0,523**. Estes resultados exigem validação institucional, análise de viés e calibração antes de qualquer publicação.
+O candidato v2 treinado com o CSV fornecido ao projeto teve macro F1 de teste de aproximadamente **0,718** e recall de `Dropout` de **0,746**. A classe `Enrolled` ficou em F1 de **0,523**. Essas métricas não se aplicam ao novo `.pkl`; a melhora de precisão informada pelo usuário ainda precisa do relatório de avaliação, partição e definição da métrica para comparação verificável.

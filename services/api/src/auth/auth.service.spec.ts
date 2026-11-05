@@ -45,7 +45,7 @@ describe('AuthService', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('lista somente as quatro Fatecs ativas com código', async () => {
+  it('lista instituições ativas sem usar o código Fatec como autorização', async () => {
     institutionFindMany.mockResolvedValue([
       { id: institutionId, nome: 'Fatec São Paulo' },
     ]);
@@ -53,7 +53,7 @@ describe('AuthService', () => {
       { id: institutionId, nome: 'Fatec São Paulo' },
     ]);
     expect(institutionFindMany).toHaveBeenCalledWith({
-      where: { ativa: true, codigoCps: { in: ['109', '002', '276', '284'] } },
+      where: { ativa: true },
       select: { id: true, nome: true, codigoCps: true },
       orderBy: { codigoCps: 'asc' },
     });

@@ -30,4 +30,3 @@ Thumbs.db
 **/.expo/
 **/expo-env.d.ts
 /services/ml/datasets/
-/services/ml/artifacts/

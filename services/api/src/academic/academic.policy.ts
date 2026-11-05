@@ -10,6 +10,7 @@ export function enrollmentScope(actor: AuthUser): Prisma.MatriculaWhereInput {
   const tenant = { instituicaoId: actor.instituicaoId };
   switch (actor.perfil) {
     case 'ADMIN':
+    case 'SECRETARIA':
     case 'COORDENACAO':
       return tenant;
     case 'ALUNO':
@@ -25,6 +26,8 @@ export function enrollmentScope(actor: AuthUser): Prisma.MatriculaWhereInput {
           },
         },
       };
+    case 'FINANCEIRO':
+      throw new ForbiddenException();
   }
 }
 
@@ -35,7 +38,12 @@ export function subjectScope(actor: AuthUser): Prisma.DisciplinaWhereInput {
       lotacoes: { some: { professorId: actor.id } },
     };
   }
-  if (actor.perfil === 'ADMIN' || actor.perfil === 'COORDENACAO') {
+  if (actor.perfil === 'FINANCEIRO') throw new ForbiddenException();
+  if (
+    actor.perfil === 'ADMIN' ||
+    actor.perfil === 'SECRETARIA' ||
+    actor.perfil === 'COORDENACAO'
+  ) {
     return { instituicaoId: actor.instituicaoId };
   }
   return {

@@ -90,6 +90,8 @@ Antes de editar, confira `git branch --show-current` e trabalhe na branch do com
 
 Para executar localmente: na branch backend, inicie os serviços Docker; na branch mobile, inicie o Expo. Os containers usam as imagens construídas no backend. Recompilar serviços exige voltar à branch backend. Alternativamente, use checkouts separados dessas mesmas branches, sem criar novas branches.
 
+Para preparar a apresentação em outro computador, siga o [guia de reprodução](docs/reproducao-em-outro-computador.md). O modelo ativo deve acompanhar a branch backend; o CSV de treinamento e os modelos antigos não são necessários para executar a inferência.
+
 ### Ambiente de desenvolvimento com dados de teste
 
 Na branch `back/prototype`, com Node.js e Docker Desktop instalados, execute `node dev-up.mjs`. O comando cria arquivos `.env` locais com segredos aleatórios apenas se ainda não existirem, inicia o PostgreSQL em um projeto Compose isolado por checkout, aplica as migrações, carrega dados fictícios das quatro Fatecs e inicia a API após a carga terminar. A API fica em `http://localhost:3000`.

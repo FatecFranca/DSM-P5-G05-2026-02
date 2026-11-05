@@ -13,6 +13,8 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { Public } from './public.decorator';
+import { Roles } from '../common/roles/roles.decorator';
+import { Perfil } from '../generated/prisma/enums';
 
 @Controller('auth')
 export class AuthController {
@@ -55,6 +57,15 @@ export class AuthController {
   }
 
   @Get('me')
+  @Roles(
+    Perfil.ADMIN,
+    Perfil.FINANCEIRO,
+    Perfil.SECRETARIA,
+    Perfil.COORDENACAO,
+    Perfil.PROFESSOR,
+    Perfil.TUTOR,
+    Perfil.ALUNO,
+  )
   me(@Req() request: AuthRequest) {
     return request.currentUser;
   }

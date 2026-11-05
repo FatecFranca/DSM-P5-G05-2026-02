@@ -12,6 +12,7 @@ FEATURES = (
 )
 
 CLASSES = ("Dropout", "Enrolled", "Graduate")
+BINARY_CLASSES = ("Dropout", "Graduate")
 
 # Códigos categóricos do CSV externo. A API acadêmica ainda precisa mapear
 # seus próprios cadastros para esses códigos antes de habilitar inferência real.

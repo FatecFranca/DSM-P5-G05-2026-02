@@ -94,6 +94,26 @@ describe('MlClientService', () => {
     );
   });
 
+  it('aceita o contrato binário sem inventar probabilidade para Enrolled', async () => {
+    const response = {
+      model_version: request.model_version,
+      request_id: request.request_id,
+      results: [
+        {
+          ref: request.items[0].ref,
+          predicted_class: 'Dropout',
+          probabilities: { Dropout: 0.7, Graduate: 0.3 },
+        },
+      ],
+    };
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify(response), { status: 200 }),
+      );
+    await expect(client.predictBatch(request)).resolves.toEqual(response);
+  });
+
   it('recusa atributos incompletos antes de chamar a rede', async () => {
     const fetchMock = jest.spyOn(global, 'fetch');
     const incomplete = {
@@ -118,9 +138,15 @@ describe('MlClientService', () => {
     jest.spyOn(global, 'fetch').mockImplementation((_url, options) => {
       if (!options?.method) {
         return Promise.resolve(
-          new Response(JSON.stringify({ model_version: 'teste-v1' }), {
-            status: 200,
-          }),
+          new Response(
+            JSON.stringify({
+              model_version: 'teste-v1',
+              original_input_ready: true,
+            }),
+            {
+              status: 200,
+            },
+          ),
         );
       }
       const payload = JSON.parse(options.body as string) as MlBatchRequest;

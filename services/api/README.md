@@ -1,6 +1,6 @@
 # API do SGEI
 
-Base inicial do backend NestJS. Esta etapa cobre autenticação, sessões com rotação de refresh token, perfis, isolamento por instituição para usuários e auditoria de eventos de autenticação e cadastro. A estrutura acadêmica e os demais módulos do `CONTEXT.md` ainda serão implementados nos próximos marcos.
+Backend NestJS com autenticação, sessões com rotação de refresh token, perfis, isolamento por instituição, registros acadêmicos, faturas e auditoria. A análise de evasão operacional permanece condicionada à validação institucional do modelo.
 
 ## Requisitos
 
@@ -22,7 +22,7 @@ Após a migração, defina `BOOTSTRAP_INSTITUICAO_ID` (UUID), `BOOTSTRAP_INSTITU
 
 ## Contas demonstrativas por perfil
 
-As migrations criam a estrutura do banco. A carga de contas é separada para que nenhuma senha seja gravada em SQL versionado. Para o ambiente Docker local, configure em `services/api/.env` as variáveis `DEMO_INSTITUICAO_ID`, `DEMO_INSTITUICAO_NOME` e as cinco `DEMO_<PERFIL>_PASSWORD` mostradas em `.env.example`. Use UUID próprio e senhas fortes diferentes. Então execute na raiz `docker compose --profile demo up --build -d db api` e `docker compose --profile demo run --rm seed-demo`. A carga é idempotente: preserva senhas de contas existentes e falha se o e-mail já tiver outro perfil. Ela recusa `NODE_ENV=production`.
+As migrations criam a estrutura do banco. A carga de contas é separada para que nenhuma senha seja gravada em SQL versionado. Para o ambiente Docker local, configure em `services/api/.env` as variáveis `DEMO_INSTITUICAO_ID`, `DEMO_INSTITUICAO_NOME` e as cinco `DEMO_<PERFIL>_PASSWORD` mostradas em `.env.example`. Use UUID próprio e senhas fortes diferentes. Então execute na raiz `docker compose --profile demo up --build -d db api` e `docker compose --profile demo run --rm seed-demo`. A carga demonstra os cinco perfis originais; `FINANCEIRO` e `SECRETARIA` podem ser cadastrados por `ADMIN` na própria instituição. A carga é idempotente: preserva senhas de contas existentes e falha se o e-mail já tiver outro perfil. Ela recusa `NODE_ENV=production`.
 
 | Perfil | E-mail fictício |
 | --- | --- |
@@ -43,9 +43,17 @@ Use o mesmo `DEMO_INSTITUICAO_ID` no login do mobile. Os vínculos acadêmicos e
 | `POST /auth/refresh` | público | recebe `refreshToken`; rotaciona a sessão |
 | `POST /auth/logout` | público | recebe `refreshToken`; revoga a sessão |
 | `GET /auth/me` | autenticado | devolve identificador, instituição e perfil atuais |
-| `GET /usuarios` | ADMIN | lista até 100 usuários da própria instituição |
-| `GET /usuarios/:id` | ADMIN | consulta usuário da própria instituição |
-| `POST /usuarios` | ADMIN | cria usuário na própria instituição |
+| `GET /usuarios` | ADMIN, SECRETARIA e perfis acadêmicos vinculados | lista usuários permitidos da própria instituição |
+| `GET /usuarios/:id` | ADMIN, SECRETARIA e perfis acadêmicos vinculados | consulta usuário permitido da própria instituição |
+| `POST /usuarios` | ADMIN ou SECRETARIA | cria usuário na própria instituição; SECRETARIA cria somente ALUNO |
+| `POST /matriculas` | ADMIN ou SECRETARIA | matricula aluno em turma da própria instituição |
+| `PUT /faturas/matriculas/:id/plano`, `POST /faturas`, `POST /faturas/:id/pagamentos` | ADMIN ou FINANCEIRO | configura mensalidades e registra pagamentos confirmados |
+| `GET /faturas/matriculas/:id` | ADMIN, FINANCEIRO ou próprio ALUNO | consulta faturas e saldos |
+| `PUT /bolsas/matriculas/:id`, `GET /bolsas/matriculas/:id` | ADMIN ou FINANCEIRO; GET também para o próprio ALUNO | configura e consulta a vigência da bolsa |
+| `GET /ml/matriculas/:id/atributos/historico` | ADMIN ou COORDENACAO | consulta alterações por atributo com origem, versão e instante, em páginas |
+| `GET/PUT /ml/matriculas/:id/semestres/:numero` | ADMIN ou SECRETARIA | consulta e homologa os seis indicadores de cada semestre |
+| `GET/PUT /ml/matriculas/:id/coorte-macro` | ADMIN ou SECRETARIA | vincula a matrícula ao país e ano dos indicadores macroeconômicos |
+| `GET/PUT /ml/fontes/macro/:pais/:ano` | GET ADMIN/SECRETARIA; PUT ADMIN | publica e consulta indicadores com referência da fonte |
 | `GET /ml/status` | ADMIN | informa se o serviço interno e um modelo aprovado estão disponíveis |
 | `POST /ml/preview` | ADMIN, com `ML_PREVIEW_ENABLED=true` | testa uma inferência com os 36 atributos numéricos completos, sem vínculo acadêmico ou persistência |
 

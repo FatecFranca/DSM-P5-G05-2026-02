@@ -1,4 +1,5 @@
 export const ML_CLASSES = ['Dropout', 'Enrolled', 'Graduate'] as const;
+export const ML_BINARY_CLASSES = ['Dropout', 'Graduate'] as const;
 
 export const ML_FEATURES = [
   'estado_civil',
@@ -56,12 +57,12 @@ export interface MlBatchResponse {
   results: Array<{
     ref: string;
     predicted_class: MlClass;
-    probabilities: Record<MlClass, number>;
+    probabilities: Partial<Record<MlClass, number>>;
   }>;
 }
 
 export interface MlPreviewResponse {
   modelVersion: string;
   predictedClass: MlClass;
-  probabilities: Record<MlClass, number>;
+  probabilities: Partial<Record<MlClass, number>>;
 }

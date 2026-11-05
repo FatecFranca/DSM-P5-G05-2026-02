@@ -10,6 +10,7 @@ import {
   Param,
   ParseUUIDPipe,
   Req,
+  Query,
 } from '@nestjs/common';
 import { Perfil } from '../generated/prisma/enums';
 import { Roles } from '../common/roles/roles.decorator';
@@ -20,6 +21,8 @@ import type { AuthRequest } from '../auth/auth-user';
 import { EnrollmentMlService } from './enrollment-ml.service';
 import { MlProfileDto } from './dto/ml-profile.dto';
 import { SelfReportDto } from './dto/self-report.dto';
+import { AttributeHistoryDto } from './dto/attribute-history.dto';
+import { AutomaticPredictionsService } from './automatic-predictions.service';
 
 @Roles(Perfil.ADMIN)
 @Controller('ml')
@@ -27,7 +30,14 @@ export class MlController {
   constructor(
     private readonly ml: MlClientService,
     private readonly enrollmentMl: EnrollmentMlService,
+    private readonly automaticPredictions: AutomaticPredictionsService,
   ) {}
+
+  @Get('previsoes-automaticas')
+  @Header('Cache-Control', 'no-store')
+  automaticRecent(@Req() req: AuthRequest) {
+    return this.automaticPredictions.recent(req.currentUser);
+  }
 
   @Get('matriculas/:id/autodeclaracao')
   @Roles(Perfil.ALUNO)
@@ -52,6 +62,17 @@ export class MlController {
   @Header('Cache-Control', 'no-store')
   enrollment(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.enrollmentMl.get(req.currentUser, id);
+  }
+
+  @Get('matriculas/:id/atributos/historico')
+  @Roles(Perfil.ADMIN, Perfil.COORDENACAO)
+  @Header('Cache-Control', 'no-store')
+  attributeHistory(
+    @Req() req: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: AttributeHistoryDto,
+  ) {
+    return this.enrollmentMl.attributeHistory(req.currentUser, id, query);
   }
 
   @Get('matriculas/:id/demonstracao')
@@ -86,7 +107,7 @@ export class MlController {
   }
 
   @Get('schema')
-  @Roles(Perfil.ADMIN, Perfil.COORDENACAO)
+  @Roles(Perfil.ADMIN, Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   schema() {
     return this.ml.schema();

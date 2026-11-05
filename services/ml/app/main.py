@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pandas import DataFrame
 
 from .features import FEATURES
 from .model_loader import LoadedModel, load_approved_model
@@ -61,7 +62,9 @@ def health() -> dict[str, str]:
 def ready(request: Request) -> dict[str, object]:
     model = active_model(request)
     return {"status": "ready", "model_version": model.metadata.version,
-            "original_input_ready": supports_original(model.metadata.dataset_sha256)}
+            "classes": model.metadata.classes,
+            "original_input_ready": supports_original(
+                model.metadata.dataset_sha256, model.metadata.training_input_format)}
 
 
 @app.get("/internal/models/{version}", dependencies=[Depends(require_service_token)])
@@ -88,11 +91,14 @@ def predict_batch(payload: PredictBatchRequest, request: Request) -> PredictBatc
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Versão do modelo incompatível")
 
     try:
-        rows = [prepare_features(item.features, payload.input_format, model.metadata.dataset_sha256)
+        rows = [prepare_features(item.features, payload.input_format, model.metadata.dataset_sha256,
+                                 model.metadata.training_input_format, model.metadata.input_categories)
                 for item in payload.items]
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    probabilities = model.pipeline.predict_proba(rows)
+    model_input = (DataFrame(rows, columns=FEATURES)
+                   if model.metadata.training_input_format == 'native_original' else rows)
+    probabilities = model.pipeline.predict_proba(model_input)
     classes = list(model.pipeline.classes_)
     results: list[PredictionResult] = []
     for item, row in zip(payload.items, probabilities, strict=True):

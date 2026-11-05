@@ -7,6 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { AuthRequest } from '../../auth/auth-user';
 import { ROLES_KEY } from './roles.decorator';
+import { Perfil } from '../../generated/prisma/enums';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -17,8 +18,15 @@ export class RolesGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (!roles) return true;
     const user = context.switchToHttp().getRequest<AuthRequest>().currentUser;
+    if (!roles) {
+      if (
+        user?.perfil === Perfil.FINANCEIRO ||
+        user?.perfil === Perfil.SECRETARIA
+      )
+        throw new ForbiddenException();
+      return true;
+    }
     if (user && roles.includes(user.perfil)) return true;
     throw new ForbiddenException();
   }

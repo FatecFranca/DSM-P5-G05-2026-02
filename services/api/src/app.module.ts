@@ -10,6 +10,7 @@ import { AccessGuard } from './auth/access/access.guard';
 import { RolesGuard } from './common/roles/roles.guard';
 import { validateEnvironment } from './config/validate-environment';
 import { AcademicModule } from './academic/academic.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AcademicModule } from './academic/academic.module';
     UsersModule,
     MlModule,
     AcademicModule,
+    BillingModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

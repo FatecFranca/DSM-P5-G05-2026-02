@@ -20,12 +20,17 @@ const className = `Teste acadêmico ${runId}`;
 const testUserIds = [];
 const uploaded = [];
 let checks = 0;
-async function call(method, path, token, body, expected = 200) {
+async function call(method, path, token, body, expected = 200, attempt = 0) {
   const multipart = body instanceof FormData;
   const response = await fetch(`${base}${path}`, { method, headers: {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(body && !multipart ? { 'Content-Type': 'application/json' } : {}),
   }, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) });
+  if (response.status === 429 && path === '/auth/login' && attempt < 2) {
+    const seconds = Number(response.headers.get('retry-after'));
+    await new Promise((resolve) => setTimeout(resolve, Number.isFinite(seconds) && seconds > 0 ? Math.min(61_000, seconds * 1000 + 1000) : 61_000));
+    return call(method, path, token, body, expected, attempt + 1);
+  }
   const bytes = await response.arrayBuffer();
   const value = response.headers.get('content-type')?.includes('application/json') && bytes.byteLength ? JSON.parse(Buffer.from(bytes).toString()) : bytes;
   assert.equal(response.status, expected, `${method} ${path}: ${response.status}; ${typeof value === 'object' && !(value instanceof ArrayBuffer) ? JSON.stringify(value) : ''}`);
@@ -59,12 +64,20 @@ async function main() {
     await call('GET', '/ml/schema', null, null, 401);
     await call('GET', '/ml/schema', student.token, null, 403);
     await call('POST', '/ml/preview', student.token, { features: processed }, 403);
-    assert.equal((await call('GET', '/ml/schema', admin.token)).features.length, 36);
-    assert.equal((await call('GET', '/ml/status', admin.token)).originalInputReady, true);
+    const schema = await call('GET', '/ml/schema', admin.token);
+    assert.equal(schema.features.length, 36);
+    const mlStatus = await call('GET', '/ml/status', admin.token);
+    assert.equal(mlStatus.originalInputReady, true);
     const a = await call('POST', '/ml/preview', admin.token, { features: original, inputFormat: 'original' });
-    const b = await call('POST', '/ml/preview', admin.token, { features: processed, inputFormat: 'preprocessed' });
-    assert.deepEqual(a, b, 'Ambos os formatos devem gerar a mesma previsão real');
-    assert.ok(['Dropout', 'Enrolled', 'Graduate'].includes(a.predictedClass));
+    if (schema.classes.length === 2) {
+      assert.deepEqual(schema.classes, ['Dropout', 'Graduate']);
+      assert.deepEqual(Object.keys(a.probabilities), schema.classes);
+      await call('POST', '/ml/preview', admin.token, { features: processed, inputFormat: 'preprocessed' }, 400);
+    } else {
+      const b = await call('POST', '/ml/preview', admin.token, { features: processed, inputFormat: 'preprocessed' });
+      assert.deepEqual(a, b, 'Ambos os formatos devem gerar a mesma previsão real');
+    }
+    assert.ok(schema.classes.includes(a.predictedClass));
     assert.ok(Math.abs(Object.values(a.probabilities).reduce((sum, value) => sum + value, 0) - 1) < 1e-6);
     await call('POST', '/ml/preview', admin.token, { features: original, inputFormat: 'raw' }, 400);
     await call('POST', '/ml/preview', admin.token, { features: { ...original, genero: 2 }, inputFormat: 'original' }, 400);
@@ -81,8 +94,7 @@ async function main() {
   assert.equal(empty.turmas.length, 0);
   await call('POST', '/turmas', student.token, { nome: className, curso: 'Teste', periodo: '2026/2' }, 403);
   await call('POST', '/turmas', admin.token, { nome: className, curso: 'Teste', periodo: '2026/2', instituicaoId: randomUUID() }, 404);
-  const otherClass = await call('POST', '/turmas', admin.token, { nome: className, curso: 'Teste', periodo: '2026/2', instituicaoId: tenants[1] }, 201);
-  assert.equal(otherClass.instituicaoId, tenants[1]);
+  await call('POST', '/turmas', admin.token, { nome: className, curso: 'Teste', periodo: '2026/2', instituicaoId: tenants[1] }, 404);
   const turma = await call('POST', '/turmas', admin.token, { nome: className, curso: 'Teste', periodo: '2026/2' }, 201);
   const subject = await call('POST', '/disciplinas', admin.token, { turmaId: turma.id, nome: 'Matemática' }, 201);
   await call('POST', '/disciplinas', outsider.token, { turmaId: turma.id, nome: 'Intrusão' }, 403);
@@ -96,7 +108,7 @@ async function main() {
     const path = `/ml/matriculas/${enrol.id}`;
     await call('GET', path, null, null, 401);
     await call('GET', path, student.token, null, 403);
-    await call('GET', path, outsider.token, null, 404);
+    await call('GET', path, outsider.token, null, 403);
     const emptyProfile = await call('GET', path, admin.token);
     assert.equal(emptyProfile.faltantes.length, 36);
     assert.equal((await call('POST', `${path}/analisar`, admin.token)).status, 'INSUFICIENTE');
@@ -105,21 +117,73 @@ async function main() {
     const saved = await call('PUT', path, admin.token, { versao: 0, features: demoProfile(0) });
     assert.equal(saved.faltantes.length, 0);
     const calculated = await call('POST', `${path}/analisar`, admin.token);
-    assert.equal(calculated.status, 'CALCULADO');
+    assert.equal(calculated.status, 'INSUFICIENTE');
     assert.equal(calculated.matriculaId, enrol.id);
-    assert.equal(calculated.resultado.perfilVersao, 1);
-    assert.ok(calculated.resultado.modelVersion);
-    assert.equal((await call('GET', path, admin.token)).resultado.calculadoEm, calculated.resultado.calculadoEm);
+    assert.ok(calculated.impedimentos.length);
+    assert.equal(calculated.resultado, null);
     const persisted = await db.perfilMl.findUnique({ where: { matriculaId: enrol.id } });
-    assert.deepEqual(persisted.resultado.features, demoProfile(0));
+    assert.equal(persisted.resultado, null);
     const teacherView = await call('GET', path, teacher.token);
     assert.equal(teacherView.features, undefined);
-    assert.equal(teacherView.resultado.features, undefined);
+    assert.equal(teacherView.resultado, null);
     const refreshed = await call('PUT', path, admin.token, { versao: 1, features: { pib: 1 } });
     assert.equal(refreshed.resultado, null);
     assert.equal(refreshed.versao, 2);
     await call('PUT', path, admin.token, { versao: 1, features: demoProfile(0) }, 409);
     assert.equal((await call('POST', `${path}/analisar`, admin.token)).status, 'INSUFICIENTE');
+
+    await call('GET', '/ml/importacoes/modelo', student.token, null, 403);
+    await call('GET', '/ml/importacoes', student.token, null, 403);
+    const templateBytes = await call('GET', '/ml/importacoes/modelo', admin.token);
+    const { Workbook } = require('exceljs');
+    const workbook = new Workbook();
+    await workbook.xlsx.load(Buffer.from(templateBytes));
+    const header = workbook.getWorksheet('Importacao').getRow(1).values.slice(3);
+    const beforeImport = await call('GET', path, admin.token);
+    workbook.getWorksheet('Importacao').addRow([enrol.registro, beforeImport.versao, ...header.map((name) => demoProfile(0)[name])]);
+    const workbookBytes = await workbook.xlsx.writeBuffer();
+    const uploadWorkbook = () => {
+      const form = new FormData();
+      form.append('arquivo', new Blob([workbookBytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'perfis.xlsx');
+      return form;
+    };
+    await call('POST', '/ml/importacoes', student.token, uploadWorkbook(), 403);
+    const imported = await call('POST', '/ml/importacoes', admin.token, uploadWorkbook(), 201);
+    assert.equal(imported.status, 'EXPERIMENTAL');
+    assert.equal(imported.salvos, 1);
+    assert.deepEqual(imported.erros, []);
+    const recentImports = await call('GET', '/ml/importacoes', admin.token);
+    const savedPrediction = recentImports.find((item) => item.registro === enrol.registro);
+    assert.ok(savedPrediction);
+    assert.equal(savedPrediction.modelVersion, 'externo-lr-sem-enrolled-v1');
+    assert.equal(savedPrediction.atual, true);
+    assert.ok(savedPrediction.probabilities.Dropout >= 0);
+    const repeated = await call('POST', '/ml/importacoes', admin.token, uploadWorkbook(), 201);
+    assert.equal(repeated.salvos, 0);
+    assert.equal(repeated.repetidos, 1);
+    const changed = await call('PUT', path, admin.token, { versao: beforeImport.versao + 1, features: { pib: 2 } });
+    assert.equal(changed.versao, beforeImport.versao + 2);
+    assert.equal((await call('GET', '/ml/importacoes', admin.token)).find((item) => item.id === savedPrediction.id).atual, false);
+    await call('GET', `${path}/declaracao-ingresso`, admin.token, null, 403);
+    await call('GET', `${path}/declaracao-ingresso`, peer.token, null, 404);
+    const declared = await call('PUT', `${path}/declaracao-ingresso`, student.token, {
+      versao: 0, dados: { estadoCivil: 'SOLTEIRO', nacionalidade: 'BR', necessidadesEspeciais: false },
+    });
+    assert.equal(declared.pendente, true);
+    assert.equal(declared.revisao, 1);
+    await call('PUT', `${path}/ingresso`, student.token, { versao: 0, fonteRef: 'teste', features: { estado_civil: 1 } }, 403);
+    const official = await call('PUT', `${path}/ingresso`, admin.token, {
+      versao: 0, fonteRef: `Cadastro de ingresso ${runId}`,
+      features: { estado_civil: 1, curso: 9238 },
+    });
+    assert.equal(official.official.features.curso, 9238);
+    assert.equal(official.declaration.pendente, false);
+    await call('PUT', `${path}/ingresso`, admin.token, {
+      versao: 0, fonteRef: 'versão antiga', features: { estado_civil: 1 },
+    }, 409);
+    const withdrawn = await call('PUT', `${path}/declaracao-ingresso`, student.token, { versao: 1, dados: {} });
+    assert.equal(withdrawn.pendente, false);
+    assert.deepEqual(withdrawn.dados, {});
   }
   const aula = await call('POST', '/aulas', teacher.token, { disciplinaId: subject.id, data: new Date(Date.now() - 1000).toISOString(), tema: 'Aula 1' }, 201);
   await call('PUT', `/aulas/${aula.id}/frequencia`, teacher.token, { itens: [{ matriculaId: enrol.id, situacao: 'PRESENTE' }, { matriculaId: peerEnrol.id, situacao: 'FALTA' }] });

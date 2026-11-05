@@ -1,13 +1,13 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import type { AuthUser } from '../auth/auth-user';
 import type { Prisma } from '../generated/prisma/client';
-import { FATEC_CODES } from '../fatecs';
 import { enrollmentScope } from '../academic/academic.policy';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -29,14 +29,9 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   private scope(actor: AuthUser): Prisma.UsuarioWhereInput {
-    if (actor.perfil === 'ADMIN') {
-      return {
-        OR: [
-          { instituicaoId: actor.instituicaoId },
-          { instituicao: { ativa: true, codigoCps: { in: [...FATEC_CODES] } } },
-        ],
-      };
-    }
+    if (actor.perfil === 'ADMIN') return { instituicaoId: actor.instituicaoId };
+    if (actor.perfil === 'SECRETARIA')
+      return { instituicaoId: actor.instituicaoId, perfil: 'ALUNO' };
     if (actor.perfil === 'COORDENACAO') {
       return { instituicaoId: actor.instituicaoId };
     }
@@ -103,7 +98,9 @@ export class UsersService {
         ...safeUser,
         matriculas: {
           where:
-            actor.perfil === 'ADMIN' || actor.perfil === 'COORDENACAO'
+            actor.perfil === 'ADMIN' ||
+            actor.perfil === 'SECRETARIA' ||
+            actor.perfil === 'COORDENACAO'
               ? undefined
               : enrollmentScope(actor),
           select: {
@@ -144,19 +141,21 @@ export class UsersService {
   }
 
   async create(actor: AuthUser, dto: CreateUserDto) {
+    if (actor.perfil !== 'ADMIN' && actor.perfil !== 'SECRETARIA')
+      throw new ForbiddenException();
+    if (actor.perfil === 'SECRETARIA' && dto.perfil !== 'ALUNO')
+      throw new ForbiddenException('Secretaria pode cadastrar apenas alunos');
     const instituicaoId = dto.instituicaoId ?? actor.instituicaoId;
+    if (instituicaoId !== actor.instituicaoId)
+      throw new NotFoundException('Instituição não disponível');
     const institution = await this.prisma.instituicao.findFirst({
       where: {
         id: instituicaoId,
         ativa: true,
-        OR: [
-          { id: actor.instituicaoId },
-          { codigoCps: { in: [...FATEC_CODES] } },
-        ],
       },
       select: { id: true },
     });
-    if (!institution) throw new NotFoundException('Fatec não disponível');
+    if (!institution) throw new NotFoundException('Instituição não disponível');
     const email = dto.email.trim().toLowerCase();
     const nome = dto.nome.trim();
     if (nome.length < 2) {

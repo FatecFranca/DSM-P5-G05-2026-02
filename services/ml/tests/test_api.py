@@ -1,8 +1,10 @@
 from uuid import uuid4
+import json
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app.features import CLASSES, FEATURES
+from app.features import BINARY_CLASSES, CLASSES, FEATURES
 from app.main import app
 from app.model_loader import LoadedModel
 from app.schemas import ModelMetadata
@@ -11,6 +13,8 @@ from test_preprocessing import original_features
 
 
 TOKEN = "s" * 40
+MODEL_CATEGORIES = json.loads((Path(__file__).parents[1] / 'candidates' /
+                               'externo-lr-sem-enrolled-v1.json').read_text(encoding='utf-8'))['input_categories']
 
 
 class FakePipeline:
@@ -116,3 +120,40 @@ def test_entrada_original_e_tratada_chegam_iguais_ao_modelo(monkeypatch):
         assert seen[0] == seen[1]
         body['input_format'] = 'unknown'
         assert client.post('/internal/predict-batch', json=body, headers=headers).status_code == 422
+
+
+def test_modelo_binario_recebe_dataframe_original_sem_classe_enrolled(monkeypatch):
+    class BinaryPipeline:
+        classes_ = BINARY_CLASSES
+
+        def predict_proba(self, rows):
+            assert list(rows.columns) == list(FEATURES)
+            assert rows.iloc[0]['idade_matricula'] == 20
+            return [[0.6, 0.4] for _ in range(len(rows))]
+
+    metadata = ModelMetadata(
+        version='binario-v1', features=list(FEATURES), classes=list(BINARY_CLASSES),
+        dataset_sha256=None, dataset_source='externo', training_input_format='native_original',
+        algorithm='logistic_regression', artifact_sha256='b' * 64,
+        scikit_learn_version='1.8.0',
+        input_categories=MODEL_CATEGORIES,
+    )
+    monkeypatch.setenv('ML_SERVICE_TOKEN', TOKEN)
+    monkeypatch.setattr('app.main.load_approved_model', lambda: LoadedModel(BinaryPipeline(), metadata))
+    with TestClient(app) as client:
+        assert client.get('/ready').json()['classes'] == list(BINARY_CLASSES)
+        body = payload()
+        body['model_version'] = 'binario-v1'
+        body['input_format'] = 'original'
+        body['items'][0]['features'] = original_features()
+        response = client.post('/internal/predict-batch', json=body,
+                               headers={'Authorization': f'Bearer {TOKEN}'})
+        assert response.status_code == 200
+        assert response.json()['results'][0]['probabilities'] == {'Dropout': 0.6, 'Graduate': 0.4}
+        body['items'][0]['features']['modo_candidatura'] = 26
+        assert client.post('/internal/predict-batch', json=body,
+                           headers={'Authorization': f'Bearer {TOKEN}'}).status_code == 422
+        body['items'][0]['features'] = original_features()
+        body['input_format'] = 'preprocessed'
+        assert client.post('/internal/predict-batch', json=body,
+                           headers={'Authorization': f'Bearer {TOKEN}'}).status_code == 422

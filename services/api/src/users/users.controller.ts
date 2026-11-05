@@ -20,17 +20,33 @@ export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Get()
+  @Roles(
+    Perfil.ADMIN,
+    Perfil.SECRETARIA,
+    Perfil.COORDENACAO,
+    Perfil.PROFESSOR,
+    Perfil.TUTOR,
+    Perfil.ALUNO,
+  )
   list(@Req() request: AuthRequest, @Query() query: ListUsersDto) {
     return this.users.list(request.currentUser, query);
   }
 
   @Get(':id')
+  @Roles(
+    Perfil.ADMIN,
+    Perfil.SECRETARIA,
+    Perfil.COORDENACAO,
+    Perfil.PROFESSOR,
+    Perfil.TUTOR,
+    Perfil.ALUNO,
+  )
   findOne(@Req() request: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.users.findOne(request.currentUser, id);
   }
 
   @Post()
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
   create(@Req() request: AuthRequest, @Body() dto: CreateUserDto) {
     return this.users.create(request.currentUser, dto);
   }

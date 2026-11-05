@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && useradd --system --uid 10001 --create-home ml
 
 COPY --chown=ml:ml app ./app
+COPY --chown=ml:ml candidates ./candidates
 USER 10001
 
 EXPOSE 8000

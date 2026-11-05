@@ -23,12 +23,28 @@ describe('RolesGuard', () => {
     expect(guard.canActivate(context(Perfil.ADMIN))).toBe(true);
   });
 
-  it.each([Perfil.COORDENACAO, Perfil.PROFESSOR, Perfil.TUTOR, Perfil.ALUNO])(
-    'nega acesso ao perfil %s',
+  it.each([
+    Perfil.FINANCEIRO,
+    Perfil.SECRETARIA,
+    Perfil.COORDENACAO,
+    Perfil.PROFESSOR,
+    Perfil.TUTOR,
+    Perfil.ALUNO,
+  ])('nega acesso ao perfil %s', (perfil) => {
+    expect(() => guard.canActivate(context(perfil))).toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it.each([Perfil.FINANCEIRO, Perfil.SECRETARIA])(
+    'nega acesso implícito a rotas sem perfil explícito para %s',
     (perfil) => {
-      expect(() => guard.canActivate(context(perfil))).toThrow(
-        ForbiddenException,
-      );
+      const undecorated = () => undefined;
+      const request = {
+        ...context(perfil),
+        getHandler: () => undecorated,
+      } as ExecutionContext;
+      expect(() => guard.canActivate(request)).toThrow(ForbiddenException);
     },
   );
 });

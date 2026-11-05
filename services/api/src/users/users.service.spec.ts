@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
@@ -52,7 +53,7 @@ describe('UsersService: isolamento por instituição', () => {
     institutionFindFirst.mockResolvedValue({ id: 'instituicao-a' });
   });
 
-  it('permite ao administrador consultar as quatro Fatecs sem expor hash', async () => {
+  it('restringe o administrador à sua instituição sem expor hash', async () => {
     findMany.mockResolvedValue([]);
     await service.list(actor);
     const calls: unknown = findMany.mock.calls;
@@ -60,18 +61,13 @@ describe('UsersService: isolamento por instituição', () => {
       calls as Array<
         [
           {
-            where: { AND: Array<{ OR?: unknown[] }> };
+            where: { AND: Array<{ instituicaoId?: string }> };
             select: Record<string, boolean>;
           },
         ]
       >
     )[0][0];
-    expect(args.where.AND[0].OR).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ instituicaoId: actor.instituicaoId }),
-        expect.objectContaining({ instituicao: expect.any(Object) as unknown }),
-      ]),
-    );
+    expect(args.where.AND[0]).toEqual({ instituicaoId: actor.instituicaoId });
     expect(args.select.senhaHash).toBeUndefined();
   });
 
@@ -189,12 +185,35 @@ describe('UsersService: isolamento por instituição', () => {
     expect(auditArgs.data.recursoId).toBe('novo-id');
   });
 
-  it('recusa Fatec fora do conjunto permitido', async () => {
-    institutionFindFirst.mockResolvedValue(null);
+  it('recusa criar usuário em outra instituição', async () => {
     await expect(
       service.create(actor, { ...dto, instituicaoId: 'outra' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+    expect(institutionFindFirst).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('secretaria cadastra apenas aluno e consulta somente alunos da instituição', async () => {
+    const secretary = { ...actor, perfil: Perfil.SECRETARIA };
+    findMany.mockResolvedValue([]);
+    await service.list(secretary);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [{ instituicaoId: actor.instituicaoId, perfil: 'ALUNO' }],
+        },
+      }),
+    );
+    create.mockResolvedValue({ id: 'aluno-novo' });
+    await service.create(secretary, { ...dto, perfil: Perfil.ALUNO });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ perfil: Perfil.ALUNO }) as unknown,
+      }),
+    );
+    await expect(service.create(secretary, dto)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('rejeita nome composto apenas por espaços', async () => {

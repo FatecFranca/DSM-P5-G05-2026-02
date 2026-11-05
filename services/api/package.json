@@ -24,6 +24,8 @@
     "bootstrap": "node dist/bootstrap.js",
     "test": "jest",
     "test:integration:academic": "node test/academic.integration.cjs",
+    "test:integration:billing": "node test/billing.integration.cjs",
+    "test:integration:auto-ml": "node test/automatic-predictions.integration.cjs",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"
@@ -41,6 +43,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^18.0.8",
+    "exceljs": "4.4.0",
     "helmet": "^8.3.0",
     "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",

@@ -6,6 +6,7 @@ import { readDemoSeedConfig } from './config/demo-seed-config';
 import { seedDemoUsers } from './demo-seed';
 import { demoProfile } from './ml/demo-profiles';
 import { validProfile } from './ml/profile-validation';
+import { recordAttributeChanges } from './ml/attribute-events';
 
 async function main() {
   const config = readDemoSeedConfig(process.env);
@@ -87,6 +88,14 @@ async function main() {
               fonte:
                 'Seed demonstrativa autorizada — dois semestres; sem dados pessoais reais',
             },
+          });
+          await recordAttributeChanges(tx, {
+            instituicaoId,
+            matriculaId: matricula.id,
+            before: {},
+            after: features,
+            versaoPerfil: 1,
+            origem: 'SEMENTE_DEMO',
           });
           if (tutor)
             await tx.tutoria.create({

@@ -43,6 +43,14 @@ export class AcademicController {
     );
   }
   @Get('turmas')
+  @Roles(
+    Perfil.ADMIN,
+    Perfil.SECRETARIA,
+    Perfil.COORDENACAO,
+    Perfil.PROFESSOR,
+    Perfil.TUTOR,
+    Perfil.ALUNO,
+  )
   classes(@Req() req: AuthRequest, @Query() query: D.ResumoQuery) {
     return this.academic.classes(req.currentUser, query.instituicaoId);
   }
@@ -51,13 +59,26 @@ export class AcademicController {
   createClass(@Req() req: AuthRequest, @Body() dto: D.TurmaDto) {
     return this.academic.createClass(req.currentUser, dto);
   }
+  @Put('turmas/:id/duracao')
+  @Roles(Perfil.ADMIN)
+  setClassDuration(
+    @Req() req: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: D.DuracaoCursoDto,
+  ) {
+    return this.academic.setClassDuration(
+      req.currentUser,
+      id,
+      dto.duracaoSemestres,
+    );
+  }
   @Post('disciplinas')
   @Roles(Perfil.ADMIN)
   createSubject(@Req() req: AuthRequest, @Body() dto: D.DisciplinaDto) {
     return this.academic.createSubject(req.currentUser, dto);
   }
   @Post('matriculas')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
   enroll(@Req() req: AuthRequest, @Body() dto: D.MatriculaDto) {
     return this.academic.enroll(req.currentUser, dto);
   }

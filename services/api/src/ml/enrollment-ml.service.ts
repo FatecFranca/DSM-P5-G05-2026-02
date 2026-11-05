@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -11,12 +12,15 @@ import { ML_FEATURES, type MlFeatures } from './ml.types';
 import { MlProfileDto } from './dto/ml-profile.dto';
 import { SelfReportDto, TurnoDeclarado } from './dto/self-report.dto';
 import { enrollmentScope, requireRole } from '../academic/academic.policy';
-import { FATEC_CODES } from '../fatecs';
 import {
   FATEC_DEMO_ML_SOURCE,
   FATEC_DEMO_REGISTRATIONS,
 } from './fatec-demo-profile';
 import { validProfile } from './profile-validation';
+import { businessDate } from '../billing/billing.service';
+import { recordAttributeChanges } from './attribute-events';
+import type { AttributeHistoryDto } from './dto/attribute-history.dto';
+import { INGRESS_FEATURES } from './dto/ingress-source.dto';
 
 @Injectable()
 export class EnrollmentMlService {
@@ -53,7 +57,7 @@ export class EnrollmentMlService {
             ? TurnoDeclarado.NOTURNO
             : null,
       informacao:
-        'As respostas não geram uma previsão até que o modelo seja validado para as Fatecs.',
+        'As respostas não geram uma previsão até que o modelo seja validado para os alunos desta instituição.',
     };
   }
 
@@ -68,7 +72,7 @@ export class EnrollmentMlService {
               instituicaoId: actor.instituicaoId,
               alunoId: actor.id,
             },
-            select: { perfilMl: { select: { features: true } } },
+            select: { perfilMl: { select: { features: true, versao: true } } },
           });
           if (!enrollment)
             throw new NotFoundException('Matrícula não encontrada');
@@ -87,14 +91,23 @@ export class EnrollmentMlService {
               matriculaId: id,
               instituicaoId: actor.instituicaoId,
               features,
-              fonte: 'Autodeclaração fatec-v1',
+              fonte: 'Autodeclaração uci-portugal-v1',
             },
             update: {
               features,
-              fonte: 'Autodeclaração fatec-v1',
+              fonte: 'Autodeclaração uci-portugal-v1',
               versao: { increment: 1 },
               resultado: Prisma.DbNull,
             },
+          });
+          await recordAttributeChanges(tx, {
+            instituicaoId: actor.instituicaoId,
+            matriculaId: id,
+            before: existing,
+            after: features,
+            versaoPerfil: (enrollment.perfilMl?.versao ?? 0) + 1,
+            origem: 'AUTODECLARACAO',
+            autorId: actor.id,
           });
           await tx.auditoria.create({
             data: {
@@ -126,16 +139,7 @@ export class EnrollmentMlService {
     requireRole(actor, ['ADMIN', 'COORDENACAO', 'PROFESSOR', 'TUTOR']);
     const item = await this.db.matricula.findFirst({
       where: {
-        ...(actor.perfil === 'ADMIN'
-          ? {
-              turma: {
-                instituicao: {
-                  ativa: true,
-                  codigoCps: { in: [...FATEC_CODES] },
-                },
-              },
-            }
-          : enrollmentScope(actor)),
+        ...enrollmentScope(actor),
         id,
       },
       include: { perfilMl: true, aluno: { select: { nome: true } } },
@@ -167,6 +171,41 @@ export class EnrollmentMlService {
     return this.visible(actor, await this.profile(actor, id));
   }
 
+  async attributeHistory(
+    actor: AuthUser,
+    id: string,
+    query: AttributeHistoryDto,
+  ) {
+    requireRole(actor, ['ADMIN', 'COORDENACAO']);
+    await this.enrollment(actor, id);
+    const pagina = query.pagina ?? 1;
+    const tamanho = query.tamanho ?? 50;
+    const where = { instituicaoId: actor.instituicaoId, matriculaId: id };
+    const [itens, total] = await this.db.$transaction([
+      this.db.atributoMlEvento.findMany({
+        where,
+        select: {
+          atributo: true,
+          valorAnterior: true,
+          valorAtual: true,
+          origem: true,
+          autorId: true,
+          versaoPerfil: true,
+          registradoEm: true,
+        },
+        orderBy: [
+          { versaoPerfil: 'desc' },
+          { registradoEm: 'desc' },
+          { id: 'desc' },
+        ],
+        skip: (pagina - 1) * tamanho,
+        take: tamanho,
+      }),
+      this.db.atributoMlEvento.count({ where }),
+    ]);
+    return { itens, total, pagina, tamanho };
+  }
+
   async demoPreview(actor: AuthUser, id: string) {
     const profile = await this.profile(actor, id);
     if (
@@ -191,9 +230,14 @@ export class EnrollmentMlService {
     profile: Awaited<ReturnType<EnrollmentMlService['profile']>>,
   ) {
     const editable = ['ADMIN', 'COORDENACAO'].includes(actor.perfil);
-    const result = this.ml.fatecEligibility().valid
-      ? (profile.resultado as Record<string, Prisma.JsonValue> | null)
-      : null;
+    const demonstracao =
+      profile.aluno === 'Aluno Demo SGEI' &&
+      FATEC_DEMO_REGISTRATIONS.includes(profile.registro) &&
+      profile.fonte === FATEC_DEMO_ML_SOURCE;
+    const result =
+      this.ml.operationalEligibility().valid || demonstracao
+        ? (profile.resultado as Record<string, Prisma.JsonValue> | null)
+        : null;
     return {
       matriculaId: profile.matriculaId,
       registro: profile.registro,
@@ -209,6 +253,7 @@ export class EnrollmentMlService {
             probabilities: result.probabilities,
             calculadoEm: result.calculadoEm,
             perfilVersao: result.perfilVersao,
+            demonstracao: result.demonstracao === true,
           }
         : null,
     };
@@ -219,12 +264,141 @@ export class EnrollmentMlService {
     const enrollment = await this.enrollment(actor, id);
     try {
       await this.db.$transaction(async (tx) => {
+        const invoices = await tx.fatura.findMany({
+          where: { instituicaoId: enrollment.instituicaoId, matriculaId: id },
+          select: { vencimento: true, pagoCentavos: true, valorCentavos: true },
+        });
+        let features = { ...dto.features };
+        let financialApplied = false;
+        let scholarshipApplied = false;
+        const academicNames = new Set<string>();
+        let macroApplied = false;
+        let ingressApplied = false;
+        const today = businessDate(new Date());
+        if (invoices.length) {
+          const overdue = invoices.some(
+            (invoice) =>
+              invoice.vencimento < today &&
+              invoice.pagoCentavos < invoice.valorCentavos,
+          );
+          const financial = {
+            devedor: overdue ? 1 : 0,
+            mensalidade_em_dia: overdue ? 0 : 1,
+          };
+          if (
+            (dto.features.devedor !== undefined &&
+              dto.features.devedor !== financial.devedor) ||
+            (dto.features.mensalidade_em_dia !== undefined &&
+              dto.features.mensalidade_em_dia !== financial.mensalidade_em_dia)
+          )
+            throw new BadRequestException(
+              'Indicadores financeiros são calculados pelas faturas',
+            );
+          features = { ...dto.features, ...financial };
+          financialApplied = true;
+        }
+        const scholarship = await tx.bolsaMatricula.findUnique({
+          where: { matriculaId: id },
+          select: { inicio: true, fim: true, ativa: true },
+        });
+        if (scholarship) {
+          const bolsista = Number(
+            scholarship.ativa &&
+              scholarship.inicio <= today &&
+              (!scholarship.fim || scholarship.fim >= today),
+          );
+          if (
+            dto.features.bolsista !== undefined &&
+            dto.features.bolsista !== bolsista
+          )
+            throw new BadRequestException(
+              'Indicador de bolsa é calculado pela vigência institucional',
+            );
+          features = { ...features, bolsista };
+          scholarshipApplied = true;
+        }
+        const semesters = await tx.resumoSemestreMl.findMany({
+          where: { instituicaoId: enrollment.instituicaoId, matriculaId: id },
+        });
+        for (const semester of semesters) {
+          const prefix = `ucs_${semester.semestre}sem_`;
+          const official = {
+            [`${prefix}creditadas`]: semester.creditadas,
+            [`${prefix}matriculadas`]: semester.matriculadas,
+            [`${prefix}avaliacoes`]: semester.avaliacoes,
+            [`${prefix}aprovadas`]: semester.aprovadas,
+            [`${prefix}nota`]: semester.nota,
+            [`${prefix}sem_aval`]: semester.semAvaliacao,
+          };
+          for (const [name, value] of Object.entries(official)) {
+            if (
+              dto.features[name] !== undefined &&
+              dto.features[name] !== value
+            )
+              throw new BadRequestException(
+                'Indicadores semestrais são calculados a partir do resumo oficial',
+              );
+            academicNames.add(name);
+          }
+          features = { ...features, ...official };
+        }
+        const cohort = await tx.matricula.findFirst({
+          where: { id, instituicaoId: enrollment.instituicaoId },
+          select: { macroPais: true, macroAno: true },
+        });
+        if (cohort?.macroPais && cohort.macroAno) {
+          const macro = await tx.indicadorMacro.findUnique({
+            where: {
+              instituicaoId_pais_ano: {
+                instituicaoId: enrollment.instituicaoId,
+                pais: cohort.macroPais,
+                ano: cohort.macroAno,
+              },
+            },
+          });
+          if (macro) {
+            const official = {
+              desemprego: macro.desemprego,
+              inflacao: macro.inflacao,
+              pib: macro.pib,
+            };
+            for (const [name, value] of Object.entries(official))
+              if (
+                dto.features[name] !== undefined &&
+                dto.features[name] !== value
+              )
+                throw new BadRequestException(
+                  'Indicadores macroeconômicos vêm da fonte institucional',
+                );
+            features = { ...features, ...official };
+            macroApplied = true;
+          }
+        }
+        const ingress = await tx.fonteIngressoMl.findUnique({
+          where: { matriculaId: id },
+          select: { features: true },
+        });
+        if (ingress) {
+          const official = ingress.features as Record<string, number>;
+          for (const name of INGRESS_FEATURES) {
+            if (
+              dto.features[name] !== undefined &&
+              dto.features[name] !== official[name]
+            )
+              throw new BadRequestException(
+                'Dados de ingresso vêm da fonte homologada',
+              );
+            if (official[name] === undefined) delete features[name];
+            else features[name] = official[name];
+          }
+          ingressApplied = true;
+        }
         if (dto.versao === 0) {
           await tx.perfilMl.create({
             data: {
               matriculaId: id,
               instituicaoId: enrollment.instituicaoId,
-              features: dto.features,
+              features,
             },
           });
         } else {
@@ -235,7 +409,7 @@ export class EnrollmentMlService {
               versao: dto.versao,
             },
             data: {
-              features: dto.features,
+              features,
               versao: { increment: 1 },
               resultado: Prisma.DbNull,
             },
@@ -245,6 +419,87 @@ export class EnrollmentMlService {
               'Dados atualizados por outra sessão. Recarregue antes de salvar.',
             );
         }
+        const before = (enrollment.perfilMl?.features ?? {}) as Record<
+          string,
+          number
+        >;
+        await recordAttributeChanges(tx, {
+          instituicaoId: enrollment.instituicaoId,
+          matriculaId: id,
+          before,
+          after: features,
+          versaoPerfil: dto.versao + 1,
+          origem: 'CADASTRO_INSTITUCIONAL',
+          autorId: actor.id,
+          atributos: ML_FEATURES.filter(
+            (name) =>
+              !(
+                financialApplied &&
+                (name === 'devedor' || name === 'mensalidade_em_dia')
+              ) &&
+              !(scholarshipApplied && name === 'bolsista') &&
+              !academicNames.has(name) &&
+              !(
+                ingressApplied &&
+                INGRESS_FEATURES.includes(
+                  name as (typeof INGRESS_FEATURES)[number],
+                )
+              ) &&
+              !(
+                macroApplied && ['desemprego', 'inflacao', 'pib'].includes(name)
+              ),
+          ),
+        });
+        if (financialApplied)
+          await recordAttributeChanges(tx, {
+            instituicaoId: enrollment.instituicaoId,
+            matriculaId: id,
+            before,
+            after: features,
+            versaoPerfil: dto.versao + 1,
+            origem: 'FINANCEIRO',
+            atributos: ['devedor', 'mensalidade_em_dia'],
+          });
+        if (scholarshipApplied)
+          await recordAttributeChanges(tx, {
+            instituicaoId: enrollment.instituicaoId,
+            matriculaId: id,
+            before,
+            after: features,
+            versaoPerfil: dto.versao + 1,
+            origem: 'BOLSA',
+            atributos: ['bolsista'],
+          });
+        if (academicNames.size)
+          await recordAttributeChanges(tx, {
+            instituicaoId: enrollment.instituicaoId,
+            matriculaId: id,
+            before,
+            after: features,
+            versaoPerfil: dto.versao + 1,
+            origem: 'ACADEMICO_OFICIAL',
+            atributos: [...academicNames] as (typeof ML_FEATURES)[number][],
+          });
+        if (macroApplied)
+          await recordAttributeChanges(tx, {
+            instituicaoId: enrollment.instituicaoId,
+            matriculaId: id,
+            before,
+            after: features,
+            versaoPerfil: dto.versao + 1,
+            origem: 'MACRO_OFICIAL',
+            atributos: ['desemprego', 'inflacao', 'pib'],
+          });
+        if (ingressApplied)
+          await recordAttributeChanges(tx, {
+            instituicaoId: enrollment.instituicaoId,
+            matriculaId: id,
+            before,
+            after: features,
+            versaoPerfil: dto.versao + 1,
+            origem: 'INGRESSO_OFICIAL',
+            atributos: INGRESS_FEATURES,
+          });
         await tx.auditoria.create({
           data: {
             instituicaoId: actor.instituicaoId,
@@ -268,7 +523,7 @@ export class EnrollmentMlService {
 
   async analyze(actor: AuthUser, id: string) {
     const profile = await this.profile(actor, id);
-    const eligibility = this.ml.fatecEligibility();
+    const eligibility = this.ml.operationalEligibility();
     if (profile.faltantes.length || !eligibility.valid)
       return {
         status: 'INSUFICIENTE' as const,

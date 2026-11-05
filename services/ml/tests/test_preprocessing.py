@@ -35,6 +35,19 @@ def test_modelo_de_outro_dataset_nao_recebe_transformacao():
         prepare_features(original_features(), 'original', 'a' * 64)
 
 
+def test_modelo_treinado_com_dados_brutos_nao_normaliza_ou_aceita_escala_tratada():
+    original = original_features()
+    assert supports_original(PARAMETERS['raw_sha256'], 'original')
+    assert prepare_features(original, 'original', PARAMETERS['raw_sha256'], 'original',
+                            PARAMETERS['categories']) == [
+        original[name] for name in FEATURES
+    ]
+    with pytest.raises(ValueError, match='Categorias'):
+        prepare_features(original, 'original', PARAMETERS['raw_sha256'], 'original')
+    with pytest.raises(ValueError, match='escala original'):
+        prepare_features(original, 'preprocessed', PARAMETERS['raw_sha256'], 'original')
+
+
 @pytest.mark.parametrize('name,value', [('curso', -1), ('genero', 2), ('ucs_1sem_nota', 21),
                                       ('idade_matricula', -1), ('ucs_1sem_aprovadas', 0.5),
                                       ('pib', math.inf)])

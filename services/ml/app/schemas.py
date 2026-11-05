@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .features import CLASSES, FEATURES
+from .features import BINARY_CLASSES, CATEGORICAL, CLASSES, FEATURES
 
 
 class PredictionItem(BaseModel):
@@ -61,16 +61,32 @@ class ModelMetadata(BaseModel):
     version: str
     features: list[str]
     classes: list[str]
-    dataset_sha256: str
+    dataset_sha256: str | None
     dataset_source: str
+    training_input_format: Literal["preprocessed", "original", "native_original"] = "preprocessed"
+    input_categories: dict[str, list[float]] | None = None
     algorithm: str
     artifact_sha256: str
     calibrated: bool = False
+    scikit_learn_version: str | None = None
 
     @model_validator(mode="after")
     def validate_contract(self) -> "ModelMetadata":
-        if self.features != list(FEATURES) or set(self.classes) != set(CLASSES):
+        if self.features != list(FEATURES) or self.classes not in (list(CLASSES), list(BINARY_CLASSES)):
             raise ValueError("Esquema do artefato incompatível")
-        if len(self.artifact_sha256) != 64 or len(self.dataset_sha256) != 64:
+        if len(self.artifact_sha256) != 64 or (self.dataset_sha256 is not None and len(self.dataset_sha256) != 64):
             raise ValueError("Hash do artefato ou dataset inválido")
+        if self.training_input_format == "native_original" and (
+            self.classes != list(BINARY_CLASSES) or self.scikit_learn_version is None
+        ):
+            raise ValueError("Contrato do modelo binário inválido")
+        if self.training_input_format != "native_original" and self.dataset_sha256 is None:
+            raise ValueError("Hash do dataset obrigatório")
+        if self.training_input_format in ("original", "native_original") and (
+            self.input_categories is None
+            or set(self.input_categories) != CATEGORICAL
+            or any(not values or any(not math.isfinite(value) for value in values)
+                   for values in self.input_categories.values())
+        ):
+            raise ValueError("Categorias do dataset original ausentes ou inválidas")
         return self

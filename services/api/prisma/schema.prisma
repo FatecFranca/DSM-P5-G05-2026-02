@@ -16,6 +16,8 @@ datasource db {
 
 enum Perfil {
   ADMIN
+  FINANCEIRO
+  SECRETARIA
   COORDENACAO
   PROFESSOR
   TUTOR
@@ -32,6 +34,7 @@ model Instituicao {
   sessoes    Sessao[]
   auditorias Auditoria[]
   turmas     Turma[]
+  indicadoresMacro IndicadorMacro[]
 
   @@map("instituicao")
 }
@@ -95,6 +98,7 @@ model Turma {
   nome          String       @db.VarChar(120)
   curso         String       @db.VarChar(120)
   periodo       String       @db.VarChar(40)
+  duracaoSemestres Int        @default(6)
   fechada       Boolean      @default(false)
   instituicao   Instituicao  @relation(fields: [instituicaoId], references: [id])
   disciplinas   Disciplina[]
@@ -123,22 +127,35 @@ model Disciplina {
 }
 
 model Matricula {
-  id            String     @id @default(uuid()) @db.Uuid
-  instituicaoId String     @db.Uuid
-  turmaId       String     @db.Uuid
-  alunoId       String     @db.Uuid
-  registro      String     @db.VarChar(40)
-  turma         Turma      @relation(fields: [instituicaoId, turmaId], references: [instituicaoId, id])
-  aluno         Usuario    @relation(fields: [instituicaoId, alunoId], references: [instituicaoId, id])
-  tutorias      Tutoria[]
-  presencas     Presenca[]
-  notas         Nota[]
-  entregas      Entrega[]
-  perfilMl      PerfilMl?
+  id               String            @id @default(uuid()) @db.Uuid
+  instituicaoId    String            @db.Uuid
+  turmaId          String            @db.Uuid
+  alunoId          String            @db.Uuid
+  registro         String            @db.VarChar(40)
+  turma            Turma             @relation(fields: [instituicaoId, turmaId], references: [instituicaoId, id])
+  aluno            Usuario           @relation(fields: [instituicaoId, alunoId], references: [instituicaoId, id])
+  tutorias         Tutoria[]
+  presencas        Presenca[]
+  notas            Nota[]
+  entregas         Entrega[]
+  perfilMl         PerfilMl?
+  eventosAtributos AtributoMlEvento[]
+  faturas          Fatura[]
+  planoMensalidade PlanoMensalidade?
+  bolsa            BolsaMatricula?
+  resumosMl        ResumoSemestreMl[]
+  declaracaoIngresso DeclaracaoIngressoMl?
+  fonteIngresso      FonteIngressoMl?
+  previsoesImportadas PrevisaoImportadaMl[]
+  previsoesAutomaticas PrevisaoAutomaticaMl[]
+  macroPais        String?           @db.VarChar(2)
+  macroAno         Int?
+  macroPendente    Boolean           @default(false)
 
   @@unique([instituicaoId, id])
   @@unique([instituicaoId, turmaId, alunoId])
   @@unique([instituicaoId, registro])
+  @@index([instituicaoId, macroPais, macroAno, macroPendente])
   @@map("matricula")
 }
 
@@ -154,6 +171,197 @@ model PerfilMl {
 
   @@unique([instituicaoId, matriculaId])
   @@map("perfil_ml")
+}
+
+model AtributoMlEvento {
+  id            String    @id @default(uuid()) @db.Uuid
+  instituicaoId String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  atributo      String    @db.VarChar(40)
+  valorAnterior Float?
+  valorAtual    Float?
+  origem        String    @db.VarChar(40)
+  autorId       String?   @db.Uuid
+  versaoPerfil  Int
+  registradoEm  DateTime  @default(now())
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@index([instituicaoId, matriculaId, versaoPerfil])
+  @@index([instituicaoId, matriculaId, atributo, versaoPerfil])
+  @@map("atributo_ml_evento")
+}
+
+model ResumoSemestreMl {
+  instituicaoId String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  semestre      Int
+  creditadas    Int
+  matriculadas  Int
+  avaliacoes    Int
+  aprovadas     Int
+  nota          Float
+  semAvaliacao  Int
+  fonteRef      String    @db.VarChar(200)
+  revisao       Int       @default(1)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@id([instituicaoId, matriculaId, semestre])
+  @@map("resumo_semestre_ml")
+}
+
+model DeclaracaoIngressoMl {
+  matriculaId   String    @id @db.Uuid
+  instituicaoId String    @db.Uuid
+  dados         Json
+  revisao       Int       @default(1)
+  pendente      Boolean   @default(true)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@index([instituicaoId, pendente])
+  @@map("declaracao_ingresso_ml")
+}
+
+model FonteIngressoMl {
+  matriculaId   String    @id @db.Uuid
+  instituicaoId String    @db.Uuid
+  features      Json
+  fonteRef      String    @db.VarChar(200)
+  revisao       Int       @default(1)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@map("fonte_ingresso_ml")
+}
+
+model PrevisaoImportadaMl {
+  id            String    @id @default(uuid()) @db.Uuid
+  instituicaoId String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  arquivoSha256 String    @db.VarChar(64)
+  linha         Int
+  modelVersion  String    @db.VarChar(100)
+  perfilVersao  Int
+  features      Json
+  predictedClass String  @db.VarChar(30)
+  probabilities Json
+  calculadoEm   DateTime  @default(now())
+  autorId       String    @db.Uuid
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId, arquivoSha256, modelVersion])
+  @@index([instituicaoId, matriculaId, calculadoEm])
+  @@map("previsao_importada_ml")
+}
+
+model PrevisaoAutomaticaMl {
+  id             String    @id @default(uuid()) @db.Uuid
+  instituicaoId  String    @db.Uuid
+  matriculaId    String    @db.Uuid
+  modelVersion   String    @db.VarChar(100)
+  perfilVersao   Int
+  features       Json
+  predictedClass String    @db.VarChar(30)
+  probabilities  Json
+  calculadoEm    DateTime  @default(now())
+  matricula      Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId, modelVersion, perfilVersao])
+  @@index([instituicaoId, calculadoEm])
+  @@map("previsao_automatica_ml")
+}
+
+model IndicadorMacro {
+  instituicaoId String      @db.Uuid
+  pais          String      @db.VarChar(2)
+  ano           Int
+  desemprego    Float
+  inflacao      Float
+  pib           Float
+  fonteUrl      String      @db.VarChar(500)
+  versao        Int         @default(1)
+  atualizadoEm  DateTime    @updatedAt
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id])
+
+  @@id([instituicaoId, pais, ano])
+  @@map("indicador_macro")
+}
+
+enum SituacaoFatura {
+  ABERTA
+  VENCIDA
+  QUITADA
+}
+
+model Fatura {
+  id            String            @id @default(uuid()) @db.Uuid
+  instituicaoId String            @db.Uuid
+  matriculaId   String            @db.Uuid
+  competencia   DateTime          @db.Date
+  semestre      Int?
+  vencimento    DateTime          @db.Date
+  valorCentavos Int
+  pagoCentavos  Int               @default(0)
+  situacao      SituacaoFatura    @default(ABERTA)
+  criadaEm      DateTime          @default(now())
+  atualizadaEm  DateTime          @updatedAt
+  matricula     Matricula         @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+  pagamentos    PagamentoFatura[]
+
+  @@unique([instituicaoId, matriculaId, competencia])
+  @@unique([instituicaoId, id])
+  @@index([situacao, vencimento])
+  @@map("fatura")
+}
+
+model PlanoMensalidade {
+  matriculaId        String    @id @db.Uuid
+  instituicaoId      String    @db.Uuid
+  inicioCompetencia  DateTime  @db.Date
+  proximaCompetencia DateTime  @db.Date
+  fimCompetencia     DateTime? @db.Date
+  valorCentavos      Int
+  diaVencimento      Int
+  ativo              Boolean   @default(true)
+  atualizadoEm       DateTime  @updatedAt
+  matricula          Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@map("plano_mensalidade")
+}
+
+model BolsaMatricula {
+  matriculaId   String    @id @db.Uuid
+  instituicaoId String    @db.Uuid
+  inicio        DateTime  @db.Date
+  fim           DateTime? @db.Date
+  ativa         Boolean   @default(true)
+  estadoAplicado Boolean  @default(false)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@index([ativa, inicio, fim])
+  @@map("bolsa_matricula")
+}
+
+model PagamentoFatura {
+  id            String   @id @default(uuid()) @db.Uuid
+  instituicaoId String   @db.Uuid
+  faturaId      String   @db.Uuid
+  referencia    String   @db.VarChar(100)
+  valorCentavos Int
+  recebidoEm    DateTime
+  simulado      Boolean  @default(false)
+  registradoEm  DateTime @default(now())
+  fatura        Fatura   @relation(fields: [instituicaoId, faturaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, referencia])
+  @@index([instituicaoId, faturaId])
+  @@map("pagamento_fatura")
 }
 
 model Lotacao {

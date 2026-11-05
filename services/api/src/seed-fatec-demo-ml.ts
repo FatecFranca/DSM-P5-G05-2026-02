@@ -8,6 +8,7 @@ import {
 } from './ml/fatec-demo-profile';
 import { ML_FEATURES } from './ml/ml.types';
 import { validProfile } from './ml/profile-validation';
+import { recordAttributeChanges } from './ml/attribute-events';
 
 async function main() {
   if (process.env.FATEC_DEMO_ML_SEED_ENABLED !== 'true') {
@@ -99,6 +100,14 @@ async function main() {
             },
           });
         }
+        await recordAttributeChanges(tx, {
+          instituicaoId: target.instituicaoId,
+          matriculaId: target.id,
+          before: previous,
+          after: features,
+          versaoPerfil: (target.perfilMl?.versao ?? 0) + 1,
+          origem: 'SEMENTE_DEMO',
+        });
         await tx.auditoria.create({
           data: {
             instituicaoId: target.instituicaoId,
