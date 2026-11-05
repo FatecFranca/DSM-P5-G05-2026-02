@@ -6,6 +6,8 @@ const env = {
   DATABASE_URL: 'postgresql://sgei:senha@db:5432/sgei',
   DEMO_ADMIN_PASSWORD: 'senha-distinta-admin',
   DEMO_COORDENACAO_PASSWORD: 'senha-distinta-coordenacao',
+  DEMO_SECRETARIA_PASSWORD: 'senha-distinta-secretaria',
+  DEMO_FINANCEIRO_PASSWORD: 'senha-distinta-financeiro',
   DEMO_PROFESSOR_PASSWORD: 'senha-distinta-professor',
   DEMO_TUTOR_PASSWORD: 'senha-distinta-tutor',
   DEMO_ALUNO_PASSWORD: 'senha-distinta-aluno',

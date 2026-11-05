@@ -29,6 +29,8 @@ if (action === 'up' && !existsSync(apiEnvPath)) {
     'NODE_ENV=development',
     `DEMO_ADMIN_PASSWORD="${secret()}"`,
     `DEMO_COORDENACAO_PASSWORD="${secret()}"`,
+    `DEMO_SECRETARIA_PASSWORD="${secret()}"`,
+    `DEMO_FINANCEIRO_PASSWORD="${secret()}"`,
     `DEMO_PROFESSOR_PASSWORD="${secret()}"`,
     `DEMO_TUTOR_PASSWORD="${secret()}"`,
     `DEMO_ALUNO_PASSWORD="${secret()}"`,
@@ -54,6 +56,8 @@ for (const key of action === 'up' ? [
   'JWT_SECRET',
   'DEMO_ADMIN_PASSWORD',
   'DEMO_COORDENACAO_PASSWORD',
+  'DEMO_SECRETARIA_PASSWORD',
+  'DEMO_FINANCEIRO_PASSWORD',
   'DEMO_PROFESSOR_PASSWORD',
   'DEMO_TUTOR_PASSWORD',
   'DEMO_ALUNO_PASSWORD',
@@ -65,7 +69,7 @@ for (const key of action === 'up' ? [
 }
 
 if (action === 'up') {
-  const passwords = ['ADMIN', 'COORDENACAO', 'PROFESSOR', 'TUTOR', 'ALUNO']
+  const passwords = ['ADMIN', 'COORDENACAO', 'SECRETARIA', 'FINANCEIRO', 'PROFESSOR', 'TUTOR', 'ALUNO']
     .map((profile) => envValue(`DEMO_${profile}_PASSWORD`));
   let validDatabase = false;
   try {

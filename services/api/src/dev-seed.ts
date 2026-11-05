@@ -20,6 +20,16 @@ const institutions = [
         perfil: Perfil.COORDENACAO,
       },
       {
+        email: 'secretaria.demo@sgei.example',
+        nome: 'Secretaria Demo',
+        perfil: Perfil.SECRETARIA,
+      },
+      {
+        email: 'financeiro.demo@sgei.example',
+        nome: 'Financeiro Demo',
+        perfil: Perfil.FINANCEIRO,
+      },
+      {
         email: 'professor.demo@sgei.example',
         nome: 'Professor Demo',
         perfil: Perfil.PROFESSOR,
@@ -34,33 +44,8 @@ const institutions = [
         nome: 'Estudante Demo 1',
         perfil: Perfil.ALUNO,
       },
-      {
-        email: 'aluno2.franca@sgei.example',
-        nome: 'Estudante Demo 2',
-        perfil: Perfil.ALUNO,
-      },
     ],
   },
-  ...(['002', '276', '284'] as const).map((codigo) => ({
-    codigo,
-    usuarios: [
-      {
-        email: `professor.${codigo}@sgei.example`,
-        nome: `Professor Demo ${codigo}`,
-        perfil: Perfil.PROFESSOR,
-      },
-      {
-        email: `tutor.${codigo}@sgei.example`,
-        nome: `Tutor Demo ${codigo}`,
-        perfil: Perfil.TUTOR,
-      },
-      {
-        email: `aluno.${codigo}@sgei.example`,
-        nome: `Estudante Demo ${codigo}`,
-        perfil: Perfil.ALUNO,
-      },
-    ],
-  })),
 ] as const;
 
 export async function seedDevelopment(
@@ -70,6 +55,12 @@ export async function seedDevelopment(
   const passwordHashes = {
     ADMIN: await argon2.hash(config.passwords.ADMIN, { type: argon2.argon2id }),
     COORDENACAO: await argon2.hash(config.passwords.COORDENACAO, {
+      type: argon2.argon2id,
+    }),
+    SECRETARIA: await argon2.hash(config.passwords.SECRETARIA, {
+      type: argon2.argon2id,
+    }),
+    FINANCEIRO: await argon2.hash(config.passwords.FINANCEIRO, {
       type: argon2.argon2id,
     }),
     PROFESSOR: await argon2.hash(config.passwords.PROFESSOR, {
