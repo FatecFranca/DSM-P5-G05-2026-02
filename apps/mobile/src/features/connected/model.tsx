@@ -10,7 +10,7 @@ import { DataNotice, connectedStyles } from './ui';
 export function ConnectedModel() {
   const { state } = useSession();
   const goBack = useGoBack('/connected');
-  if (state.status === 'signedIn' && !['ADMIN', 'COORDENACAO'].includes(state.user.perfil)) return <Redirect href="/connected" />;
+  if (state.status === 'signedIn' && !['COORDENACAO'].includes(state.user.perfil)) return <Redirect href="/connected" />;
   return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow="AVALIAÇÃO DO MODELO" title="Qualidade do modelo" />
     <DataNotice>O classificador disponível é candidato e não foi validado com dados de alunos das Fatecs.</DataNotice>
     <View style={styles.hero}><Text style={styles.heroLabel}>Estado para uso institucional</Text><Text style={styles.heroValue}>Não validado</Text><Text style={styles.heroCaption}>Nenhuma probabilidade operacional é apresentada até concluir a validação.</Text><View style={styles.heroRule} />

@@ -15,7 +15,7 @@ import { summarizeEnrollments, useAcademicOverview } from './overview';
 export function ConnectedDashboard() {
   const router = useRouter();
   const { state } = useSession();
-  const canViewModel = state.status === 'signedIn' && ['ADMIN', 'COORDENACAO'].includes(state.user.perfil);
+  const canViewModel = state.status === 'signedIn' && ['COORDENACAO'].includes(state.user.perfil);
   const overview = useAcademicOverview();
   const [classId, setClassId] = useState('all');
   const [selectedGrade, setSelectedGrade] = useState<number | null>(null);

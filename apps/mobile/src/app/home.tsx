@@ -4,6 +4,6 @@ import { homeForRole } from '@/auth/roles';
 export default function Home() {
   const { state } = useSession();
   if (state.status === 'loading') return null;
-  if (state.status === 'signedIn' && state.mode === 'api') return <Redirect href={['SECRETARIA', 'FINANCEIRO'].includes(state.user.perfil) ? homeForRole(state.user.perfil) : '/connected'} />;
+  if (state.status === 'signedIn' && state.mode === 'api') return <Redirect href={state.user.trocaSenhaObrigatoria ? '/trocar-senha' : ['SECRETARIA'].includes(state.user.perfil) ? homeForRole(state.user.perfil) : '/connected'} />;
   return <Redirect href={state.status === 'signedIn' ? homeForRole(state.user.perfil) : '/login'} />;
 }

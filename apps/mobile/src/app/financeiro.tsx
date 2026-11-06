@@ -16,7 +16,7 @@ const isoMonth = () => new Date().toISOString().slice(0, 7);
 
 export default function FinanceScreen() {
   const { request, state } = useSession();
-  const admin = state.status === 'signedIn' && state.user.perfil === 'ADMIN';
+  const admin = state.status === 'signedIn' && state.user.perfil === 'COORDENACAO';
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState<Enrollment[]>([]);
   const [selected, setSelected] = useState<Enrollment | null>(null);

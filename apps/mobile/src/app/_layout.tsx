@@ -32,18 +32,20 @@ function Navigation() {
   const signedIn = state.status === 'signedIn';
   const demo = signedIn && state.mode === 'demo';
   const apiRole = signedIn && !demo ? state.user.perfil : null;
+  const passwordReady = signedIn && !state.user.trocaSenhaObrigatoria;
   // Rota negada cai em /home, que decide o destino pela sessão. Ao sair, as telas
   // autenticadas saem do histórico: o botão Voltar não retorna a elas.
   return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.background } }}>
     <Stack.Screen name="index" />
     <Stack.Screen name="home" />
     <Stack.Protected guard={!signedIn} redirectTo="/home"><Stack.Screen name="login" /></Stack.Protected>
-    <Stack.Protected guard={signedIn} redirectTo="/home"><Stack.Screen name="profile" /></Stack.Protected>
-    <Stack.Protected guard={!!apiRole && !['SECRETARIA', 'FINANCEIRO'].includes(apiRole)} redirectTo="/home"><Stack.Screen name="workspace" /></Stack.Protected>
-    <Stack.Protected guard={signedIn && !demo && state.user.perfil === 'ADMIN'} redirectTo="/home"><Stack.Screen name="users" /></Stack.Protected>
-    <Stack.Protected guard={!!apiRole && !['SECRETARIA', 'FINANCEIRO'].includes(apiRole)} redirectTo="/home"><Stack.Screen name="connected" /><Stack.Screen name="person/[id]" /></Stack.Protected>
-    <Stack.Protected guard={apiRole === 'SECRETARIA' || apiRole === 'ADMIN'} redirectTo="/home"><Stack.Screen name="secretaria" /></Stack.Protected>
-    <Stack.Protected guard={apiRole === 'FINANCEIRO' || apiRole === 'ADMIN'} redirectTo="/home"><Stack.Screen name="financeiro" /></Stack.Protected>
+    <Stack.Protected guard={signedIn && !!state.user.trocaSenhaObrigatoria} redirectTo="/home"><Stack.Screen name="trocar-senha" /></Stack.Protected>
+    <Stack.Protected guard={passwordReady} redirectTo="/home"><Stack.Screen name="profile" /></Stack.Protected>
+    <Stack.Protected guard={passwordReady && !!apiRole && !['SECRETARIA'].includes(apiRole)} redirectTo="/home"><Stack.Screen name="workspace" /></Stack.Protected>
+    <Stack.Protected guard={passwordReady && signedIn && !demo && state.user.perfil === 'COORDENACAO'} redirectTo="/home"><Stack.Screen name="users" /></Stack.Protected>
+    <Stack.Protected guard={passwordReady && !!apiRole && !['SECRETARIA'].includes(apiRole)} redirectTo="/home"><Stack.Screen name="connected" /><Stack.Screen name="person/[id]" /></Stack.Protected>
+    <Stack.Protected guard={passwordReady && (apiRole === 'SECRETARIA' || apiRole === 'COORDENACAO')} redirectTo="/home"><Stack.Screen name="secretaria" /></Stack.Protected>
+    <Stack.Protected guard={passwordReady && (apiRole === 'SECRETARIA' || apiRole === 'COORDENACAO')} redirectTo="/home"><Stack.Screen name="financeiro" /></Stack.Protected>
     <Stack.Protected guard={demo} redirectTo="/home">
       <Stack.Screen name="(tabs)" /><Stack.Screen name="professor" /><Stack.Screen name="student" />
       <Stack.Screen name="students/[id]" /><Stack.Screen name="classes/[id]" />

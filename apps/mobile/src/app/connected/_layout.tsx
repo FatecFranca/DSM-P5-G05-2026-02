@@ -8,7 +8,7 @@ export default function ConnectedLayout() {
   if (state.status === 'loading') return <LoadingScreen />;
   if (state.status !== 'signedIn' || state.mode !== 'api') return <Redirect href="/home" />;
   const student = state.user.perfil === 'ALUNO';
-  const manager = state.user.perfil === 'ADMIN' || state.user.perfil === 'COORDENACAO';
+  const manager = state.user.perfil === 'COORDENACAO';
   return <AppTabs>
     <Tabs.Screen name="index" options={{ title: manager ? 'Painel' : 'Início', tabBarIcon: ({ color }) => <TabIcon symbol="◈" color={color} /> }} />
     <Tabs.Screen name="people" options={manager ? { title: 'Estudantes', tabBarIcon: ({ color }) => <TabIcon symbol="▧" color={color} /> } : hiddenTab} />

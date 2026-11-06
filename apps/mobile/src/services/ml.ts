@@ -1,6 +1,4 @@
 export interface MlSchema { features: string[]; classes: string[]; categories: Record<string, number[]>; previewEnabled?: boolean }
-export interface MlStatus { configured: boolean; ready: boolean; modelVersion?: string; originalInputReady?: boolean }
-export type MlInputFormat = 'original' | 'preprocessed';
 export interface MlPrediction { modelVersion: string; predictedClass: 'Dropout' | 'Enrolled' | 'Graduate'; probabilities: Record<'Dropout' | 'Graduate', number> & Partial<Record<'Enrolled', number>> }
 export interface DemoMlPrediction extends MlPrediction { demonstracao: true; fonte: string }
 
@@ -9,6 +7,8 @@ export interface MlImportResult {
   arquivoSha256: string;
   total: number;
   salvos: number;
+  usuariosCriados: number;
+  matriculasCriadas: number;
   repetidos: number;
   erros: { linha: number; registro: string; motivo: string }[];
   status: 'EXPERIMENTAL';
@@ -53,11 +53,7 @@ export interface EnrollmentMl {
 }
 
 export function canReadMl(role: string | null) {
-  return ['ADMIN', 'COORDENACAO', 'PROFESSOR', 'TUTOR'].includes(role ?? '');
-}
-
-export function canEditMl(role: string | null) {
-  return ['ADMIN', 'COORDENACAO'].includes(role ?? '');
+  return ['COORDENACAO', 'PROFESSOR', 'TUTOR'].includes(role ?? '');
 }
 
 export function parsePartialMlFields(fields: Record<string, string>, schema: MlSchema) {
@@ -108,17 +104,4 @@ export function parseOriginalMlFields(fields: Record<string, string>, names: rea
     values[name] = Number(text);
   }
   return values;
-}
-
-export function parseMlFeatures(input: string, names: readonly string[]): Record<string, number> {
-  let value: unknown;
-  try { value = JSON.parse(input); } catch { throw new Error('Informe um objeto JSON válido com os atributos numéricos.'); }
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Os atributos devem formar um objeto.');
-  const data = value as Record<string, unknown>;
-  const missing = names.filter((name) => !Object.hasOwn(data, name));
-  if (missing.length) throw new Error(`Dados insuficientes. Faltam: ${missing.join(', ')}.`);
-  const extra = Object.keys(data).filter((name) => !names.includes(name));
-  if (extra.length) throw new Error(`Campos não permitidos: ${extra.join(', ')}. Não envie classe, nomes ou identificadores pessoais.`);
-  if (names.some((name) => typeof data[name] !== 'number' || !Number.isFinite(data[name]))) throw new Error('Todos os atributos devem ser números finitos, sem valores vazios ou nulos.');
-  return Object.fromEntries(names.map((name) => [name, data[name] as number]));
 }

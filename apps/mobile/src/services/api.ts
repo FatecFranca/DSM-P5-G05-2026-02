@@ -1,10 +1,11 @@
-export type Perfil = 'ADMIN' | 'SECRETARIA' | 'FINANCEIRO' | 'COORDENACAO' | 'PROFESSOR' | 'TUTOR' | 'ALUNO';
+export type Perfil = 'COORDENACAO' | 'SECRETARIA' | 'PROFESSOR' | 'TUTOR' | 'ALUNO';
 
 export interface AuthUser {
   id: string;
   instituicaoId: string;
   perfil: Perfil;
   sessaoId: string;
+  trocaSenhaObrigatoria?: boolean;
 }
 
 export interface UserSummary {

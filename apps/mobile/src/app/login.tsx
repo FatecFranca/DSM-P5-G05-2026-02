@@ -94,7 +94,7 @@ export default function LoginScreen() {
     }
   }
 
-  async function enterDemo(role: 'ADMIN' | 'PROFESSOR' | 'ALUNO') {
+  async function enterDemo(role: 'COORDENACAO' | 'PROFESSOR' | 'ALUNO') {
     setError('');
     setBusy(true);
     try {
@@ -171,7 +171,7 @@ export default function LoginScreen() {
         {__DEV__ ? <View style={styles.demoCard}>
           <Text style={styles.demoTitle}>Explorar a demonstração</Text>
           <Text style={styles.formDescription}>Exploração visual sem conexão. Para consultar alunos do banco e calcular previsões de ML, use o formulário de login acima.</Text>
-          <View style={styles.demoActions}>{(['ADMIN', 'PROFESSOR', 'ALUNO'] as const).map((role) => <Pressable key={role} accessibilityRole="button" disabled={busy || state.status === 'loading'} onPress={() => void enterDemo(role)} style={styles.demoButton}><Text style={styles.demoButtonText}>{role === 'ADMIN' ? 'Admin' : role === 'PROFESSOR' ? 'Professor' : 'Aluno'}</Text></Pressable>)}</View>
+          <View style={styles.demoActions}>{(['COORDENACAO', 'PROFESSOR', 'ALUNO'] as const).map((role) => <Pressable key={role} accessibilityRole="button" disabled={busy || state.status === 'loading'} onPress={() => void enterDemo(role)} style={styles.demoButton}><Text style={styles.demoButtonText}>{role === 'COORDENACAO' ? 'Coordenação' : role === 'PROFESSOR' ? 'Professor' : 'Aluno'}</Text></Pressable>)}</View>
         </View> : null}
         <Text style={styles.footer}>Seus dados acadêmicos são acessados conforme seu perfil e sua instituição.</Text>
       </Screen>

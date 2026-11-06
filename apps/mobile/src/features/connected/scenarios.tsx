@@ -26,7 +26,7 @@ export function ConnectedScenarios() {
       <Card><Text style={connectedStyles.heading}>Selecione uma turma</Text><View style={connectedStyles.chips}>{overview.data.classes.map((item) => <Chip key={item.id} label={item.name} selected={item.id === selected?.id} onPress={() => setClassId(item.id)} />)}</View>
         {!overview.data.classes.length && <Text style={connectedStyles.body}>Nenhuma turma acessível.</Text>}
       </Card>
-      <MlEnrollments key={selected?.id ?? 'sem-turma'} matriculas={enrollments.map((item) => ({ id: item.id, label: `${item.name} · ${item.registration}` }))} />
+      <MlEnrollments key={selected?.id ?? 'sem-turma'} matriculas={enrollments.map((item) => ({ id: item.id, label: `${item.name} · ${item.registration}` }))} onImported={overview.refresh} />
     </>}
   </Screen>;
 }

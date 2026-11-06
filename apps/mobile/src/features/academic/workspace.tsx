@@ -45,7 +45,7 @@ export default function Workspace() {
     setBusy(true); setError('');
     setNow(Date.now());
     try {
-      const options = role === 'ADMIN' ? await api.listInstituicoes() : [];
+      const options = role === 'COORDENACAO' ? await api.listInstituicoes() : [];
       const institutionId = selectedInstitution ?? options.find((item) => item.codigoCps === '109')?.id;
       if (seq !== sequence.current) return;
       setInstituicoes(options);
@@ -55,7 +55,7 @@ export default function Workspace() {
       if (institutionId) parameters.set('instituicaoId', institutionId);
       const [data, people] = await Promise.all([
         request<AcademicSnapshot>(`/academico/resumo${parameters.size ? `?${parameters}` : ''}`),
-        role === 'ADMIN' ? request<UserSummary[]>(`/usuarios${institutionId ? `?instituicaoId=${encodeURIComponent(institutionId)}` : ''}`) : Promise.resolve([]),
+        role === 'COORDENACAO' ? request<UserSummary[]>(`/usuarios${institutionId ? `?instituicaoId=${encodeURIComponent(institutionId)}` : ''}`) : Promise.resolve([]),
       ]);
       if (seq === sequence.current) { setSnapshot(data); setUsers(people); }
     } catch (cause) { if (seq === sequence.current) { setSnapshot(null); setError(cause instanceof Error ? cause.message : 'Falha ao carregar.'); } }
@@ -85,12 +85,12 @@ export default function Workspace() {
     return form ? request<AcademicFile>('/arquivos', { method: 'POST', body: form }) : null;
   }
   const download = (file: AcademicFile) => void run(async () => saveFile(file, await request<ArrayBuffer>(`/arquivos/${file.id}`, { binary: true })));
-  const visibleSections = sections.filter((s) => (s !== 'Estrutura' || role === 'ADMIN') && (s !== 'ML' || canReadMl(role)) && (s !== 'Materiais' || role !== 'TUTOR'));
+  const visibleSections = sections.filter((s) => (s !== 'Estrutura' || role === 'COORDENACAO') && (s !== 'ML' || canReadMl(role)) && (s !== 'Materiais' || role !== 'TUTOR'));
   const slice = <T,>(items: T[]) => items.slice(page * 20, (page + 1) * 20);
   const rows = snapshot ? section === 'Frequência' ? snapshot.aulas.length : section === 'Notas' ? snapshot.avaliacoes.length : section === 'Atividades' ? snapshot.atividades.length : section === 'Materiais' ? snapshot.materiais.length : snapshot.matriculas.length : 0;
   return <Screen>
     <AcademicHeader back fallbackHref="/connected" title="Área acadêmica" subtitle={`${roleLabel[role ?? ''] ?? ''} · ${turma ? `${turma.nome} / ${turma.periodo}` : 'Selecione ou cadastre uma turma'}`} />
-    {role === 'ADMIN' && <View style={academicStyles.chips}>{instituicoes.map((item) => <Chip key={item.id} label={item.nome} selected={selectedInstitution === item.id} onPress={() => { setSelectedInstitution(item.id); setSelected(undefined); setSnapshot(null); setEditor(null); }} />)}</View>}
+    {role === 'COORDENACAO' && <View style={academicStyles.chips}>{instituicoes.map((item) => <Chip key={item.id} label={item.nome} selected={selectedInstitution === item.id} onPress={() => { setSelectedInstitution(item.id); setSelected(undefined); setSnapshot(null); setEditor(null); }} />)}</View>}
     <View style={academicStyles.chips}>{visibleSections.map((s) => <Chip key={s} label={s} selected={section === s} onPress={() => { setSection(s); setPage(0); setEditor(null); }} />)}</View>
     <ActionButton title={busy ? 'Carregando…' : 'Atualizar'} disabled={busy} secondary onPress={() => void load()} />
     {!!error && <Feedback error message={error} />}{!!notice && <Feedback message={notice} />}
@@ -101,7 +101,7 @@ export default function Workspace() {
       {editor ? <Editor key={editor.title} config={editor} close={() => setEditor(null)} /> : <>
       {section === 'Estrutura' && <Panel><PanelTitle>Administração</PanelTitle>
         <ActionButton title="Criar turma" onPress={() => open('Criar turma', [text('nome', 'Nome'), text('curso', 'Curso'), text('periodo', 'Período')], '/turmas', (v) => ({ ...v, instituicaoId: selectedInstitution }))} />
-        <ActionButton title="Criar usuário" onPress={() => open('Criar usuário', [text('nome', 'Nome'), text('email', 'E-mail'), { key: 'senha', label: 'Senha (mínimo 12 caracteres)', type: 'password' }, { key: 'perfil', label: 'Perfil', options: ['ADMIN', 'COORDENACAO', 'SECRETARIA', 'FINANCEIRO', 'PROFESSOR', 'TUTOR', 'ALUNO'].map((p) => ({ id: p, label: roleLabel[p] })) }], '/usuarios', (v) => ({ ...v, instituicaoId: selectedInstitution }))} />
+        <ActionButton title="Criar usuário" onPress={() => open('Criar usuário', [text('nome', 'Nome'), text('email', 'E-mail'), { key: 'senha', label: 'Senha (mínimo 12 caracteres)', type: 'password' }, { key: 'perfil', label: 'Perfil', options: ['COORDENACAO', 'SECRETARIA', 'PROFESSOR', 'TUTOR', 'ALUNO'].map((p) => ({ id: p, label: roleLabel[p] })) }], '/usuarios', (v) => ({ ...v, instituicaoId: selectedInstitution }))} />
         {!!turma && <>
           <ActionButton disabled={turma.fechada} title="Adicionar disciplina" onPress={() => open('Adicionar disciplina', [text('nome', 'Nome')], '/disciplinas', (v) => ({ ...v, turmaId: turma.id }))} />
           <ActionButton disabled={turma.fechada} title="Matricular aluno" onPress={() => open('Matricular aluno', [person('ALUNO', 'alunoId'), text('registro', 'Registro da matrícula')], '/matriculas', (v) => ({ ...v, turmaId: turma.id }))} />
@@ -112,7 +112,7 @@ export default function Workspace() {
       </Panel>}
       {section === 'Resumo' && <>
         <Panel><PanelTitle>{snapshot.disciplinas.length} disciplinas · {snapshot.matriculas.length} matrículas</PanelTitle><BodyText>{snapshot.disciplinas.map((s) => s.nome).join(' · ') || 'Nenhuma disciplina disponível.'}</BodyText></Panel>
-        {!snapshot.turmas.length && <BodyText>{role === 'ADMIN' ? 'Cadastre a primeira turma em Estrutura.' : 'Você ainda não possui vínculos acadêmicos disponíveis.'}</BodyText>}
+        {!snapshot.turmas.length && <BodyText>{role === 'COORDENACAO' ? 'Cadastre a primeira turma em Estrutura.' : 'Você ainda não possui vínculos acadêmicos disponíveis.'}</BodyText>}
         {slice(snapshot.matriculas).map((m) => { const stats = snapshot.indicadores.find((i) => i.matriculaId === m.id); return <Panel key={m.id}><PanelTitle>{m.aluno.nome}</PanelTitle><BodyText>{m.registro}</BodyText><BodyText>Média publicada: {formatAcademicNumber(stats?.media ?? null)} / 10 · Frequência: {formatAcademicNumber(stats?.frequencia ?? null)}%</BodyText></Panel>; })}
       </>}
       {section === 'Frequência' && <>
@@ -146,7 +146,7 @@ export default function Workspace() {
         {slice(snapshot.materiais).map((m) => <Panel key={m.id}><PanelTitle>{m.titulo}</PanelTitle><BodyText>{subjectName(m.disciplinaId)} · {m.arquivo.nome}</BodyText><BodyText>{m.descricao}</BodyText><ActionButton title="Baixar material" disabled={busy} onPress={() => download(m.arquivo)} /></Panel>)}
       </>}
       {(section === 'Calendário' || section === 'Avisos') && <AcademicFeed key={`${section}:${snapshot.turmaId}`} kind={section === 'Calendário' ? 'calendario' : 'avisos'} turmaId={snapshot.turmaId} subjects={snapshot.disciplinas} />}
-      {section === 'ML' && canReadMl(role) && <MlEnrollments key={snapshot.turmaId} matriculas={enrollmentOptions} />}
+      {section === 'ML' && canReadMl(role) && <MlEnrollments key={snapshot.turmaId} matriculas={enrollmentOptions} onImported={() => void load()} />}
       {!['Estrutura', 'Calendário', 'Avisos', 'ML'].includes(section) && rows === 0 && <BodyText>Nenhum registro disponível nesta seção.</BodyText>}
       {!['Estrutura', 'Calendário', 'Avisos', 'ML'].includes(section) && rows > 20 && <View style={academicStyles.chips}><ActionButton title="Anterior" disabled={page === 0} onPress={() => setPage((p) => p - 1)} /><BodyText>Página {page + 1}</BodyText><ActionButton title="Próxima" disabled={(page + 1) * 20 >= rows} onPress={() => setPage((p) => p + 1)} /></View>}
       </>}

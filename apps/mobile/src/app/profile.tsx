@@ -47,7 +47,7 @@ export default function ProfileScreen() {
         <View style={styles.divider} />
         <Field label="Perfil de acesso" value={roleLabel[user.perfil]} />
       </View>
-      {user.perfil === 'ADMIN' && state.mode === 'api' ? (
+      {user.perfil === 'COORDENACAO' && state.mode === 'api' ? (
         <>
           <Pressable accessibilityRole="button" accessibilityLabel="Dados para previsão" onPress={() => router.push('/workspace?secao=ML')} style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
             <View style={styles.linkText}><Text style={styles.linkTitle}>Dados para previsão</Text><Text style={styles.linkCaption}>Preencher a ficha de ML por matrícula</Text></View>
@@ -66,6 +66,12 @@ export default function ProfileScreen() {
             <Text style={styles.linkArrow}>→</Text>
           </Pressable>
         </>
+      ) : null}
+      {user.perfil === 'SECRETARIA' && state.mode === 'api' ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="Financeiro" onPress={() => router.push('/financeiro')} style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
+          <View style={styles.linkText}><Text style={styles.linkTitle}>Financeiro</Text><Text style={styles.linkCaption}>Mensalidades, pagamentos e bolsas</Text></View>
+          <Text style={styles.linkArrow}>→</Text>
+        </Pressable>
       ) : null}
       <Text style={styles.note}>{state.mode === 'demo' ? 'Perfil fictício local para demonstração. Nenhum dado desta conta foi consultado na API.' : 'Sua sessão e suas permissões são verificadas pelo servidor. A área acadêmica exibe os dados disponíveis para seus vínculos.'}</Text>
       <PrimaryButton title={busy ? 'Encerrando sessão...' : 'Sair da conta'} onPress={() => void logout()} loading={busy} danger />

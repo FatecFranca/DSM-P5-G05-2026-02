@@ -25,7 +25,7 @@ export interface OverviewData {
 
 export function useAcademicOverview() {
   const { state, request } = useSession();
-  const admin = state.status === 'signedIn' && state.user.perfil === 'ADMIN';
+  const admin = state.status === 'signedIn' && state.user.perfil === 'COORDENACAO';
   const [institutions, setInstitutions] = useState<InstituicaoOption[]>([]);
   const [institutionId, setInstitutionId] = useState<string | null>(null);
   const [data, setData] = useState<OverviewData | null>(null);

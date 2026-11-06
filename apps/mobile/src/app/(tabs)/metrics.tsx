@@ -17,7 +17,7 @@ export default function Metrics() {
   const [selectedClass, setSelectedClass] = useState(0);
   const [selectedCell, setSelectedCell] = useState<{ actual: number; predicted: number } | null>(null);
   if (state.status !== 'signedIn') return null;
-  if (!['ADMIN', 'COORDENACAO'].includes(state.user.perfil)) return <Screen><Text style={styles.title}>Avaliação do modelo</Text><Card><Text style={styles.body}>Métricas do modelo são restritas à administração e coordenação.</Text></Card></Screen>;
+  if (!['COORDENACAO'].includes(state.user.perfil)) return <Screen><Text style={styles.title}>Avaliação do modelo</Text><Card><Text style={styles.body}>Métricas do modelo são restritas à administração e coordenação.</Text></Card></Screen>;
   const current = report.classes[selectedClass];
   const matrix = demoModelMetrics.confusionMatrix;
 

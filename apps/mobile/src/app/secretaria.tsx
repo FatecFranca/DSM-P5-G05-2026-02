@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen } from '@/components/primitives';
@@ -28,7 +29,8 @@ const INGRESS = [
 
 export default function SecretaryScreen() {
   const { state, request } = useSession();
-  const admin = state.status === 'signedIn' && state.user.perfil === 'ADMIN';
+  const router = useRouter();
+  const admin = state.status === 'signedIn' && state.user.perfil === 'COORDENACAO';
   const [pending, setPending] = useState<Pending[]>([]);
   const [schema, setSchema] = useState<MlSchema | null>(null);
   const [classes, setClasses] = useState<{ id: string; nome: string; periodo: string }[]>([]);
@@ -190,7 +192,7 @@ export default function SecretaryScreen() {
         if (!/^[A-Z]{2}$/.test(pais) || !Number.isInteger(ano) || ano < 1990 || ano > 2100) throw new Error('Informe país com 2 letras e ano entre 1990 e 2100.');
         const source = await request<MacroSource>(`/ml/fontes/macro/${pais}/${ano}`);
         await request(`/ml/matriculas/${selected.id}/coorte-macro`, { method: 'PUT', body: { pais, ano } });
-        setNotice(source ? 'Coorte vinculada; desemprego, inflação e PIB foram reconciliados.' : 'Coorte vinculada. Os indicadores aguardam publicação oficial pelo ADMIN.');
+        setNotice(source ? 'Coorte vinculada; desemprego, inflação e PIB foram reconciliados.' : 'Coorte vinculada. Os indicadores aguardam publicação oficial pela coordenação.');
       } });
     } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Não foi possível abrir a coorte.'); }
     finally { setBusy(false); }
@@ -245,6 +247,7 @@ export default function SecretaryScreen() {
 
   return <Screen>
     <TopBar />
+    <Panel><PanelTitle>Financeiro</PanelTitle><BodyText>Mensalidades, pagamentos e bolsas da instituição.</BodyText><ActionButton title="Abrir financeiro" onPress={() => router.push('/financeiro')} /></Panel>
     <Panel><PanelTitle>Cadastro acadêmico</PanelTitle>
       <BodyText>Crie uma conta de aluno ou localize uma existente e vincule-a a uma turma da instituição.</BodyText>
       <ActionButton title="Criar conta de aluno" onPress={openStudent} />

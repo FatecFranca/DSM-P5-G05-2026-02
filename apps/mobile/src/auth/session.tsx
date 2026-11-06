@@ -31,8 +31,9 @@ type SessionState =
 interface SessionContextValue {
   state: SessionState;
   signIn: (instituicaoId: string, email: string, senha: string) => Promise<void>;
-  demoSignIn: (role: 'ADMIN' | 'PROFESSOR' | 'ALUNO') => Promise<void>;
+  demoSignIn: (role: 'COORDENACAO' | 'PROFESSOR' | 'ALUNO') => Promise<void>;
   signOut: () => Promise<boolean>;
+  changePassword: (current: string, next: string) => Promise<void>;
   retryRestore: () => Promise<void>;
   listUsers: () => Promise<UserSummary[]>;
   request: <T>(path: string, options?: Omit<RequestOptions, 'accessToken'>) => Promise<T>;
@@ -119,7 +120,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [acceptTokens, clearLocalSession]);
 
-  const demoSignIn = useCallback(async (role: 'ADMIN' | 'PROFESSOR' | 'ALUNO') => {
+  const demoSignIn = useCallback(async (role: 'COORDENACAO' | 'PROFESSOR' | 'ALUNO') => {
     if (!__DEV__) throw new Error('A demonstração local está disponível apenas em desenvolvimento.');
     await clearLocalSession();
     const user: AuthUser = {
@@ -176,6 +177,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clearLocalSession, refreshAccess, state]);
   const listUsers = useCallback(() => request<UserSummary[]>('/usuarios'), [request]);
+  const changePassword = useCallback(async (current: string, next: string) => {
+    await request<void>('/auth/trocar-senha', {
+      method: 'POST', body: { senhaAtual: current, novaSenha: next },
+    });
+    setState((previous) => previous.status === 'signedIn'
+      ? { ...previous, user: { ...previous.user, trocaSenhaObrigatoria: false } }
+      : previous);
+  }, [request]);
 
   const signOut = useCallback(async () => {
     const token = refreshRef.current;
@@ -198,7 +207,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [restore]);
 
   return (
-    <SessionContext.Provider value={{ state, signIn, demoSignIn, signOut, retryRestore, listUsers, request }}>
+    <SessionContext.Provider value={{ state, signIn, demoSignIn, signOut, changePassword, retryRestore, listUsers, request }}>
       {children}
     </SessionContext.Provider>
   );
