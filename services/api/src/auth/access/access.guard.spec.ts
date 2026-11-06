@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
@@ -21,8 +25,12 @@ describe('AccessGuard', () => {
   const sessionId = randomUUID();
   const institutionId = randomUUID();
 
-  function context(authorization?: string, publicRoute = false) {
-    const request = { headers: { authorization } };
+  function context(
+    authorization?: string,
+    publicRoute = false,
+    path = '/academico/resumo',
+  ) {
+    const request = { headers: { authorization }, path };
     const handler = () => undefined;
     if (publicRoute) Reflect.defineMetadata(IS_PUBLIC, true, handler);
     return {
@@ -67,7 +75,7 @@ describe('AccessGuard', () => {
 
   it('deriva instituição e perfil da sessão no banco', async () => {
     const token = await jwt.signAsync(
-      { sub: userId, sid: sessionId, perfil: Perfil.ADMIN },
+      { sub: userId, sid: sessionId, perfil: Perfil.COORDENACAO },
       { secret, issuer: 'sgei-api', audience: 'sgei-api' },
     );
     findFirst.mockResolvedValue({
@@ -108,7 +116,7 @@ describe('AccessGuard', () => {
       instituicaoId: institutionId,
       usuario: {
         id: userId,
-        perfil: Perfil.ADMIN,
+        perfil: Perfil.COORDENACAO,
         ativo: true,
         instituicao: { ativa: false },
       },
@@ -116,5 +124,37 @@ describe('AccessGuard', () => {
     await expect(
       guard.canActivate(context(`Bearer ${token}`).executionContext),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('exige troca de senha antes de liberar dados acadêmicos', async () => {
+    const token = await jwt.signAsync(
+      { sub: userId, sid: sessionId },
+      { secret, issuer: 'sgei-api', audience: 'sgei-api' },
+    );
+    findFirst.mockResolvedValue({
+      id: sessionId,
+      instituicaoId: institutionId,
+      usuario: {
+        id: userId,
+        perfil: Perfil.ALUNO,
+        ativo: true,
+        trocaSenhaObrigatoria: true,
+        instituicao: { ativa: true },
+      },
+    });
+    await expect(
+      guard.canActivate(context(`Bearer ${token}`).executionContext),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      guard.canActivate(
+        context(`Bearer ${token}`, false, '/auth/me').executionContext,
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      guard.canActivate(
+        context(`Bearer ${token}`, false, '/auth/trocar-senha')
+          .executionContext,
+      ),
+    ).resolves.toBe(true);
   });
 });

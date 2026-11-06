@@ -35,7 +35,7 @@ export class SourceWorkbookController {
   constructor(private readonly workbooks: SourceWorkbookService) {}
 
   @Get('semestres/modelo')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   @Header('Content-Type', XLSX)
   @Header(
@@ -47,7 +47,7 @@ export class SourceWorkbookController {
   }
 
   @Post('semestres')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseInterceptors(
@@ -68,7 +68,7 @@ export class SourceWorkbookController {
   }
 
   @Get('macro/modelo')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.COORDENACAO)
   @Header('Cache-Control', 'no-store')
   @Header('Content-Type', XLSX)
   @Header(
@@ -80,7 +80,7 @@ export class SourceWorkbookController {
   }
 
   @Post('macro')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.COORDENACAO)
   @Header('Cache-Control', 'no-store')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseInterceptors(

@@ -10,7 +10,7 @@ import { ACTIVE_MODEL_VERSION } from './model-version';
 const admin: AuthUser = {
   id: 'admin',
   instituicaoId: 'tenant',
-  perfil: 'ADMIN',
+  perfil: 'COORDENACAO',
   sessaoId: 'session',
 };
 const profile = {
@@ -124,7 +124,7 @@ describe('recálculo experimental após alteração do perfil importado', () => 
     expect(await service.processPending()).toBe(0);
     expect(ml.status).not.toHaveBeenCalled();
     await expect(
-      service.recent({ ...admin, perfil: 'FINANCEIRO' }),
+      service.recent({ ...admin, perfil: 'SECRETARIA' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     await service.recent(admin);
     expect(db.previsaoAutomaticaMl.findMany).toHaveBeenCalledWith(

@@ -15,7 +15,7 @@ import type { AuthUser } from '../auth/auth-user';
 const actor: AuthUser = {
   id: 'admin',
   instituicaoId: 'tenant',
-  perfil: 'ADMIN',
+  perfil: 'COORDENACAO',
   sessaoId: 'session',
 };
 
@@ -26,7 +26,7 @@ describe('vencimento e pagamento de mensalidades', () => {
       matricula: { findMany },
     } as unknown as PrismaService);
     await service.searchEnrollments(
-      { ...actor, perfil: 'FINANCEIRO' },
+      { ...actor, perfil: 'SECRETARIA' },
       ' 2026',
     );
     expect(findMany).toHaveBeenCalledWith(
@@ -54,12 +54,12 @@ describe('vencimento e pagamento de mensalidades', () => {
     } as unknown as PrismaService);
     expect(
       await service.getMonthlyPlan(
-        { ...actor, perfil: 'FINANCEIRO' },
+        { ...actor, perfil: 'SECRETARIA' },
         'enrollment',
       ),
     ).toBeNull();
     await expect(
-      service.getMonthlyPlan({ ...actor, perfil: 'FINANCEIRO' }, 'foreign'),
+      service.getMonthlyPlan({ ...actor, perfil: 'SECRETARIA' }, 'foreign'),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -415,7 +415,7 @@ describe('vencimento e pagamento de mensalidades', () => {
     else process.env.SIMULATED_PAYMENTS_ENABLED = previousFlag;
   });
 
-  it('autoriza financeiro no próprio tenant e nega secretaria', async () => {
+  it('autoriza secretaria no próprio tenant e nega professor', async () => {
     const db = {
       matricula: {
         findFirst: jest.fn().mockResolvedValue({ id: 'enrollment' }),
@@ -423,14 +423,14 @@ describe('vencimento e pagamento de mensalidades', () => {
       fatura: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const service = new BillingService(db as unknown as PrismaService);
-    await service.list({ ...actor, perfil: 'FINANCEIRO' }, 'enrollment');
+    await service.list({ ...actor, perfil: 'SECRETARIA' }, 'enrollment');
     expect(db.matricula.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'enrollment', instituicaoId: 'tenant' },
       }),
     );
     await expect(
-      service.list({ ...actor, perfil: 'SECRETARIA' }, 'enrollment'),
+      service.list({ ...actor, perfil: 'PROFESSOR' }, 'enrollment'),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(db.fatura.findMany).toHaveBeenCalledTimes(1);
   });

@@ -6,14 +6,12 @@ Todas as rotas abaixo exigem `Authorization: Bearer <accessToken>`. O backend re
 
 O mobile usa o perfil retornado por `/auth/me` para filtrar a navegação e as solicitações. Isso é conveniência de interface: requisições forjadas continuam sujeitas às regras do backend. Refresh tokens são rotacionados; respostas de sessões encerradas são descartadas pelo aplicativo.
 
-`/auth/instituicoes` lista as instituições ativas. Os nomes e códigos Fatec são dados de apresentação da demonstração; a autorização usa o `instituicaoId` da sessão. `ADMIN`, `SECRETARIA` e `FINANCEIRO` atuam somente na própria instituição. Professor, tutor e aluno consultam pessoas e dados vinculados. Cada ação administrativa é auditada na instituição do autor.
+`/auth/instituicoes` lista as instituições ativas. Os nomes e códigos Fatec são dados de apresentação da demonstração; a autorização usa o `instituicaoId` da sessão. `COORDENACAO` e `SECRETARIA` atuam somente na própria instituição. Professor, tutor e aluno consultam pessoas e dados vinculados. Cada ação administrativa é auditada na instituição do autor.
 
 | Perfil | Leitura | Escrita |
 | --- | --- | --- |
-| ADMIN | Instituição | Usuários, turmas, disciplinas, matrículas, lotações, tutorias e fechamento/reabertura |
-| SECRETARIA | Alunos e turmas da instituição | Cadastro de alunos e matrículas na instituição |
-| FINANCEIRO | Faturas da instituição | Planos, faturas e pagamentos; sem acesso acadêmico ou ao risco de evasão |
-| COORDENACAO | Instituição | Nenhuma neste módulo |
+| COORDENACAO | Instituição | Usuários, turmas, disciplinas, matrículas, lotações, tutorias e fechamento/reabertura |
+| SECRETARIA | Alunos, turmas e faturas da instituição | Cadastro de alunos, matrículas, planos, faturas, pagamentos e bolsas; sem acesso ao risco de evasão |
 | PROFESSOR | Disciplinas com lotação e respectivas matrículas | Aulas, frequência, avaliações, notas, atividades, correções e materiais dessas disciplinas |
 | TUTOR | Matrículas vinculadas; notas publicadas; sem materiais | Nenhuma neste módulo |
 | ALUNO | Próprias matrículas; notas e atividades publicadas | Arquivos e entrega de atividades abertas de suas turmas |
@@ -29,10 +27,10 @@ O mobile usa o perfil retornado por `/auth/me` para filtrar a navegação e as s
 | GET `/usuarios?instituicaoId=&perfil=&busca=` | Pessoas no escopo do perfil; até 500, ordenadas por nome |
 | GET `/usuarios?pagina=1&tamanho=50&instituicaoId=&perfil=&busca=` | Mesmo escopo e filtros; retorno `{ itens, total, pagina, tamanho }`, com `tamanho` de 1 a 100 |
 | GET `/usuarios/:id` | Detalhes e matrículas visíveis no escopo do perfil |
-| POST `/usuarios` | ADMIN cria perfis na própria instituição; SECRETARIA cria somente ALUNO. Recebe nome, e-mail, perfil e senha; `instituicaoId`, se enviado, deve ser o da sessão |
+| POST `/usuarios` | COORDENACAO cria perfis na própria instituição; SECRETARIA cria somente ALUNO. Recebe nome, e-mail, perfil e senha; `instituicaoId`, se enviado, deve ser o da sessão |
 | POST `/turmas` | `nome`, `curso`, `periodo` |
 | POST `/disciplinas` | `turmaId`, `nome` |
-| POST `/matriculas` | ADMIN ou SECRETARIA: `turmaId`, `alunoId`, `registro`, todos na própria instituição |
+| POST `/matriculas` | COORDENACAO ou SECRETARIA: `turmaId`, `alunoId`, `registro`, todos na própria instituição |
 | POST `/lotacoes` | `disciplinaId`, `professorId` |
 | POST `/tutorias` | `matriculaId`, `tutorId` |
 | PATCH `/turmas/:id/fechamento` | `fechada`: boolean |

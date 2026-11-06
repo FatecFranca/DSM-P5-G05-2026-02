@@ -12,6 +12,7 @@ if (!['up', 'down', 'reset'].includes(action) || (action === 'reset' && process.
   process.exit(1);
 }
 const apiEnvPath = join(root, 'services', 'api', '.env');
+const seedEnvPath = join(root, 'services', 'api', '.env.seed');
 const mlEnvPath = join(root, 'services', 'ml', '.env');
 const secret = () => randomBytes(24).toString('base64url');
 
@@ -27,13 +28,6 @@ if (action === 'up' && !existsSync(apiEnvPath)) {
     'ALLOWED_ORIGINS="http://localhost:5173,http://localhost:8081"',
     'PORT=3000',
     'NODE_ENV=development',
-    `DEMO_ADMIN_PASSWORD="${secret()}"`,
-    `DEMO_COORDENACAO_PASSWORD="${secret()}"`,
-    `DEMO_SECRETARIA_PASSWORD="${secret()}"`,
-    `DEMO_FINANCEIRO_PASSWORD="${secret()}"`,
-    `DEMO_PROFESSOR_PASSWORD="${secret()}"`,
-    `DEMO_TUTOR_PASSWORD="${secret()}"`,
-    `DEMO_ALUNO_PASSWORD="${secret()}"`,
     'ML_SERVICE_URL="http://ml:8000"',
     `ML_SERVICE_TOKEN="${mlToken}"`,
     'ML_PREVIEW_ENABLED=false',
@@ -44,8 +38,17 @@ if (action === 'up' && !existsSync(apiEnvPath)) {
 }
 
 const apiEnv = action === 'up' ? readFileSync(apiEnvPath, 'utf8') : '';
+const seedProfiles = ['COORDENACAO', 'SECRETARIA', 'PROFESSOR', 'TUTOR', 'ALUNO'];
+if (action === 'up' && !existsSync(seedEnvPath) && !seedProfiles.every((profile) =>
+  new RegExp(`^DEMO_${profile}_PASSWORD=`, 'm').test(apiEnv))) {
+  writeFileSync(seedEnvPath, seedProfiles.map((profile) =>
+    `DEMO_${profile}_PASSWORD="${secret()}"`).join('\n') + '\n', { flag: 'wx', mode: 0o600 });
+  console.info('Credenciais locais da carga criadas em services/api/.env.seed.');
+}
+const seedEnv = action === 'up' && existsSync(seedEnvPath) ? readFileSync(seedEnvPath, 'utf8') : '';
 const envValue = (key) => {
-  const raw = apiEnv.match(new RegExp(`^${key}=(.*)$`, 'm'))?.[1]?.trim();
+  const source = key.startsWith('DEMO_') && seedEnv ? seedEnv : apiEnv;
+  const raw = source.match(new RegExp(`^${key}=(.*)$`, 'm'))?.[1]?.trim();
   return raw?.replace(/^(["'])(.*)\1$/, '$2') ?? '';
 };
 for (const key of action === 'up' ? [
@@ -54,22 +57,20 @@ for (const key of action === 'up' ? [
   'POSTGRES_PASSWORD',
   'POSTGRES_DB',
   'JWT_SECRET',
-  'DEMO_ADMIN_PASSWORD',
   'DEMO_COORDENACAO_PASSWORD',
   'DEMO_SECRETARIA_PASSWORD',
-  'DEMO_FINANCEIRO_PASSWORD',
   'DEMO_PROFESSOR_PASSWORD',
   'DEMO_TUTOR_PASSWORD',
   'DEMO_ALUNO_PASSWORD',
 ] : []) {
   if (!envValue(key)) {
-    console.error(`Defina ${key} em services/api/.env antes de iniciar.`);
+    console.error(`Defina ${key} em services/api/${key.startsWith('DEMO_') ? '.env.seed' : '.env'} antes de iniciar.`);
     process.exit(1);
   }
 }
 
 if (action === 'up') {
-  const passwords = ['ADMIN', 'COORDENACAO', 'SECRETARIA', 'FINANCEIRO', 'PROFESSOR', 'TUTOR', 'ALUNO']
+  const passwords = ['COORDENACAO', 'SECRETARIA', 'PROFESSOR', 'TUTOR', 'ALUNO']
     .map((profile) => envValue(`DEMO_${profile}_PASSWORD`));
   let validDatabase = false;
   try {
@@ -87,7 +88,7 @@ if (action === 'up') {
     passwords.some((password) => password.length < 12 || password.length > 128) ||
     new Set(passwords).size !== passwords.length
   ) {
-    console.error('Configure segredos locais distintos e DATABASE_URL para o serviço Docker db em services/api/.env.');
+    console.error('Configure senhas distintas em services/api/.env.seed e DATABASE_URL para o serviço Docker db em services/api/.env.');
     process.exit(1);
   }
 }
@@ -104,7 +105,7 @@ if (action === 'up' && !existsSync(mlEnvPath)) {
 
 const composeArgs = [
   'compose', '--project-name', project,
-  '-f', 'docker-compose.yml', '-f', 'compose.dev.yml',
+  '-f', 'docker-compose.yml',
 ];
 const command = spawnSync('docker', [
   ...composeArgs,

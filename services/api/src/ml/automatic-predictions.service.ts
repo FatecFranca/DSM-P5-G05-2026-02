@@ -198,7 +198,7 @@ export class AutomaticPredictionsService
   }
 
   async recent(actor: AuthUser) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     const items = await this.db.previsaoAutomaticaMl.findMany({
       where: { instituicaoId: actor.instituicaoId },
       take: 50,

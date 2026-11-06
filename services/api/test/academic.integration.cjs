@@ -46,7 +46,7 @@ async function main() {
     tenants.push(fatec.id);
   }
   const people = [];
-  for (const [index, perfil] of ['ADMIN', 'PROFESSOR', 'ALUNO', 'ALUNO', 'ALUNO'].entries()) {
+  for (const [index, perfil] of ['COORDENACAO', 'PROFESSOR', 'ALUNO', 'ALUNO', 'ALUNO'].entries()) {
     const user = await db.usuario.create({ data: { instituicaoId: tenants[index === 4 ? 1 : 0], email: `p${index}.${runId}@example.test`, nome: `Pessoa de teste ${index}`, senhaHash, perfil } });
     testUserIds.push(user.id);
     const tokens = await call('POST', '/auth/login', null, { instituicaoId: user.instituicaoId, email: user.email, senha });
@@ -138,9 +138,9 @@ async function main() {
     const { Workbook } = require('exceljs');
     const workbook = new Workbook();
     await workbook.xlsx.load(Buffer.from(templateBytes));
-    const header = workbook.getWorksheet('Importacao').getRow(1).values.slice(3);
+    const header = workbook.getWorksheet('Importacao').getRow(1).values.slice(10);
     const beforeImport = await call('GET', path, admin.token);
-    workbook.getWorksheet('Importacao').addRow([enrol.registro, beforeImport.versao, ...header.map((name) => demoProfile(0)[name])]);
+    workbook.getWorksheet('Importacao').addRow([enrol.registro, student.nome, student.email, className, 'Teste', '2026/2', subject.nome, teacher.email, beforeImport.versao, ...header.map((name) => demoProfile(0)[name])]);
     const workbookBytes = await workbook.xlsx.writeBuffer();
     const uploadWorkbook = () => {
       const form = new FormData();
@@ -217,6 +217,52 @@ async function main() {
   assert.equal((await call('GET', '/academico/resumo', student.token)).atividades.length, 0);
   assert.ok(!(await call('GET', calendarPath, student.token)).itens.some((e) => e.recursoId === activity.id));
   await call('POST', `/atividades/${activity.id}/publicar`, teacher.token, null, 201);
+  if (process.env.TEST_ML === 'true') {
+    const { demoProfile } = require('../dist/ml/demo-profiles');
+    const { Workbook } = require('exceljs');
+    const template = await call('GET', '/ml/importacoes/modelo', admin.token);
+    const importBook = new Workbook();
+    await importBook.xlsx.load(Buffer.from(template));
+    const importedEmail = `importado.${runId}@example.test`;
+    const importedRegistro = `IMP-${runId.slice(0, 8)}`;
+    const featureNames = importBook.getWorksheet('Importacao').getRow(1).values.slice(10);
+    importBook.getWorksheet('Importacao').addRow([
+      importedRegistro, 'Aluno Importado', importedEmail, className, 'Teste', '2026/2',
+      subject.nome, teacher.email, 0, ...featureNames.map((name) => demoProfile(0)[name]),
+    ]);
+    importBook.getWorksheet('Importacao').getCell('H2').value = 'nao-lotado@example.test';
+    const invalidForm = new FormData();
+    invalidForm.append('arquivo', new Blob([await importBook.xlsx.writeBuffer()], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }), 'aluno-invalido.xlsx');
+    await call('POST', '/ml/importacoes', admin.token, invalidForm, 400);
+    assert.equal(await db.usuario.count({ where: { instituicaoId: tenants[0], email: importedEmail } }), 0);
+    importBook.getWorksheet('Importacao').getCell('H2').value = teacher.email;
+    const form = new FormData();
+    form.append('arquivo', new Blob([await importBook.xlsx.writeBuffer()], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }), 'aluno.xlsx');
+    const result = await call('POST', '/ml/importacoes', admin.token, form, 201);
+    assert.equal(result.salvos, 1);
+    assert.deepEqual(result.erros, []);
+    const importedUser = await db.usuario.findUnique({
+      where: { instituicaoId_email: { instituicaoId: tenants[0], email: importedEmail } },
+    });
+    assert.equal(importedUser.trocaSenhaObrigatoria, true);
+    testUserIds.push(importedUser.id);
+    const importedLogin = await call('POST', '/auth/login', null, {
+      instituicaoId: tenants[0], email: importedEmail, senha: 'Fatec@123',
+    });
+    assert.equal((await call('GET', '/auth/me', importedLogin.accessToken)).trocaSenhaObrigatoria, true);
+    await call('GET', '/academico/resumo', importedLogin.accessToken, null, 403);
+    const newPassword = `${randomUUID()}Ab1!`;
+    await call('POST', '/auth/trocar-senha', importedLogin.accessToken, {
+      senhaAtual: 'Fatec@123', novaSenha: newPassword,
+    }, 204);
+    const importedSummary = await call('GET', '/academico/resumo', importedLogin.accessToken);
+    assert.ok(importedSummary.atividades.some((item) => item.id === activity.id));
+    assert.equal((await call('GET', '/auth/me', importedLogin.accessToken)).trocaSenhaObrigatoria, false);
+  }
   assert.ok((await call('GET', '/academico/avisos', student.token)).itens.some((e) => e.recursoId === activity.id && e.tipo === 'ATIVIDADE'));
   const bad = new FormData(); bad.append('arquivo', new Blob(['<script>fake</script>'], { type: 'application/pdf' }), 'fake.pdf');
   await call('POST', '/arquivos', student.token, bad, 400);
@@ -256,7 +302,7 @@ async function main() {
   await call('GET', `/arquivos/${materialFile.id}`, peer.token, null, 404);
   await call('POST', '/aulas', peer.token, { disciplinaId: subject.id, data: new Date().toISOString(), tema: 'Negado' }, 403);
   await db.usuario.update({ where: { id: peer.id }, data: { perfil: 'COORDENACAO' } });
-  assert.equal((await call('GET', `/academico/resumo?turmaId=${turma.id}`, peer.token)).matriculas.length, 2);
+  assert.equal((await call('GET', `/academico/resumo?turmaId=${turma.id}`, peer.token)).matriculas.length, process.env.TEST_ML === 'true' ? 3 : 2);
   await call('POST', '/turmas', peer.token, { nome: 'Negada', curso: 'Teste', periodo: '2026/2' }, 403);
   await call('PATCH', `/turmas/${turma.id}/fechamento`, admin.token, { fechada: true });
   await call('PUT', `/avaliacoes/${exam.id}/notas`, teacher.token, { itens: [{ matriculaId: enrol.id, valor: 10 }] }, 403);

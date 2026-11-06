@@ -13,19 +13,18 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import type { AuthRequest } from '../../auth/auth-user';
 import { Roles } from '../../common/roles/roles.decorator';
 import { Perfil } from '../../generated/prisma/enums';
 import { ImportsService } from './imports.service';
+import { createImportTemplate } from './workbook-parser';
 
 const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const MAX_SIZE = 1024 * 1024;
 
 @Controller('ml/importacoes')
-@Roles(Perfil.ADMIN)
+@Roles(Perfil.COORDENACAO)
 export class ImportsController {
   constructor(private readonly imports: ImportsService) {}
 
@@ -37,9 +36,7 @@ export class ImportsController {
     'attachment; filename="modelo-importacao-ml.xlsx"',
   )
   async template() {
-    const bytes = await readFile(
-      join(process.cwd(), 'assets', 'modelo-importacao-ml.xlsx'),
-    );
+    const bytes = await createImportTemplate();
     return new StreamableFile(bytes);
   }
 

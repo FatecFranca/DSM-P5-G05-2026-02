@@ -20,7 +20,7 @@ export class IngressService {
   constructor(private readonly db: PrismaService) {}
 
   async searchEnrollments(actor: AuthUser, registro: string) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     const term = registro.trim();
     if (term.length < 2)
       throw new BadRequestException(
@@ -38,7 +38,7 @@ export class IngressService {
   }
 
   async pending(actor: AuthUser) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     return this.db.declaracaoIngressoMl.findMany({
       where: { instituicaoId: actor.instituicaoId, pendente: true },
       select: {
@@ -57,7 +57,7 @@ export class IngressService {
   private async enrollment(
     actor: AuthUser,
     id: string,
-    role: 'ALUNO' | 'ADMIN' | 'SECRETARIA',
+    role: 'ALUNO' | 'COORDENACAO' | 'SECRETARIA',
   ) {
     requireRole(actor, [role]);
     const item = await this.db.matricula.findFirst({
@@ -153,8 +153,12 @@ export class IngressService {
   }
 
   async source(actor: AuthUser, id: string) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
-    await this.enrollment(actor, id, actor.perfil as 'ADMIN' | 'SECRETARIA');
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
+    await this.enrollment(
+      actor,
+      id,
+      actor.perfil as 'COORDENACAO' | 'SECRETARIA',
+    );
     const [official, declaration] = await this.db.$transaction([
       this.db.fonteIngressoMl.findUnique({ where: { matriculaId: id } }),
       this.db.declaracaoIngressoMl.findUnique({ where: { matriculaId: id } }),
@@ -163,8 +167,12 @@ export class IngressService {
   }
 
   async saveSource(actor: AuthUser, id: string, dto: IngressSourceDto) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
-    await this.enrollment(actor, id, actor.perfil as 'ADMIN' | 'SECRETARIA');
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
+    await this.enrollment(
+      actor,
+      id,
+      actor.perfil as 'COORDENACAO' | 'SECRETARIA',
+    );
     const features = Object.fromEntries(Object.entries(dto.features)) as Record<
       string,
       number

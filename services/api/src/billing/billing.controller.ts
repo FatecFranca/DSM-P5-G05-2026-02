@@ -26,7 +26,7 @@ export class BillingController {
   constructor(private readonly billing: BillingService) {}
 
   @Get('matriculas')
-  @Roles(Perfil.ADMIN, Perfil.FINANCEIRO)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   searchEnrollments(
     @Req() req: AuthRequest,
@@ -36,14 +36,14 @@ export class BillingController {
   }
 
   @Post()
-  @Roles(Perfil.ADMIN, Perfil.FINANCEIRO)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   create(@Req() req: AuthRequest, @Body() dto: CreateInvoiceDto) {
     return this.billing.create(req.currentUser, dto);
   }
 
   @Put('matriculas/:id/plano')
-  @Roles(Perfil.ADMIN, Perfil.FINANCEIRO)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   setPlan(
     @Req() req: AuthRequest,
@@ -54,14 +54,14 @@ export class BillingController {
   }
 
   @Get('matriculas/:id/plano')
-  @Roles(Perfil.ADMIN, Perfil.FINANCEIRO)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   getPlan(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.billing.getMonthlyPlan(req.currentUser, id);
   }
 
   @Post(':id/pagamentos')
-  @Roles(Perfil.ADMIN, Perfil.FINANCEIRO)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   pay(
     @Req() req: AuthRequest,
@@ -82,14 +82,14 @@ export class BillingController {
   }
 
   @Get('matriculas/:id/semestres')
-  @Roles(Perfil.ADMIN, Perfil.FINANCEIRO, Perfil.ALUNO)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA, Perfil.ALUNO)
   @Header('Cache-Control', 'no-store')
   semesters(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.billing.semesters(req.currentUser, id);
   }
 
   @Get('matriculas/:id')
-  @Roles(Perfil.ADMIN, Perfil.FINANCEIRO, Perfil.ALUNO)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA, Perfil.ALUNO)
   @Header('Cache-Control', 'no-store')
   list(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.billing.list(req.currentUser, id);

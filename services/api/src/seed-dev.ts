@@ -11,7 +11,9 @@ async function main() {
   });
   try {
     await seedDevelopment(prisma, config);
-    process.stdout.write('Sete contas demonstrativas da Fatec Franca prontas.\n');
+    process.stdout.write(
+      'Cinco contas demonstrativas da Fatec Franca prontas.\n',
+    );
   } finally {
     await prisma.$disconnect();
   }

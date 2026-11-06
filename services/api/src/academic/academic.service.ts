@@ -64,7 +64,7 @@ export class AcademicService {
     return this.db.turma.findMany({
       where: {
         instituicaoId: actor.instituicaoId,
-        ...(['ADMIN', 'SECRETARIA', 'COORDENACAO'].includes(actor.perfil)
+        ...(['COORDENACAO', 'SECRETARIA'].includes(actor.perfil)
           ? {}
           : { disciplinas: { some: subjectScope(actor) } }),
       },
@@ -227,7 +227,7 @@ export class AcademicService {
   }
 
   async createClass(actor: AuthUser, dto: D.TurmaDto) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     const target = await this.adminInstitution(
       actor,
       dto.instituicaoId ?? actor.instituicaoId,
@@ -249,7 +249,7 @@ export class AcademicService {
     id: string,
     duracaoSemestres: number,
   ) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     return this.change(actor, 'CONFIGURAR_DURACAO_CURSO', async (tx) => {
       const turma = await tx.turma.findFirst({
         where: { id, instituicaoId: actor.instituicaoId },
@@ -277,7 +277,7 @@ export class AcademicService {
     });
   }
   async createSubject(actor: AuthUser, dto: D.DisciplinaDto) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     const scoped = await this.adminActorForClass(actor, dto.turmaId);
     return this.change(actor, 'CRIAR_DISCIPLINA', async (tx) => {
       await this.openClass(tx, scoped, dto.turmaId);
@@ -287,7 +287,7 @@ export class AcademicService {
     });
   }
   async enroll(actor: AuthUser, dto: D.MatriculaDto) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     const scoped = await this.adminActorForClass(actor, dto.turmaId);
     return this.change(actor, 'MATRICULAR_ALUNO', async (tx) => {
       await this.openClass(tx, scoped, dto.turmaId);
@@ -298,7 +298,7 @@ export class AcademicService {
     });
   }
   async assignTeacher(actor: AuthUser, dto: D.LotacaoDto) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     const scoped = await this.adminActorForSubject(actor, dto.disciplinaId);
     return this.change(actor, 'LOTAR_PROFESSOR', async (tx) => {
       const subject = await tx.disciplina.findFirst({
@@ -313,7 +313,7 @@ export class AcademicService {
     });
   }
   async assignTutor(actor: AuthUser, dto: D.TutoriaDto) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     const scoped = await this.adminActorForEnrollment(actor, dto.matriculaId);
     return this.change(actor, 'VINCULAR_TUTOR', async (tx) => {
       const enrollment = await tx.matricula.findFirst({
@@ -328,7 +328,7 @@ export class AcademicService {
     });
   }
   async closeClass(actor: AuthUser, id: string, fechada: boolean) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     const scoped = await this.adminActorForClass(actor, id);
     return this.change(
       actor,
@@ -593,7 +593,7 @@ export class AcademicService {
       throw new NotFoundException('Arquivo não encontrado');
   }
   private async adminInstitution(actor: AuthUser, instituicaoId: string) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     if (instituicaoId !== actor.instituicaoId)
       throw new NotFoundException('Instituição não encontrada');
     const institution = await this.db.instituicao.findFirst({

@@ -3,9 +3,9 @@ import { isPostgresUrl } from './postgres-url';
 
 export const demoUsers = [
   {
-    perfil: 'ADMIN',
-    nome: 'Administração Demo',
-    email: 'admin.demo@sgei.example',
+    perfil: 'SECRETARIA',
+    nome: 'Secretaria Demo',
+    email: 'secretaria.demo@sgei.example',
   },
   {
     perfil: 'COORDENACAO',

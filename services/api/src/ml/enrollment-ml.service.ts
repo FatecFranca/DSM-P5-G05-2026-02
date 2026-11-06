@@ -136,7 +136,7 @@ export class EnrollmentMlService {
   }
 
   private async enrollment(actor: AuthUser, id: string) {
-    requireRole(actor, ['ADMIN', 'COORDENACAO', 'PROFESSOR', 'TUTOR']);
+    requireRole(actor, ['COORDENACAO', 'PROFESSOR', 'TUTOR']);
     const item = await this.db.matricula.findFirst({
       where: {
         ...enrollmentScope(actor),
@@ -176,7 +176,7 @@ export class EnrollmentMlService {
     id: string,
     query: AttributeHistoryDto,
   ) {
-    requireRole(actor, ['ADMIN', 'COORDENACAO']);
+    requireRole(actor, ['COORDENACAO']);
     await this.enrollment(actor, id);
     const pagina = query.pagina ?? 1;
     const tamanho = query.tamanho ?? 50;
@@ -229,7 +229,7 @@ export class EnrollmentMlService {
     actor: AuthUser,
     profile: Awaited<ReturnType<EnrollmentMlService['profile']>>,
   ) {
-    const editable = ['ADMIN', 'COORDENACAO'].includes(actor.perfil);
+    const editable = ['COORDENACAO'].includes(actor.perfil);
     const demonstracao =
       profile.aluno === 'Aluno Demo SGEI' &&
       FATEC_DEMO_REGISTRATIONS.includes(profile.registro) &&
@@ -260,7 +260,7 @@ export class EnrollmentMlService {
   }
 
   async save(actor: AuthUser, id: string, dto: MlProfileDto) {
-    requireRole(actor, ['ADMIN', 'COORDENACAO']);
+    requireRole(actor, ['COORDENACAO']);
     const enrollment = await this.enrollment(actor, id);
     try {
       await this.db.$transaction(async (tx) => {

@@ -116,7 +116,7 @@ export class ScholarshipService implements OnModuleInit, OnModuleDestroy {
   }
 
   async set(actor: AuthUser, matriculaId: string, dto: ScholarshipDto) {
-    requireRole(actor, ['ADMIN', 'FINANCEIRO']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     const inicio = civilDate(dto.inicio);
     const fim = dto.fim ? civilDate(dto.fim) : null;
     if (fim && fim < inicio)
@@ -166,7 +166,7 @@ export class ScholarshipService implements OnModuleInit, OnModuleDestroy {
   }
 
   async get(actor: AuthUser, matriculaId: string) {
-    requireRole(actor, ['ADMIN', 'FINANCEIRO', 'ALUNO']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA', 'ALUNO']);
     const enrollment = await this.db.matricula.findFirst({
       where: {
         id: matriculaId,

@@ -24,7 +24,7 @@ describe('fila de ingresso da secretaria', () => {
       }),
     );
     await expect(
-      service.pending({ ...actor, perfil: 'FINANCEIRO' }),
+      service.pending({ ...actor, perfil: 'PROFESSOR' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(findMany).toHaveBeenCalledTimes(1);
   });

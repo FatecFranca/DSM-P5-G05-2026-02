@@ -17,6 +17,7 @@
 **/.env
 **/.env.*
 !**/.env.example
+!**/.env.seed.example
 *.log
 
 # Arquivos do sistema operacional

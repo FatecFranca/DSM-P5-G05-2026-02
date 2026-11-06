@@ -6,6 +6,7 @@ export interface AuthUser {
   instituicaoId: string;
   perfil: Perfil;
   sessaoId: string;
+  trocaSenhaObrigatoria?: boolean;
 }
 
 export interface AuthRequest extends Request {

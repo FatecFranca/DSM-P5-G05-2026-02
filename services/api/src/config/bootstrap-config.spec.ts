@@ -5,9 +5,9 @@ describe('readBootstrapConfig', () => {
   const valid = {
     BOOTSTRAP_INSTITUICAO_ID: randomUUID(),
     BOOTSTRAP_INSTITUICAO_NOME: ' Universidade Exemplo ',
-    BOOTSTRAP_ADMIN_EMAIL: ' ADMIN@EXEMPLO.COM ',
-    BOOTSTRAP_ADMIN_NOME: ' Administrador ',
-    BOOTSTRAP_ADMIN_PASSWORD: 'senha-segura-de-teste',
+    BOOTSTRAP_COORDENACAO_EMAIL: ' ADMIN@EXEMPLO.COM ',
+    BOOTSTRAP_COORDENACAO_NOME: ' Administrador ',
+    BOOTSTRAP_COORDENACAO_PASSWORD: 'senha-segura-de-teste',
     DATABASE_URL: 'postgresql://sgei:senha@localhost:5432/sgei',
   };
 
@@ -23,8 +23,8 @@ describe('readBootstrapConfig', () => {
 
   it.each([
     { BOOTSTRAP_INSTITUICAO_ID: 'inválido' },
-    { BOOTSTRAP_ADMIN_EMAIL: 'inválido' },
-    { BOOTSTRAP_ADMIN_PASSWORD: 'curta' },
+    { BOOTSTRAP_COORDENACAO_EMAIL: 'inválido' },
+    { BOOTSTRAP_COORDENACAO_PASSWORD: 'curta' },
     { DATABASE_URL: 'https://outro-servico' },
   ])('rejeita configuração inválida: %j', (invalid) => {
     expect(() => readBootstrapConfig({ ...valid, ...invalid })).toThrow(

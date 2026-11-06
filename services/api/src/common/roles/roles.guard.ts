@@ -20,11 +20,7 @@ export class RolesGuard implements CanActivate {
     ]);
     const user = context.switchToHttp().getRequest<AuthRequest>().currentUser;
     if (!roles) {
-      if (
-        user?.perfil === Perfil.FINANCEIRO ||
-        user?.perfil === Perfil.SECRETARIA
-      )
-        throw new ForbiddenException();
+      if (user?.perfil === Perfil.SECRETARIA) throw new ForbiddenException();
       return true;
     }
     if (user && roles.includes(user.perfil)) return true;

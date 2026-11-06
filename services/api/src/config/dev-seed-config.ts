@@ -3,10 +3,8 @@ import { isPostgresUrl } from './postgres-url';
 export function readDevSeedConfig(env: NodeJS.ProcessEnv) {
   const databaseUrl = env.DATABASE_URL ?? '';
   const passwords = {
-    ADMIN: env.DEMO_ADMIN_PASSWORD ?? '',
     COORDENACAO: env.DEMO_COORDENACAO_PASSWORD ?? '',
     SECRETARIA: env.DEMO_SECRETARIA_PASSWORD ?? '',
-    FINANCEIRO: env.DEMO_FINANCEIRO_PASSWORD ?? '',
     PROFESSOR: env.DEMO_PROFESSOR_PASSWORD ?? '',
     TUTOR: env.DEMO_TUTOR_PASSWORD ?? '',
     ALUNO: env.DEMO_ALUNO_PASSWORD ?? '',

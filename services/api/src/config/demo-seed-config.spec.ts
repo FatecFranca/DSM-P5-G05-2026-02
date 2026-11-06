@@ -24,8 +24,8 @@ describe('readDemoSeedConfig', () => {
   it.each([
     [{ DEMO_SEED_ENABLED: 'false' }],
     [{ NODE_ENV: 'production' }],
-    [{ DEMO_ADMIN_PASSWORD: 'curta' }],
-    [{ DEMO_ADMIN_PASSWORD: 'senha-forte-1-para-demo' }],
+    [{ DEMO_COORDENACAO_PASSWORD: 'curta' }],
+    [{ DEMO_COORDENACAO_PASSWORD: 'senha-forte-0-para-demo' }],
   ])('recusa configuração insegura', (override) => {
     expect(() => readDemoSeedConfig({ ...validEnv, ...override })).toThrow();
   });

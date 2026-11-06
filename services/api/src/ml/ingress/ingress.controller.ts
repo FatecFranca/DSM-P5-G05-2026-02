@@ -42,14 +42,14 @@ export class IngressController {
   }
 
   @Get('ingresso')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   source(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.ingress.source(req.currentUser, id);
   }
 
   @Put('ingresso')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   saveSource(
     @Req() req: AuthRequest,
@@ -65,7 +65,7 @@ export class IngressQueueController {
   constructor(private readonly ingress: IngressService) {}
 
   @Get('matriculas')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   searchEnrollments(
     @Req() req: AuthRequest,
@@ -75,7 +75,7 @@ export class IngressQueueController {
   }
 
   @Get('pendentes')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   pending(@Req() req: AuthRequest) {
     return this.ingress.pending(req.currentUser);

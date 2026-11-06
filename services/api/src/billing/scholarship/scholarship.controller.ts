@@ -19,7 +19,7 @@ export class ScholarshipController {
   constructor(private readonly scholarship: ScholarshipService) {}
 
   @Put(':id')
-  @Roles(Perfil.ADMIN, Perfil.FINANCEIRO)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   set(
     @Req() req: AuthRequest,
@@ -30,7 +30,7 @@ export class ScholarshipController {
   }
 
   @Get(':id')
-  @Roles(Perfil.ADMIN, Perfil.FINANCEIRO, Perfil.ALUNO)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA, Perfil.ALUNO)
   @Header('Cache-Control', 'no-store')
   get(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.scholarship.get(req.currentUser, id);

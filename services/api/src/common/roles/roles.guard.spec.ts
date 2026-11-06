@@ -6,7 +6,7 @@ import { RolesGuard } from './roles.guard';
 
 describe('RolesGuard', () => {
   const handler = () => undefined;
-  Reflect.defineMetadata(ROLES_KEY, [Perfil.ADMIN], handler);
+  Reflect.defineMetadata(ROLES_KEY, [Perfil.COORDENACAO], handler);
   const guard = new RolesGuard(new Reflector());
 
   function context(perfil: Perfil): ExecutionContext {
@@ -19,24 +19,20 @@ describe('RolesGuard', () => {
     } as unknown as ExecutionContext;
   }
 
-  it('permite ADMIN', () => {
-    expect(guard.canActivate(context(Perfil.ADMIN))).toBe(true);
+  it('permite COORDENACAO', () => {
+    expect(guard.canActivate(context(Perfil.COORDENACAO))).toBe(true);
   });
 
-  it.each([
-    Perfil.FINANCEIRO,
-    Perfil.SECRETARIA,
-    Perfil.COORDENACAO,
-    Perfil.PROFESSOR,
-    Perfil.TUTOR,
-    Perfil.ALUNO,
-  ])('nega acesso ao perfil %s', (perfil) => {
-    expect(() => guard.canActivate(context(perfil))).toThrow(
-      ForbiddenException,
-    );
-  });
+  it.each([Perfil.SECRETARIA, Perfil.PROFESSOR, Perfil.TUTOR, Perfil.ALUNO])(
+    'nega acesso ao perfil %s',
+    (perfil) => {
+      expect(() => guard.canActivate(context(perfil))).toThrow(
+        ForbiddenException,
+      );
+    },
+  );
 
-  it.each([Perfil.FINANCEIRO, Perfil.SECRETARIA])(
+  it.each([Perfil.SECRETARIA])(
     'nega acesso implícito a rotas sem perfil explícito para %s',
     (perfil) => {
       const undecorated = () => undefined;

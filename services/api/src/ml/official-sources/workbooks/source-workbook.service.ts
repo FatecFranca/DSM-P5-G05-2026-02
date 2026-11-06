@@ -13,7 +13,7 @@ export class SourceWorkbookService {
   ) {}
 
   async semesters(actor: AuthUser, buffer: Buffer) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     const rows = await parseSemesterWorkbook(buffer);
     const enrolled = await this.db.matricula.findMany({
       where: {
@@ -82,7 +82,7 @@ export class SourceWorkbookService {
   }
 
   async macro(actor: AuthUser, buffer: Buffer) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     const rows = await parseMacroWorkbook(buffer);
     let salvos = 0;
     let repetidos = 0;

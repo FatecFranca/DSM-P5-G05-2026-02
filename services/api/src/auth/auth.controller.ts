@@ -12,6 +12,7 @@ import type { AuthRequest } from './auth-user';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { Public } from './public.decorator';
 import { Roles } from '../common/roles/roles.decorator';
 import { Perfil } from '../generated/prisma/enums';
@@ -58,15 +59,23 @@ export class AuthController {
 
   @Get('me')
   @Roles(
-    Perfil.ADMIN,
-    Perfil.FINANCEIRO,
-    Perfil.SECRETARIA,
     Perfil.COORDENACAO,
+    Perfil.SECRETARIA,
     Perfil.PROFESSOR,
     Perfil.TUTOR,
     Perfil.ALUNO,
   )
   me(@Req() request: AuthRequest) {
     return request.currentUser;
+  }
+
+  @Post('trocar-senha')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async changePassword(
+    @Req() request: AuthRequest,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.auth.changePassword(request.currentUser, dto);
   }
 }

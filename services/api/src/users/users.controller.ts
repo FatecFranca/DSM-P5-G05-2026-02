@@ -21,9 +21,8 @@ export class UsersController {
 
   @Get()
   @Roles(
-    Perfil.ADMIN,
-    Perfil.SECRETARIA,
     Perfil.COORDENACAO,
+    Perfil.SECRETARIA,
     Perfil.PROFESSOR,
     Perfil.TUTOR,
     Perfil.ALUNO,
@@ -34,9 +33,8 @@ export class UsersController {
 
   @Get(':id')
   @Roles(
-    Perfil.ADMIN,
-    Perfil.SECRETARIA,
     Perfil.COORDENACAO,
+    Perfil.SECRETARIA,
     Perfil.PROFESSOR,
     Perfil.TUTOR,
     Perfil.ALUNO,
@@ -46,7 +44,7 @@ export class UsersController {
   }
 
   @Post()
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   create(@Req() request: AuthRequest, @Body() dto: CreateUserDto) {
     return this.users.create(request.currentUser, dto);
   }

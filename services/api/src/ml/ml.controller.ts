@@ -24,7 +24,7 @@ import { SelfReportDto } from './dto/self-report.dto';
 import { AttributeHistoryDto } from './dto/attribute-history.dto';
 import { AutomaticPredictionsService } from './automatic-predictions.service';
 
-@Roles(Perfil.ADMIN)
+@Roles(Perfil.COORDENACAO)
 @Controller('ml')
 export class MlController {
   constructor(
@@ -58,14 +58,14 @@ export class MlController {
   }
 
   @Get('matriculas/:id')
-  @Roles(Perfil.ADMIN, Perfil.COORDENACAO, Perfil.PROFESSOR, Perfil.TUTOR)
+  @Roles(Perfil.COORDENACAO, Perfil.PROFESSOR, Perfil.TUTOR)
   @Header('Cache-Control', 'no-store')
   enrollment(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.enrollmentMl.get(req.currentUser, id);
   }
 
   @Get('matriculas/:id/atributos/historico')
-  @Roles(Perfil.ADMIN, Perfil.COORDENACAO)
+  @Roles(Perfil.COORDENACAO)
   @Header('Cache-Control', 'no-store')
   attributeHistory(
     @Req() req: AuthRequest,
@@ -76,7 +76,7 @@ export class MlController {
   }
 
   @Get('matriculas/:id/demonstracao')
-  @Roles(Perfil.ADMIN, Perfil.COORDENACAO, Perfil.PROFESSOR, Perfil.TUTOR)
+  @Roles(Perfil.COORDENACAO, Perfil.PROFESSOR, Perfil.TUTOR)
   @Header('Cache-Control', 'no-store')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   demoPreview(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
@@ -84,7 +84,7 @@ export class MlController {
   }
 
   @Put('matriculas/:id')
-  @Roles(Perfil.ADMIN, Perfil.COORDENACAO)
+  @Roles(Perfil.COORDENACAO)
   @Header('Cache-Control', 'no-store')
   saveEnrollment(
     @Req() req: AuthRequest,
@@ -95,7 +95,7 @@ export class MlController {
   }
 
   @Post('matriculas/:id/analisar')
-  @Roles(Perfil.ADMIN, Perfil.COORDENACAO, Perfil.PROFESSOR, Perfil.TUTOR)
+  @Roles(Perfil.COORDENACAO, Perfil.PROFESSOR, Perfil.TUTOR)
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -107,7 +107,7 @@ export class MlController {
   }
 
   @Get('schema')
-  @Roles(Perfil.ADMIN, Perfil.COORDENACAO, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   schema() {
     return this.ml.schema();

@@ -63,7 +63,7 @@ export class OfficialSourcesService implements OnModuleInit, OnModuleDestroy {
   }
 
   async semester(actor: AuthUser, id: string, semester: number) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     if (semester !== 1 && semester !== 2)
       throw new BadRequestException('Semestre deve ser 1 ou 2');
     const item = await this.db.matricula.findFirst({
@@ -88,7 +88,7 @@ export class OfficialSourcesService implements OnModuleInit, OnModuleDestroy {
     semester: number,
     dto: SemesterSourceDto,
   ) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     if (semester !== 1 && semester !== 2)
       throw new BadRequestException('Semestre deve ser 1 ou 2');
     if (dto.semAvaliacao > dto.matriculadas)
@@ -166,7 +166,7 @@ export class OfficialSourcesService implements OnModuleInit, OnModuleDestroy {
   }
 
   async cohort(actor: AuthUser, id: string) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     const item = await this.db.matricula.findFirst({
       where: { id, instituicaoId: actor.instituicaoId },
       select: { macroPais: true, macroAno: true, macroPendente: true },
@@ -176,7 +176,7 @@ export class OfficialSourcesService implements OnModuleInit, OnModuleDestroy {
   }
 
   async setCohort(actor: AuthUser, id: string, dto: MacroCohortDto) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     await this.db.$transaction(
       async (tx) => {
         await this.enrollment(tx, actor, id);
@@ -245,7 +245,7 @@ export class OfficialSourcesService implements OnModuleInit, OnModuleDestroy {
   }
 
   async macro(actor: AuthUser, pais: string, ano: number) {
-    requireRole(actor, ['ADMIN', 'SECRETARIA']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     return this.db.indicadorMacro.findUnique({
       where: {
         instituicaoId_pais_ano: {
@@ -263,7 +263,7 @@ export class OfficialSourcesService implements OnModuleInit, OnModuleDestroy {
     ano: number,
     dto: MacroSourceDto,
   ) {
-    requireRole(actor, ['ADMIN']);
+    requireRole(actor, ['COORDENACAO']);
     const saved = await this.db.$transaction(
       async (tx) => {
         const key = { instituicaoId: actor.instituicaoId, pais, ano };

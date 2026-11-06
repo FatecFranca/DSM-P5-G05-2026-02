@@ -18,10 +18,10 @@ async function bootstrap() {
       select: { id: true },
     });
     if (existing) {
-      throw new Error('Administrador já existe nesta instituição');
+      throw new Error('Conta de coordenação já existe nesta instituição');
     }
     const senhaHash = await argon2.hash(senha, { type: argon2.argon2id });
-    const admin = await prisma.$transaction(async (tx) => {
+    const coordenador = await prisma.$transaction(async (tx) => {
       await tx.instituicao.upsert({
         where: { id: instituicaoId },
         create: { id: instituicaoId, nome: instituicaoNome },
@@ -33,7 +33,7 @@ async function bootstrap() {
           email,
           nome,
           senhaHash,
-          perfil: Perfil.ADMIN,
+          perfil: Perfil.COORDENACAO,
         },
         select: { id: true },
       });
@@ -49,7 +49,7 @@ async function bootstrap() {
       return created;
     });
     process.stdout.write(
-      `Instituição ${instituicaoId}; administrador ${admin.id}\n`,
+      `Instituição ${instituicaoId}; coordenação ${coordenador.id}\n`,
     );
   } finally {
     await prisma.$disconnect();

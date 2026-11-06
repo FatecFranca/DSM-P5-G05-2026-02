@@ -15,8 +15,6 @@ datasource db {
 }
 
 enum Perfil {
-  ADMIN
-  FINANCEIRO
   SECRETARIA
   COORDENACAO
   PROFESSOR
@@ -45,6 +43,7 @@ model Usuario {
   email         String      @db.VarChar(254)
   nome          String      @db.VarChar(160)
   senhaHash     String      @map("senha_hash") @db.VarChar(255)
+  trocaSenhaObrigatoria Boolean @default(false) @map("troca_senha_obrigatoria")
   perfil        Perfil
   ativo         Boolean     @default(true)
   criadoEm      DateTime    @default(now()) @map("criado_em")

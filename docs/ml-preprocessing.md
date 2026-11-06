@@ -15,7 +15,7 @@ Os parâmetros agregados e hashes das fontes estão em `services/ml/app/preproce
 
 ## Inferência
 
-`POST /ml/preview` aceita `{ features, inputFormat }`, autenticado e restrito a ADMIN. `features` exige exatamente os 36 atributos numéricos finitos. `inputFormat` aceita `preprocessed` ou `original` (padrão atual).
+`POST /ml/preview` aceita `{ features, inputFormat }`, autenticado e restrito a COORDENACAO. `features` exige exatamente os 36 atributos numéricos finitos. `inputFormat` aceita `preprocessed` ou `original` (padrão atual).
 
 - `preprocessed`: encaminha os atributos tratados apenas quando a versão ativa foi treinada para essa escala.
 - `original`: no modelo binário atual, valida os códigos efetivamente aprendidos pelo `OneHotEncoder` do `.pkl` e as escalas, e entrega um DataFrame de 36 colunas ao pré-processamento interno do próprio artefato. O candidato v2 permanece somente para análise histórica de treinamento. `GET /ml/status` informa `originalInputReady` e as duas classes do modelo ativo.

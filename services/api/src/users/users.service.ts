@@ -29,12 +29,10 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   private scope(actor: AuthUser): Prisma.UsuarioWhereInput {
-    if (actor.perfil === 'ADMIN') return { instituicaoId: actor.instituicaoId };
+    if (actor.perfil === 'COORDENACAO')
+      return { instituicaoId: actor.instituicaoId };
     if (actor.perfil === 'SECRETARIA')
       return { instituicaoId: actor.instituicaoId, perfil: 'ALUNO' };
-    if (actor.perfil === 'COORDENACAO') {
-      return { instituicaoId: actor.instituicaoId };
-    }
     if (actor.perfil === 'ALUNO') {
       return { id: actor.id, instituicaoId: actor.instituicaoId };
     }
@@ -98,9 +96,7 @@ export class UsersService {
         ...safeUser,
         matriculas: {
           where:
-            actor.perfil === 'ADMIN' ||
-            actor.perfil === 'SECRETARIA' ||
-            actor.perfil === 'COORDENACAO'
+            actor.perfil === 'COORDENACAO' || actor.perfil === 'SECRETARIA'
               ? undefined
               : enrollmentScope(actor),
           select: {
@@ -112,7 +108,7 @@ export class UsersService {
           },
         },
         lotacoes:
-          actor.perfil === 'ADMIN'
+          actor.perfil === 'COORDENACAO'
             ? {
                 select: {
                   disciplina: {
@@ -122,7 +118,7 @@ export class UsersService {
               }
             : undefined,
         tutorias:
-          actor.perfil === 'ADMIN'
+          actor.perfil === 'COORDENACAO'
             ? {
                 select: {
                   matricula: {
@@ -141,7 +137,7 @@ export class UsersService {
   }
 
   async create(actor: AuthUser, dto: CreateUserDto) {
-    if (actor.perfil !== 'ADMIN' && actor.perfil !== 'SECRETARIA')
+    if (actor.perfil !== 'COORDENACAO' && actor.perfil !== 'SECRETARIA')
       throw new ForbiddenException();
     if (actor.perfil === 'SECRETARIA' && dto.perfil !== 'ALUNO')
       throw new ForbiddenException('Secretaria pode cadastrar apenas alunos');

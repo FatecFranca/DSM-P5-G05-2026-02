@@ -36,7 +36,7 @@ export class OfficialSourcesController {
   constructor(private readonly sources: OfficialSourcesService) {}
 
   @Get('matriculas/:id/semestres/:semestre')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   semester(
     @Req() req: AuthRequest,
@@ -47,7 +47,7 @@ export class OfficialSourcesController {
   }
 
   @Put('matriculas/:id/semestres/:semestre')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   saveSemester(
     @Req() req: AuthRequest,
@@ -59,14 +59,14 @@ export class OfficialSourcesController {
   }
 
   @Get('matriculas/:id/coorte-macro')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   cohort(@Req() req: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.sources.cohort(req.currentUser, id);
   }
 
   @Put('matriculas/:id/coorte-macro')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   setCohort(
     @Req() req: AuthRequest,
@@ -77,7 +77,7 @@ export class OfficialSourcesController {
   }
 
   @Get('fontes/macro/:pais/:ano')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   @Header('Cache-Control', 'no-store')
   macro(
     @Req() req: AuthRequest,
@@ -88,7 +88,7 @@ export class OfficialSourcesController {
   }
 
   @Put('fontes/macro/:pais/:ano')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.COORDENACAO)
   @Header('Cache-Control', 'no-store')
   saveMacro(
     @Req() req: AuthRequest,

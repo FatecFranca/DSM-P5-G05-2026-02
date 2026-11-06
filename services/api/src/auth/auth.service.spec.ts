@@ -12,6 +12,8 @@ describe('AuthService', () => {
   const userId = randomUUID();
   const sessionId = randomUUID();
   const findUnique = jest.fn();
+  const userFindFirst = jest.fn();
+  const userUpdate = jest.fn();
   const institutionFindMany = jest.fn();
   const sessionFindUnique = jest.fn();
   const sessionCreate = jest.fn().mockResolvedValue({ id: sessionId });
@@ -25,16 +27,18 @@ describe('AuthService', () => {
           updateMany: typeof sessionUpdateMany;
         };
         auditoria: { create: typeof auditCreate };
+        usuario: { update: typeof userUpdate };
       }) => Promise<unknown>,
     ) =>
       callback({
         sessao: { create: sessionCreate, updateMany: sessionUpdateMany },
         auditoria: { create: auditCreate },
+        usuario: { update: userUpdate },
       }),
   );
   const prisma = {
     instituicao: { findMany: institutionFindMany },
-    usuario: { findUnique },
+    usuario: { findUnique, findFirst: userFindFirst },
     sessao: { findUnique: sessionFindUnique },
     $transaction: transaction,
   } as unknown as PrismaService;
@@ -155,5 +159,69 @@ describe('AuthService', () => {
       service.logout({ refreshToken: 'c'.repeat(64) }),
     ).resolves.toBeUndefined();
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('troca a senha temporária, revoga outras sessões e guarda somente o hash', async () => {
+    userFindFirst.mockResolvedValue({
+      senhaHash: await argon2.hash('Fatec@123'),
+    });
+    await expect(
+      service.changePassword(
+        {
+          id: userId,
+          instituicaoId: institutionId,
+          perfil: 'ALUNO',
+          sessaoId: sessionId,
+        },
+        { senhaAtual: 'incorreta', novaSenha: 'NovaSenhaBemSegura123!' },
+      ),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(userUpdate).not.toHaveBeenCalled();
+    await service.changePassword(
+      {
+        id: userId,
+        instituicaoId: institutionId,
+        perfil: 'ALUNO',
+        sessaoId: sessionId,
+      },
+      { senhaAtual: 'Fatec@123', novaSenha: 'NovaSenhaBemSegura123!' },
+    );
+    const updateCalls: unknown = userUpdate.mock.calls;
+    const update = (
+      updateCalls as Array<
+        [
+          {
+            data: { senhaHash: string; trocaSenhaObrigatoria: boolean };
+          },
+        ]
+      >
+    )[0][0];
+    expect(update.data.trocaSenhaObrigatoria).toBe(false);
+    expect(
+      await argon2.verify(update.data.senhaHash, 'NovaSenhaBemSegura123!'),
+    ).toBe(true);
+    const revocationCalls: unknown = sessionUpdateMany.mock.calls;
+    const revocation = (
+      revocationCalls as Array<
+        [
+          {
+            where: {
+              usuarioId: string;
+              instituicaoId: string;
+              id: { not: string };
+              revogadaEm: null;
+            };
+            data: { revogadaEm: Date };
+          },
+        ]
+      >
+    )[0][0];
+    expect(revocation.where).toEqual({
+      usuarioId: userId,
+      instituicaoId: institutionId,
+      id: { not: sessionId },
+      revogadaEm: null,
+    });
+    expect(revocation.data.revogadaEm).toBeInstanceOf(Date);
   });
 });

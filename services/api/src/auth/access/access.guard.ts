@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -60,6 +61,7 @@ export class AccessGuard implements CanActivate {
             id: true,
             perfil: true,
             ativo: true,
+            trocaSenhaObrigatoria: true,
             instituicao: { select: { ativa: true } },
           },
         },
@@ -73,7 +75,18 @@ export class AccessGuard implements CanActivate {
       instituicaoId: session.instituicaoId,
       perfil: session.usuario.perfil,
       sessaoId: session.id,
+      trocaSenhaObrigatoria: session.usuario.trocaSenhaObrigatoria,
     };
+    if (
+      session.usuario.trocaSenhaObrigatoria &&
+      !['/auth/me', '/auth/trocar-senha'].some((path) =>
+        request.path.endsWith(path),
+      )
+    ) {
+      throw new ForbiddenException(
+        'Troque a senha temporária antes de continuar',
+      );
+    }
     return true;
   }
 

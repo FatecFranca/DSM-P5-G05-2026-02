@@ -17,7 +17,7 @@ describe('ML por matrícula', () => {
   const actor: AuthUser = {
     id: 'admin',
     instituicaoId: 'tenant',
-    perfil: 'ADMIN',
+    perfil: 'COORDENACAO',
     sessaoId: 'session',
   };
   function setup(features: Record<string, number> = demoProfile(0)) {

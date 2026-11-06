@@ -10,11 +10,6 @@ const institutions = [
     codigo: '109',
     usuarios: [
       {
-        email: 'admin.demo@sgei.example',
-        nome: 'Administração Demo',
-        perfil: Perfil.ADMIN,
-      },
-      {
         email: 'coordenacao.demo@sgei.example',
         nome: 'Coordenação Demo',
         perfil: Perfil.COORDENACAO,
@@ -23,11 +18,6 @@ const institutions = [
         email: 'secretaria.demo@sgei.example',
         nome: 'Secretaria Demo',
         perfil: Perfil.SECRETARIA,
-      },
-      {
-        email: 'financeiro.demo@sgei.example',
-        nome: 'Financeiro Demo',
-        perfil: Perfil.FINANCEIRO,
       },
       {
         email: 'professor.demo@sgei.example',
@@ -53,14 +43,10 @@ export async function seedDevelopment(
   config: DevSeedConfig,
 ) {
   const passwordHashes = {
-    ADMIN: await argon2.hash(config.passwords.ADMIN, { type: argon2.argon2id }),
     COORDENACAO: await argon2.hash(config.passwords.COORDENACAO, {
       type: argon2.argon2id,
     }),
     SECRETARIA: await argon2.hash(config.passwords.SECRETARIA, {
-      type: argon2.argon2id,
-    }),
-    FINANCEIRO: await argon2.hash(config.passwords.FINANCEIRO, {
       type: argon2.argon2id,
     }),
     PROFESSOR: await argon2.hash(config.passwords.PROFESSOR, {

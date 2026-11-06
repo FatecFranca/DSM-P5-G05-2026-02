@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -7,6 +12,8 @@ import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import type { AuthUser } from './auth-user';
 
 const REFRESH_LIFETIME_DAYS = 7;
 
@@ -123,6 +130,49 @@ export class AuthService {
           },
         });
       }
+    });
+  }
+
+  async changePassword(actor: AuthUser, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.prisma.usuario.findFirst({
+      where: { id: actor.id, instituicaoId: actor.instituicaoId, ativo: true },
+      select: { senhaHash: true },
+    });
+    if (!user || !(await argon2.verify(user.senhaHash, dto.senhaAtual)))
+      throw new UnauthorizedException('Senha atual inválida');
+    if (dto.novaSenha === dto.senhaAtual || dto.novaSenha === 'Fatec@123')
+      throw new BadRequestException('Escolha uma senha nova');
+    const senhaHash = await argon2.hash(dto.novaSenha, {
+      type: argon2.argon2id,
+    });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.usuario.update({
+        where: {
+          instituicaoId_id: {
+            instituicaoId: actor.instituicaoId,
+            id: actor.id,
+          },
+        },
+        data: { senhaHash, trocaSenhaObrigatoria: false },
+      });
+      await tx.sessao.updateMany({
+        where: {
+          usuarioId: actor.id,
+          instituicaoId: actor.instituicaoId,
+          id: { not: actor.sessaoId },
+          revogadaEm: null,
+        },
+        data: { revogadaEm: new Date() },
+      });
+      await tx.auditoria.create({
+        data: {
+          instituicaoId: actor.instituicaoId,
+          autorId: actor.id,
+          acao: 'TROCAR_SENHA',
+          recurso: 'USUARIO',
+          recursoId: actor.id,
+        },
+      });
     });
   }
 

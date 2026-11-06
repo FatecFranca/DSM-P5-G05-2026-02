@@ -44,9 +44,8 @@ export class AcademicController {
   }
   @Get('turmas')
   @Roles(
-    Perfil.ADMIN,
-    Perfil.SECRETARIA,
     Perfil.COORDENACAO,
+    Perfil.SECRETARIA,
     Perfil.PROFESSOR,
     Perfil.TUTOR,
     Perfil.ALUNO,
@@ -55,12 +54,12 @@ export class AcademicController {
     return this.academic.classes(req.currentUser, query.instituicaoId);
   }
   @Post('turmas')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.COORDENACAO)
   createClass(@Req() req: AuthRequest, @Body() dto: D.TurmaDto) {
     return this.academic.createClass(req.currentUser, dto);
   }
   @Put('turmas/:id/duracao')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.COORDENACAO)
   setClassDuration(
     @Req() req: AuthRequest,
     @Param('id', ParseUUIDPipe) id: string,
@@ -73,27 +72,27 @@ export class AcademicController {
     );
   }
   @Post('disciplinas')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.COORDENACAO)
   createSubject(@Req() req: AuthRequest, @Body() dto: D.DisciplinaDto) {
     return this.academic.createSubject(req.currentUser, dto);
   }
   @Post('matriculas')
-  @Roles(Perfil.ADMIN, Perfil.SECRETARIA)
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
   enroll(@Req() req: AuthRequest, @Body() dto: D.MatriculaDto) {
     return this.academic.enroll(req.currentUser, dto);
   }
   @Post('lotacoes')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.COORDENACAO)
   assignTeacher(@Req() req: AuthRequest, @Body() dto: D.LotacaoDto) {
     return this.academic.assignTeacher(req.currentUser, dto);
   }
   @Post('tutorias')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.COORDENACAO)
   assignTutor(@Req() req: AuthRequest, @Body() dto: D.TutoriaDto) {
     return this.academic.assignTutor(req.currentUser, dto);
   }
   @Patch('turmas/:id/fechamento')
-  @Roles(Perfil.ADMIN)
+  @Roles(Perfil.COORDENACAO)
   close(
     @Req() req: AuthRequest,
     @Param('id', ParseUUIDPipe) id: string,

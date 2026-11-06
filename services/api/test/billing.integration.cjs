@@ -100,7 +100,7 @@ async function main() {
       email: `admin.${runId}@example.test`,
       nome: 'Admin de teste',
       senhaHash: passwordHash,
-      perfil: 'ADMIN',
+      perfil: 'COORDENACAO',
     },
   });
   const outsider = await db.usuario.create({
@@ -109,7 +109,7 @@ async function main() {
       email: `outro.${runId}@example.test`,
       nome: 'Outro admin de teste',
       senhaHash: passwordHash,
-      perfil: 'ADMIN',
+      perfil: 'COORDENACAO',
     },
   });
   const finance = await db.usuario.create({
@@ -118,7 +118,7 @@ async function main() {
       email: `financeiro.${runId}@example.test`,
       nome: 'Financeiro de teste',
       senhaHash: passwordHash,
-      perfil: 'FINANCEIRO',
+      perfil: 'SECRETARIA',
     },
   });
   const secretary = await db.usuario.create({
@@ -167,13 +167,13 @@ async function main() {
   const adminActor = {
     id: admin.id,
     instituicaoId: first.id,
-    perfil: 'ADMIN',
+    perfil: 'COORDENACAO',
     sessaoId: runId,
   };
   const outsideActor = {
     id: outsider.id,
     instituicaoId: second.id,
-    perfil: 'ADMIN',
+    perfil: 'COORDENACAO',
     sessaoId: runId,
   };
   const studentActor = {
@@ -238,34 +238,28 @@ async function main() {
 
   assert.equal(
     (await call('GET', '/auth/me', financeToken)).perfil,
-    'FINANCEIRO',
+    'SECRETARIA',
   );
   assert.equal(
     (await call('GET', '/auth/me', secretaryToken)).perfil,
     'SECRETARIA',
   );
-  await call('GET', '/usuarios', financeToken, null, 403);
+  assert.ok((await call('GET', '/usuarios', financeToken)).every((item) => item.perfil === 'ALUNO'));
   await call('GET', '/academico/resumo', financeToken, null, 403);
   await call('GET', '/ml/status', financeToken, null, 403);
   await call('GET', '/ml/previsoes-automaticas', financeToken, null, 403);
   assert.deepEqual(await call('GET', '/ml/previsoes-automaticas', adminToken), []);
-  await call(
-    'GET',
-    `/faturas/matriculas/${enrollment.id}`,
-    secretaryToken,
-    null,
-    403,
-  );
+  assert.deepEqual(await call('GET', `/faturas/matriculas/${enrollment.id}`, secretaryToken), []);
   await call('GET', '/ml/status', secretaryToken, null, 403);
   const financeSearch = await call('GET', `/faturas/matriculas?registro=TEST-${runId.slice(0, 8)}`, financeToken);
   assert.ok(financeSearch.some((item) => item.id === enrollment.id));
   assert.equal((await call('GET', `/faturas/matriculas?registro=TEST-${runId.slice(0, 8)}`, outsideToken)).length, 0);
   await call('GET', '/faturas/matriculas?registro=T', financeToken, null, 400);
-  await call('GET', '/faturas/matriculas?registro=TEST', secretaryToken, null, 403);
+  assert.ok((await call('GET', '/faturas/matriculas?registro=TEST', secretaryToken)).some((item) => item.id === enrollment.id));
   assert.ok((await call('GET', `/ml/ingressos/matriculas?registro=TEST-${runId.slice(0, 8)}`, secretaryToken)).some((item) => item.id === enrollment.id));
   assert.deepEqual(await call('GET', '/ml/ingressos/pendentes', secretaryToken), []);
-  await call('GET', '/ml/ingressos/pendentes', financeToken, null, 403);
-  await call('GET', '/ml/ingressos/matriculas?registro=TEST', financeToken, null, 403);
+  assert.deepEqual(await call('GET', '/ml/ingressos/pendentes', financeToken), []);
+  assert.ok((await call('GET', '/ml/ingressos/matriculas?registro=TEST', financeToken)).some((item) => item.id === enrollment.id));
   assert.ok((await call('GET', '/ml/schema', secretaryToken)).features.includes('estado_civil'));
   assert.ok(
     (await call('GET', '/turmas', secretaryToken)).some(
@@ -309,7 +303,7 @@ async function main() {
       email: `admin-negado.${runId}@example.test`,
       nome: 'Admin negado',
       senha: password,
-      perfil: 'ADMIN',
+      perfil: 'COORDENACAO',
     },
     403,
   );
@@ -359,7 +353,7 @@ async function main() {
       alunoId: createdStudent.id,
       registro: `FIN-${runId.slice(0, 8)}`,
     },
-    403,
+    201,
   );
   await call('GET', `/ml/matriculas/${enrollment.id}`, adminToken);
   await call('GET', `/ml/matriculas/${enrollment.id}`, outsideToken, null, 404);
@@ -549,7 +543,7 @@ async function main() {
   await call('GET', `/ml/matriculas/${enrollment.id}/atributos/historico`, outsideToken, null, 404);
   const scholarshipPath = `/bolsas/matriculas/${enrollment.id}`;
   await call('PUT', scholarshipPath, studentToken, { inicio: today.toISOString().slice(0, 10), ativa: true }, 403);
-  await call('PUT', scholarshipPath, secretaryToken, { inicio: today.toISOString().slice(0, 10), ativa: true }, 403);
+  await call('PUT', scholarshipPath, secretaryToken, { inicio: today.toISOString().slice(0, 10), ativa: true });
   await call('PUT', scholarshipPath, outsideToken, { inicio: today.toISOString().slice(0, 10), ativa: true }, 404);
   await call('PUT', scholarshipPath, financeToken, { inicio: today.toISOString().slice(0, 10), ativa: true });
   assert.equal((await call('GET', scholarshipPath, studentToken)).vigente, true);
@@ -576,9 +570,9 @@ async function main() {
     semAvaliacao: 1,
     fonteRef: `pauta-homologada-${runId}`,
   };
-  await call('PUT', `${semesterPath}/1`, financeToken, firstSemester, 403);
   await call('PUT', `${semesterPath}/1`, outsideToken, firstSemester, 404);
   await call('PUT', `${semesterPath}/1`, secretaryToken, firstSemester);
+  assert.equal((await call('GET', `${semesterPath}/1`, financeToken)).nota, 14.5);
   assert.equal((await call('GET', `${semesterPath}/1`, secretaryToken)).nota, 14.5);
   await call('PUT', `${semesterPath}/1`, secretaryToken, firstSemester, 409);
   await call('PUT', `${semesterPath}/1`, secretaryToken,

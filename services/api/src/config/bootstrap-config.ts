@@ -4,9 +4,9 @@ import { isPostgresUrl } from './postgres-url';
 export function readBootstrapConfig(env: NodeJS.ProcessEnv) {
   const instituicaoId = env.BOOTSTRAP_INSTITUICAO_ID ?? '';
   const instituicaoNome = (env.BOOTSTRAP_INSTITUICAO_NOME ?? '').trim();
-  const email = (env.BOOTSTRAP_ADMIN_EMAIL ?? '').trim().toLowerCase();
-  const nome = (env.BOOTSTRAP_ADMIN_NOME ?? '').trim();
-  const senha = env.BOOTSTRAP_ADMIN_PASSWORD ?? '';
+  const email = (env.BOOTSTRAP_COORDENACAO_EMAIL ?? '').trim().toLowerCase();
+  const nome = (env.BOOTSTRAP_COORDENACAO_NOME ?? '').trim();
+  const senha = env.BOOTSTRAP_COORDENACAO_PASSWORD ?? '';
   const databaseUrl = env.DATABASE_URL ?? '';
 
   if (

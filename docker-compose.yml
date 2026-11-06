@@ -22,13 +22,15 @@ services:
       db:
         condition: service_healthy
 
-  seed-demo:
-    profiles: ["demo"]
+  seed-dev:
     build:
       context: ./services/api
       target: build
-    command: npx prisma db seed
-    env_file: ./services/api/.env
+    command: npm run db:seed:dev
+    env_file:
+      - ./services/api/.env
+      - path: ./services/api/.env.seed
+        required: false
     environment:
       DEMO_SEED_ENABLED: "true"
     depends_on:
@@ -46,6 +48,8 @@ services:
       - "127.0.0.1:3000:3000"
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      seed-dev:
         condition: service_completed_successfully
 
   ml:

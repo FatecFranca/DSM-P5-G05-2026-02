@@ -40,7 +40,7 @@ async function main() {
       nome: 'Admin teste',
       email: `auto-admin-${randomUUID()}@example.test`,
       senhaHash: passwordHash,
-      perfil: 'ADMIN',
+      perfil: 'COORDENACAO',
     },
   });
   const student = await db.usuario.create({
@@ -127,7 +127,7 @@ async function main() {
   const history = await worker.recent({
     id: admin.id,
     instituicaoId: institution.id,
-    perfil: 'ADMIN',
+    perfil: 'COORDENACAO',
     sessaoId: randomUUID(),
   });
   assert.equal(history.length, 2);

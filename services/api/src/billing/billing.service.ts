@@ -112,7 +112,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     matriculaId: string,
     dto: MonthlyPlanDto,
   ) {
-    requireRole(actor, ['ADMIN', 'FINANCEIRO']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     const start = dateOnly(`${dto.inicioCompetencia}-01`);
     const requestedEnd = dto.fimCompetencia
       ? dateOnly(`${dto.fimCompetencia}-01`)
@@ -327,7 +327,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
   }
 
   async create(actor: AuthUser, dto: CreateInvoiceDto) {
-    requireRole(actor, ['ADMIN', 'FINANCEIRO']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     const today = businessDate(new Date());
     const due = dateOnly(dto.vencimento);
     const month = dateOnly(`${dto.competencia}-01`);
@@ -407,7 +407,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     dto: RecordPaymentDto,
     now = new Date(),
   ) {
-    requireRole(actor, ['ADMIN', 'FINANCEIRO']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     return this.registerPayment(actor, id, dto, now, false);
   }
 
@@ -522,7 +522,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getMonthlyPlan(actor: AuthUser, matriculaId: string) {
-    requireRole(actor, ['ADMIN', 'FINANCEIRO']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     const enrollment = await this.db.matricula.findFirst({
       where: { id: matriculaId, instituicaoId: actor.instituicaoId },
       select: {
@@ -543,7 +543,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
   }
 
   async searchEnrollments(actor: AuthUser, registro: string) {
-    requireRole(actor, ['ADMIN', 'FINANCEIRO']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
     const term = registro.trim();
     if (term.length < 2)
       throw new BadRequestException(
@@ -566,7 +566,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
   }
 
   async list(actor: AuthUser, matriculaId: string) {
-    requireRole(actor, ['ADMIN', 'FINANCEIRO', 'ALUNO']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA', 'ALUNO']);
     const enrollment = await this.db.matricula.findFirst({
       where: {
         id: matriculaId,
@@ -592,7 +592,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
   }
 
   async semesters(actor: AuthUser, matriculaId: string) {
-    requireRole(actor, ['ADMIN', 'FINANCEIRO', 'ALUNO']);
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA', 'ALUNO']);
     const enrollment = await this.db.matricula.findFirst({
       where: {
         id: matriculaId,

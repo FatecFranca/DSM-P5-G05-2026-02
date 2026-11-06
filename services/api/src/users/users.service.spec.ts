@@ -38,7 +38,7 @@ describe('UsersService: isolamento por instituição', () => {
   const actor = {
     id: 'admin-id',
     instituicaoId: 'instituicao-a',
-    perfil: Perfil.ADMIN,
+    perfil: Perfil.COORDENACAO,
     sessaoId: 'sessao-id',
   };
   const dto = {

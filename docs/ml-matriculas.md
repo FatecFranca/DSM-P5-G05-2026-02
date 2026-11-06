@@ -6,55 +6,55 @@ Desenvolvimento: `back/prototype` contém API, banco, ML e infraestrutura; `mobi
 
 1. Entrar no mobile com autenticação da API, selecionar a turma e abrir **ML**.
 2. Selecionar uma matrícula. O backend lê seu `PerfilMl` no PostgreSQL.
-3. Se faltarem atributos, a tela lista os campos a cadastrar. ADMIN/COORDENACAO podem salvar o cadastro parcial ou completo.
-4. Para matrículas reais, **Verificar disponibilidade** retorna `INSUFICIENTE` até a validação institucional. ADMIN pode calcular uma prévia técnica dos atributos completos.
-5. O ADMIN também pode importar uma planilha Excel. A API salva perfil e previsão experimental com versão do modelo, versão do perfil, data e snapshot dos atributos. A resposta contém P(Dropout) e P(Graduate), sem P(Enrolled). Alterar o perfil marca a previsão importada como histórica; se a matrícula já foi importada e continua com todos os atributos válidos, o serviço cria um novo recálculo experimental em segundo plano, sem sobrescrever o resultado anterior.
+3. Se faltarem atributos, a tela informa a quantidade pendente. A coordenação preenche os 36 atributos pela planilha Excel.
+4. Para matrículas reais, **Verificar disponibilidade** retorna `INSUFICIENTE` até a validação institucional. COORDENACAO pode calcular uma prévia técnica dos atributos completos.
+5. A coordenação importa uma planilha Excel com aluno, turma, disciplina, professor e atributos. A API valida os vínculos existentes, cria usuário e matrícula quando necessários, salva o perfil e calcula a previsão experimental. A resposta contém P(Dropout) e P(Graduate), sem P(Enrolled). Alterar o perfil marca a previsão importada como histórica; se a matrícula já foi importada e continua com todos os atributos válidos, o serviço cria um novo recálculo experimental em segundo plano, sem sobrescrever o resultado anterior.
 
 O modelo não é retreinado com dados do banco. A coluna `classe` nunca é enviada. Não há resultado predefinido no mobile nem preenchimento automático de atributos ausentes.
 
-No aplicativo conectado, `ALUNO` declara dados de ingresso e consulta suas faturas; `SECRETARIA` cadastra alunos e matrículas, atende a fila de declarações e homologa ingresso, resumos semestrais e coorte macroeconômica; `FINANCEIRO` configura plano mensal, faturas, pagamentos e bolsas; `ADMIN` acessa esses fluxos, publica indicadores macroeconômicos e importa o Excel para prévias experimentais. A API verifica novamente cada permissão e o vínculo institucional.
+No aplicativo conectado, `ALUNO` declara dados de ingresso e consulta suas faturas; `SECRETARIA` cadastra alunos e matrículas, homologa dados acadêmicos e opera planos mensais, faturas, pagamentos e bolsas; `COORDENACAO` acessa esses fluxos, publica indicadores macroeconômicos e importa o Excel para prévias experimentais. A API verifica novamente cada permissão e o vínculo institucional.
 
 **Estado atual da integração operacional:** o `.pkl` binário está marcado `CANDIDATE`; sua procedência e métricas não foram verificadas nesta aplicação. A API não calcula previsões para matrículas reais; responde `INSUFICIENTE` e informa a falta de validação da população institucional, equivalência de categorias e revisão de vieses. O fluxo técnico de prévia continua separado. O aluno pode declarar sua idade no ingresso e turno em linguagem comum; o mapeamento versionado `uci-portugal-v1` acontece no backend. Registros históricos com a origem `fatec-v1` permanecem identificados para rastreabilidade. Agregados semestrais vêm do resumo homologado; indicadores macroeconômicos vêm de publicação institucional com país e ano. Nenhum dos dois é inferido de notas, frequência ou valores presumidos.
 
 **Automação demonstrativa inicial:** faturas mensais e pagamentos atualizam `devedor` e `mensalidade_em_dia`, invalidando o resultado anterior. Com `ML_PREVIEW_ENABLED=true`, um processamento em segundo plano recalcula automaticamente perfis sintéticos completos com o `.pkl` ativo, inclusive quando a versão do modelo muda. O resultado aparece identificado como demonstração apenas para profissionais autorizados. Consulte [automação financeira](automacao-financeira.md). Esse fluxo não libera previsão operacional para alunos reais.
 
-**Recálculo experimental após importação:** a primeira importação pelo ADMIN habilita o acompanhamento técnico daquela matrícula. Uma rotina de 60 segundos consulta perfis completos e válidos, compara versão do perfil e do `.pkl` e salva uma nova previsão imutável na tabela `previsao_automatica_ml` quando houver mudança. Cada registro contém snapshot dos atributos, versão e instante, e aparece somente em `GET /ml/previsoes-automaticas` para ADMIN da mesma instituição. Perfis incompletos aguardam novos dados. O processo não muda pesos, não disponibiliza o escore ao aluno e não substitui validação institucional.
+**Recálculo experimental após importação:** a primeira importação pela COORDENACAO habilita o acompanhamento técnico daquela matrícula. Uma rotina de 60 segundos consulta perfis completos e válidos, compara versão do perfil e do `.pkl` e salva uma nova previsão imutável na tabela `previsao_automatica_ml` quando houver mudança. Cada registro contém snapshot dos atributos, versão e instante, e aparece somente em `GET /ml/previsoes-automaticas` para COORDENACAO da mesma instituição. Perfis incompletos aguardam novos dados. O processo não muda pesos, não disponibiliza o escore ao aluno e não substitui validação institucional.
 
 ## Rotas
 
 | Rota | Contrato |
 | --- | --- |
-| `GET /ml/matriculas/:id` | Matrícula, nome, registro, origem, faltantes, versão e última previsão; atributos apenas para ADMIN/COORDENACAO |
-| `GET /ml/matriculas/:id/atributos/historico?pagina=1&tamanho=50` | ADMIN/COORDENACAO: eventos de mudança por atributo, origem, autor, versão e instante; `tamanho` até 100 |
-| `GET/PUT /ml/matriculas/:id/semestres/:numero` | ADMIN/SECRETARIA: resumo homologado do 1º ou 2º semestre, com seis indicadores e `fonteRef`; PUT usa `versao` para evitar sobrescrita concorrente |
-| `GET/PUT /ml/matriculas/:id/coorte-macro` | ADMIN/SECRETARIA: país e ano de referência da matrícula; reconcilia os três indicadores se houver fonte publicada |
-| `GET/PUT /ml/fontes/macro/:pais/:ano` | GET ADMIN/SECRETARIA, PUT ADMIN: desemprego, inflação, PIB e `fonteUrl` HTTPS; publicação marca a coorte para reconciliação automática |
-| `GET/POST /ml/fontes/importacoes/semestres[/modelo]` | ADMIN/SECRETARIA: baixar modelo XLSX ou importar até 100 resumos semestrais com `fonteRef`; atualiza o perfil e evita repetição idêntica |
-| `GET/POST /ml/fontes/importacoes/macro[/modelo]` | ADMIN: baixar modelo XLSX ou importar até 100 indicadores por país/ano com `fonteUrl` HTTPS; reconcilia as coortes vinculadas |
+| `GET /ml/matriculas/:id` | Matrícula, nome, registro, origem, faltantes, versão e última previsão; atributos apenas para COORDENACAO |
+| `GET /ml/matriculas/:id/atributos/historico?pagina=1&tamanho=50` | COORDENACAO: eventos de mudança por atributo, origem, autor, versão e instante; `tamanho` até 100 |
+| `GET/PUT /ml/matriculas/:id/semestres/:numero` | COORDENACAO/SECRETARIA: resumo homologado do 1º ou 2º semestre, com seis indicadores e `fonteRef`; PUT usa `versao` para evitar sobrescrita concorrente |
+| `GET/PUT /ml/matriculas/:id/coorte-macro` | COORDENACAO/SECRETARIA: país e ano de referência da matrícula; reconcilia os três indicadores se houver fonte publicada |
+| `GET/PUT /ml/fontes/macro/:pais/:ano` | GET COORDENACAO/SECRETARIA, PUT COORDENACAO: desemprego, inflação, PIB e `fonteUrl` HTTPS; publicação marca a coorte para reconciliação automática |
+| `GET/POST /ml/fontes/importacoes/semestres[/modelo]` | COORDENACAO/SECRETARIA: baixar modelo XLSX ou importar até 100 resumos semestrais com `fonteRef`; atualiza o perfil e evita repetição idêntica |
+| `GET/POST /ml/fontes/importacoes/macro[/modelo]` | COORDENACAO: baixar modelo XLSX ou importar até 100 indicadores por país/ano com `fonteUrl` HTTPS; reconcilia as coortes vinculadas |
 | `PUT /ml/matriculas/:id` | `{ versao, features }`; substitui os atributos, aceita cadastro parcial, rejeita códigos/escalas inválidos e conflitos de versão (409) |
 | `POST /ml/matriculas/:id/analisar` | Sem atributos no corpo; retorna `CALCULADO` ou `INSUFICIENTE`; indisponibilidade do serviço retorna 503 sem gravar sucesso |
 | `GET/PUT /ml/matriculas/:id/declaracao-ingresso` | ALUNO: declara ou corrige dados pessoais em linguagem comum; versão otimista e fila de conferência |
-| `GET/PUT /ml/matriculas/:id/ingresso` | ADMIN/SECRETARIA: homologa os códigos de ingresso e registra a referência da fonte; atualiza os atributos e limpa a pendência da declaração |
-| `GET /ml/ingressos/pendentes` | ADMIN/SECRETARIA: até 50 declarações pendentes da própria instituição, ordenadas pela data de atualização |
-| `GET /ml/ingressos/matriculas?registro=...` | ADMIN/SECRETARIA: busca até 20 matrículas por prefixo de registro, com no mínimo dois caracteres |
-| `GET /ml/importacoes/modelo` | ADMIN: baixa o Excel com cabeçalho, 36 atributos e instruções de escala/códigos |
-| `POST /ml/importacoes` | ADMIN: envia XLSX multipart (`arquivo`), até 1 MB e 100 matrículas; valida todas as linhas, calcula com o `.pkl` e salva perfis/previsões experimentais; retorna contagem e erros por linha |
-| `GET /ml/importacoes` | ADMIN: últimas 50 previsões importadas, com probabilidade, versão e indicador `atual` |
-| `GET /ml/previsoes-automaticas` | ADMIN: últimos 50 recálculos experimentais após importação, com versão do perfil, probabilidade e indicador `atual` |
+| `GET/PUT /ml/matriculas/:id/ingresso` | COORDENACAO/SECRETARIA: homologa os códigos de ingresso e registra a referência da fonte; atualiza os atributos e limpa a pendência da declaração |
+| `GET /ml/ingressos/pendentes` | COORDENACAO/SECRETARIA: até 50 declarações pendentes da própria instituição, ordenadas pela data de atualização |
+| `GET /ml/ingressos/matriculas?registro=...` | COORDENACAO/SECRETARIA: busca até 20 matrículas por prefixo de registro, com no mínimo dois caracteres |
+| `GET /ml/importacoes/modelo` | COORDENACAO: gera Excel com identidade, turma, disciplina, professor, 36 atributos e instruções |
+| `POST /ml/importacoes` | COORDENACAO: envia XLSX multipart (`arquivo`), até 1 MB e 100 matrículas; valida turma, disciplina e lotação docente existentes, cria aluno/matrícula quando necessário e calcula a previsão experimental; retorna contagens e erros por linha |
+| `GET /ml/importacoes` | COORDENACAO: últimas 50 previsões importadas, com probabilidade, versão e indicador `atual` |
+| `GET /ml/previsoes-automaticas` | COORDENACAO: últimos 50 recálculos experimentais após importação, com versão do perfil, probabilidade e indicador `atual` |
 
-ADMIN/COORDENACAO acessam a instituição; PROFESSOR/TUTOR consultam somente alunos vinculados. ALUNO não acessa risco nem atributos. Autenticação, instituição e vínculos são verificados no servidor. A inferência operacional permanece bloqueada pela elegibilidade do modelo; a prévia técnica depende de `ML_PREVIEW_ENABLED`.
+COORDENACAO acessam a instituição; PROFESSOR/TUTOR consultam somente alunos vinculados. ALUNO não acessa risco nem atributos. Autenticação, instituição e vínculos são verificados no servidor. A inferência operacional permanece bloqueada pela elegibilidade do modelo; a prévia técnica depende de `ML_PREVIEW_ENABLED`.
 
-Na aba `Importacao`, cada linha contém `registro`, `versaoPerfil` e os 36 campos do contrato na ordem do `.pkl`, em escala original. `registro` corresponde exatamente a uma matrícula da instituição. `versaoPerfil` é 0 para perfil novo ou a versão atual indicada no cadastro. Reenviar o mesmo arquivo com o mesmo perfil e modelo não duplica a previsão. Se a gravação da previsão falhar depois da atualização do perfil, o mesmo arquivo pode ser reenviado para concluir a linha. A importação rejeita códigos que o `OneHotEncoder` do `.pkl` não aprendeu. Indicadores já homologados por faturas, bolsas, semestres, macroeconomia ou ingresso não podem ser contraditos pela planilha.
+Na aba `Importacao`, cada linha contém `registro`, `alunoNome`, `alunoEmail`, `turmaNome`, `turmaCurso`, `turmaPeriodo`, `disciplinaNome`, `professorEmail`, `versaoPerfil` e os 36 campos do contrato na ordem do `.pkl`, em escala original. Turma, disciplina e professor precisam existir na instituição; o professor deve estar lotado na disciplina. A matrícula na turma expõe ao aluno os trabalhos já publicados nas disciplinas dessa turma. `versaoPerfil` é 0 para perfil novo ou a versão atual indicada no cadastro. Alunos novos recebem a senha temporária `Fatec@123` e só acessam dados acadêmicos após trocá-la. Reenviar o mesmo arquivo com o mesmo perfil e modelo não duplica a previsão. Se a gravação da previsão falhar depois da criação da matrícula ou atualização do perfil, o mesmo arquivo pode ser reenviado para concluir a linha. A importação rejeita códigos que o `OneHotEncoder` do `.pkl` não aprendeu. Indicadores já homologados por faturas, bolsas, semestres, macroeconomia ou ingresso não podem ser contraditos pela planilha.
 
 O `.pkl` é o único artefato aceito pelo carregador em execução. O candidato treinado anteriormente permanece apenas como histórico de treinamento; ele não é escolhido pela API. Somente o `.pkl` ativo foi liberado para versionamento a fim de reproduzir a demonstração; o serviço continua exigindo o SHA-256 do manifesto antes de carregá-lo.
 
 ## Dados e seed
 
-Após configurar as variáveis `DEMO_*` em `services/api/.env`, na branch backend:
+Após configurar as cinco senhas e, para esta carga opcional, `DEMO_INSTITUICAO_ID` e `DEMO_INSTITUICAO_NOME` em `services/api/.env.seed`, na branch backend:
 
 ```powershell
 docker compose up -d --build api ml
-docker compose run --rm -e DEMO_SEED_ENABLED=true migrate npm run db:seed:ml
+docker compose run --rm --env-from-file services/api/.env.seed -e DEMO_SEED_ENABLED=true migrate npm run db:seed:ml
 ```
 
 A seed recusa produção e cria dois alunos identificados como demonstração, turma **ML — Demonstração integrada**, matrículas `ML-DEMO-1` e `ML-DEMO-2`, 12 disciplinas/avaliações, notas, vínculos do professor/tutor demo e os 36 atributos completos. Não altera cadastros preexistentes nem restaura perfis já editados. Os valores são criados para desenvolvimento, autorizados pelo usuário; as previsões são sempre calculadas pelo modelo, nunca simuladas. Os alunos usam a senha configurada em `DEMO_ALUNO_PASSWORD` e os e-mails `ml.estudante1@sgei.example` e `ml.estudante2@sgei.example`.

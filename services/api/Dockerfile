@@ -5,7 +5,6 @@ RUN npm ci
 COPY prisma ./prisma
 COPY prisma7.config.ts tsconfig*.json nest-cli.json ./
 COPY src ./src
-COPY assets ./assets
 RUN npm run db:generate && npm run build
 
 FROM node:24-alpine
@@ -14,7 +13,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/assets ./assets
 RUN mkdir /app/uploads && chown node:node /app/uploads
 USER node
 EXPOSE 3000
