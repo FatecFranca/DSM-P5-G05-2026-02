@@ -230,14 +230,12 @@ export class EnrollmentMlService {
     profile: Awaited<ReturnType<EnrollmentMlService['profile']>>,
   ) {
     const editable = ['COORDENACAO'].includes(actor.perfil);
-    const demonstracao =
-      profile.aluno === 'Aluno Demo SGEI' &&
-      FATEC_DEMO_REGISTRATIONS.includes(profile.registro) &&
-      profile.fonte === FATEC_DEMO_ML_SOURCE;
+    const savedResult = profile.resultado as Record<
+      string,
+      Prisma.JsonValue
+    > | null;
     const result =
-      this.ml.operationalEligibility().valid || demonstracao
-        ? (profile.resultado as Record<string, Prisma.JsonValue> | null)
-        : null;
+      savedResult?.perfilVersao === profile.versao ? savedResult : null;
     return {
       matriculaId: profile.matriculaId,
       registro: profile.registro,
@@ -523,12 +521,11 @@ export class EnrollmentMlService {
 
   async analyze(actor: AuthUser, id: string) {
     const profile = await this.profile(actor, id);
-    const eligibility = this.ml.operationalEligibility();
-    if (profile.faltantes.length || !eligibility.valid)
+    if (profile.faltantes.length)
       return {
         status: 'INSUFICIENTE' as const,
         ...this.visible(actor, profile),
-        impedimentos: eligibility.valid ? [] : [eligibility.reason],
+        impedimentos: [],
       };
     const prediction = await this.ml.predict(
       profile.features as MlFeatures,

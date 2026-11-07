@@ -17,15 +17,17 @@ const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: dbUrl.to
 const tenants = [];
 const runId = randomUUID();
 const className = `Teste acadêmico ${runId}`;
+const promotedClassName = `Teste promovido ${runId}`;
 const testUserIds = [];
 const uploaded = [];
 let checks = 0;
 async function call(method, path, token, body, expected = 200, attempt = 0) {
   const multipart = body instanceof FormData;
+  const rawMultipart = body && Buffer.isBuffer(body.bytes);
   const response = await fetch(`${base}${path}`, { method, headers: {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(body && !multipart ? { 'Content-Type': 'application/json' } : {}),
-  }, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) });
+    ...(rawMultipart ? { 'Content-Type': body.contentType } : body && !multipart ? { 'Content-Type': 'application/json' } : {}),
+  }, ...(body ? { body: rawMultipart ? body.bytes : multipart ? body : JSON.stringify(body) } : {}) });
   if (response.status === 429 && path === '/auth/login' && attempt < 2) {
     const seconds = Number(response.headers.get('retry-after'));
     await new Promise((resolve) => setTimeout(resolve, Number.isFinite(seconds) && seconds > 0 ? Math.min(61_000, seconds * 1000 + 1000) : 61_000));
@@ -117,15 +119,15 @@ async function main() {
     const saved = await call('PUT', path, admin.token, { versao: 0, features: demoProfile(0) });
     assert.equal(saved.faltantes.length, 0);
     const calculated = await call('POST', `${path}/analisar`, admin.token);
-    assert.equal(calculated.status, 'INSUFICIENTE');
+    assert.equal(calculated.status, 'CALCULADO');
     assert.equal(calculated.matriculaId, enrol.id);
-    assert.ok(calculated.impedimentos.length);
-    assert.equal(calculated.resultado, null);
+    assert.deepEqual(calculated.impedimentos, []);
+    assert.equal(calculated.resultado.modelVersion, 'externo-lr-sem-enrolled-v1');
     const persisted = await db.perfilMl.findUnique({ where: { matriculaId: enrol.id } });
-    assert.equal(persisted.resultado, null);
+    assert.equal(persisted.resultado.perfilVersao, 1);
     const teacherView = await call('GET', path, teacher.token);
     assert.equal(teacherView.features, undefined);
-    assert.equal(teacherView.resultado, null);
+    assert.equal(teacherView.resultado.modelVersion, 'externo-lr-sem-enrolled-v1');
     const refreshed = await call('PUT', path, admin.token, { versao: 1, features: { pib: 1 } });
     assert.equal(refreshed.resultado, null);
     assert.equal(refreshed.versao, 2);
@@ -138,14 +140,25 @@ async function main() {
     const { Workbook } = require('exceljs');
     const workbook = new Workbook();
     await workbook.xlsx.load(Buffer.from(templateBytes));
-    const header = workbook.getWorksheet('Importacao').getRow(1).values.slice(10);
+    const { ML_FEATURES } = require('../dist/ml/ml.types');
+    const { ML_CATEGORIES } = require('../dist/ml/input-categories');
+    const { CATEGORY_LABELS } = require('../dist/ml/imports/feature-labels');
     const beforeImport = await call('GET', path, admin.token);
-    workbook.getWorksheet('Importacao').addRow([enrol.registro, student.nome, student.email, className, 'Teste', '2026/2', subject.nome, teacher.email, beforeImport.versao, ...header.map((name) => demoProfile(0)[name])]);
+    workbook.getWorksheet('Importacao').addRow([enrol.registro, student.nome, student.email, className, 'Teste', '2026/2', subject.nome, teacher.email, beforeImport.versao, ...ML_FEATURES.map((name) => ML_CATEGORIES[name] ? CATEGORY_LABELS[name][demoProfile(0)[name]] : demoProfile(0)[name])]);
     const workbookBytes = await workbook.xlsx.writeBuffer();
+    const parsedBeforeUpload = await require('../dist/ml/imports/workbook-parser').parseImportWorkbook(Buffer.from(workbookBytes));
+    assert.equal(parsedBeforeUpload.length, 1);
+    assert.equal(parsedBeforeUpload[0].features.estado_civil, demoProfile(0).estado_civil);
     const uploadWorkbook = () => {
-      const form = new FormData();
-      form.append('arquivo', new Blob([workbookBytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'perfis.xlsx');
-      return form;
+      const boundary = `sgei-${randomUUID()}`;
+      return {
+        contentType: `multipart/form-data; boundary=${boundary}`,
+        bytes: Buffer.concat([
+          Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="arquivo"; filename="perfis.xlsx"\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`),
+          Buffer.from(workbookBytes),
+          Buffer.from(`\r\n--${boundary}--\r\n`),
+        ]),
+      };
     };
     await call('POST', '/ml/importacoes', student.token, uploadWorkbook(), 403);
     const imported = await call('POST', '/ml/importacoes', admin.token, uploadWorkbook(), 201);
@@ -219,16 +232,19 @@ async function main() {
   await call('POST', `/atividades/${activity.id}/publicar`, teacher.token, null, 201);
   if (process.env.TEST_ML === 'true') {
     const { demoProfile } = require('../dist/ml/demo-profiles');
+    const { ML_FEATURES } = require('../dist/ml/ml.types');
+    const { ML_CATEGORIES } = require('../dist/ml/input-categories');
+    const { CATEGORY_LABELS } = require('../dist/ml/imports/feature-labels');
     const { Workbook } = require('exceljs');
     const template = await call('GET', '/ml/importacoes/modelo', admin.token);
     const importBook = new Workbook();
     await importBook.xlsx.load(Buffer.from(template));
     const importedEmail = `importado.${runId}@example.test`;
     const importedRegistro = `IMP-${runId.slice(0, 8)}`;
-    const featureNames = importBook.getWorksheet('Importacao').getRow(1).values.slice(10);
     importBook.getWorksheet('Importacao').addRow([
       importedRegistro, 'Aluno Importado', importedEmail, className, 'Teste', '2026/2',
-      subject.nome, teacher.email, 0, ...featureNames.map((name) => demoProfile(0)[name]),
+      subject.nome, teacher.email, 0,
+      ...ML_FEATURES.map((name) => ML_CATEGORIES[name] ? CATEGORY_LABELS[name][demoProfile(0)[name]] : demoProfile(0)[name]),
     ]);
     importBook.getWorksheet('Importacao').getCell('H2').value = 'nao-lotado@example.test';
     const invalidForm = new FormData();
@@ -303,7 +319,7 @@ async function main() {
   await call('POST', '/aulas', peer.token, { disciplinaId: subject.id, data: new Date().toISOString(), tema: 'Negado' }, 403);
   await db.usuario.update({ where: { id: peer.id }, data: { perfil: 'COORDENACAO' } });
   assert.equal((await call('GET', `/academico/resumo?turmaId=${turma.id}`, peer.token)).matriculas.length, process.env.TEST_ML === 'true' ? 3 : 2);
-  await call('POST', '/turmas', peer.token, { nome: 'Negada', curso: 'Teste', periodo: '2026/2' }, 403);
+  await call('POST', '/turmas', peer.token, { nome: promotedClassName, curso: 'Teste', periodo: '2026/2' }, 201);
   await call('PATCH', `/turmas/${turma.id}/fechamento`, admin.token, { fechada: true });
   await call('PUT', `/avaliacoes/${exam.id}/notas`, teacher.token, { itens: [{ matriculaId: enrol.id, valor: 10 }] }, 403);
   await call('POST', '/auth/logout', student.token, { refreshToken: student.refresh }, 204);
@@ -315,7 +331,7 @@ main().catch((error) => { console.error(error.message); process.exitCode = 1; })
   try {
     const ownedFiles = [];
     if (testUserIds.length) await db.$transaction(async (tx) => {
-      const turmas = await tx.turma.findMany({ where: { instituicaoId: { in: tenants }, nome: className, periodo: '2026/2' }, select: { id: true } });
+      const turmas = await tx.turma.findMany({ where: { instituicaoId: { in: tenants }, nome: { in: [className, promotedClassName] }, periodo: '2026/2' }, select: { id: true } });
       const turmaIds = turmas.map(({ id }) => id);
       const disciplinas = await tx.disciplina.findMany({ where: { instituicaoId: { in: tenants }, turmaId: { in: turmaIds } }, select: { id: true } });
       const disciplinaIds = disciplinas.map(({ id }) => id);
@@ -349,7 +365,13 @@ main().catch((error) => { console.error(error.message); process.exitCode = 1; })
       await tx.usuario.deleteMany({ where: { id: { in: testUserIds } } });
     }, { timeout: 30000 });
     const fileIds = [...new Set([...uploaded, ...ownedFiles])];
-    if (fileIds.length) execFileSync('docker', ['compose', 'exec', '-T', 'api', 'node', '-e', 'const fs=require("node:fs");for(const id of process.argv.slice(1)){if(!/^[0-9a-f-]{36}$/.test(id))throw Error("id");fs.rmSync("/app/uploads/"+id,{force:true})}', ...fileIds], { cwd: require('node:path').resolve(__dirname, '../../..'), stdio: 'pipe' });
+    if (fileIds.length) {
+      const script = 'const fs=require("node:fs");for(const id of process.argv.slice(1)){if(!/^[0-9a-f-]{36}$/.test(id))throw Error("id");fs.rmSync("/app/uploads/"+id,{force:true})}';
+      const dockerArgs = process.env.TEST_API_CONTAINER
+        ? ['exec', process.env.TEST_API_CONTAINER, 'node', '-e', script, ...fileIds]
+        : ['compose', 'exec', '-T', 'api', 'node', '-e', script, ...fileIds];
+      execFileSync('docker', dockerArgs, { cwd: require('node:path').resolve(__dirname, '../../..'), stdio: 'pipe' });
+    }
   } catch (error) {
     console.error(`Falha na limpeza dos registros do teste: ${error.message}`);
     process.exitCode = 1;

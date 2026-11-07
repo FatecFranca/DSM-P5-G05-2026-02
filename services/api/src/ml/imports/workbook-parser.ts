@@ -259,8 +259,19 @@ export async function parseImportWorkbook(
       Object.values(features).some((value) => typeof value !== 'number') ||
       !validProfile(features)
     ) {
+      const invalid = Object.entries(features)
+        .filter(
+          ([name, value]) =>
+            typeof value !== 'number' ||
+            !Number.isFinite(value) ||
+            (ML_CATEGORIES[name] && !ML_CATEGORIES[name].includes(value)),
+        )
+        .map(
+          ([name]) =>
+            FEATURE_LABELS[name as keyof typeof FEATURE_LABELS] ?? name,
+        );
       throw new BadRequestException(
-        `Linha ${index}: atributos ausentes ou incompatíveis com o modelo`,
+        `Linha ${index}: atributos ausentes ou incompatíveis com o modelo${invalid.length ? `: ${invalid.join(', ')}` : ''}`,
       );
     }
     rows.push({

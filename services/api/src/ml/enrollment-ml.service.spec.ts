@@ -55,9 +55,6 @@ describe('ML por matrícula', () => {
       ),
     };
     const ml = {
-      operationalEligibility: jest
-        .fn()
-        .mockReturnValue({ valid: true, reason: '' }),
       preview: jest.fn().mockResolvedValue({
         modelVersion: 'v1',
         predictedClass: 'Graduate',
@@ -91,17 +88,31 @@ describe('ML por matrícula', () => {
     expect(response.faltantes).toHaveLength(35);
     expect(ml.predict).not.toHaveBeenCalled();
   });
-  it('não gera previsão operacional sem validação institucional', async () => {
-    const { service, ml, updateMany } = setup();
-    ml.operationalEligibility.mockReturnValue({
-      valid: false,
-      reason: 'Validação local ausente',
+  it('expõe apenas a previsão da versão atual do perfil', async () => {
+    const { service, db } = setup();
+    const result = {
+      modelVersion: 'v1',
+      predictedClass: 'Graduate',
+      probabilities: { Dropout: 0.1, Graduate: 0.9 },
+      perfilVersao: 1,
+      calculadoEm: '2026-11-07T00:00:00.000Z',
+    };
+    (db.matricula.findFirst as jest.Mock).mockResolvedValue({
+      instituicaoId: 'tenant',
+      aluno: { nome: 'Aluno' },
+      registro: 'R1',
+      perfilMl: { features: demoProfile(0), versao: 1, resultado: result },
     });
-    const result = await service.analyze(actor, 'matricula');
-    expect(result.status).toBe('INSUFICIENTE');
-    expect(result.impedimentos).toContain('Validação local ausente');
-    expect(ml.predict).not.toHaveBeenCalled();
-    expect(updateMany).not.toHaveBeenCalled();
+    expect((await service.get(actor, 'matricula')).resultado).toMatchObject(
+      result,
+    );
+    (db.matricula.findFirst as jest.Mock).mockResolvedValue({
+      instituicaoId: 'tenant',
+      aluno: { nome: 'Aluno' },
+      registro: 'R1',
+      perfilMl: { features: demoProfile(0), versao: 2, resultado: result },
+    });
+    expect((await service.get(actor, 'matricula')).resultado).toBeNull();
   });
   it('mostra prévia apenas da matrícula fictícia e sem salvar resultado operacional', async () => {
     const { service, db, ml, updateMany } = setup();

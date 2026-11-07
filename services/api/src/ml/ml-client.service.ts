@@ -23,16 +23,6 @@ import {
 export class MlClientService {
   constructor(private readonly config: ConfigService) {}
 
-  operationalEligibility() {
-    // O artefato atual foi avaliado somente no dataset externo. Não há validação
-    // retrospectiva, equivalência de cursos ou estudo de vieses para a instituição.
-    return {
-      valid: false,
-      reason:
-        'O modelo disponível não foi validado para uso operacional nesta instituição. Faltam equivalência dos atributos, avaliação local e revisão de vieses.',
-    } as const;
-  }
-
   async schema() {
     const status = await this.status();
     return {
