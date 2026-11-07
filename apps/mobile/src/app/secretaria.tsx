@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen } from '@/components/primitives';
 import { TopBar } from '@/components/top-bar';
@@ -8,7 +8,7 @@ import { ActionButton, BodyText, Chip, Feedback, FormField, Panel, PanelTitle, a
 import { Editor, type EditorConfig } from '@/features/academic/editor';
 import type { UserSummary } from '@/services/api';
 import { ML_FIELD_LABELS, parsePartialMlFields, type MlSchema } from '@/services/ml';
-import { chooseMlWorkbook, saveFile } from '@/features/academic/files';
+import { chooseMlWorkbook, saveWorkbookTemplate } from '@/features/academic/files';
 
 type Enrollment = { id: string; registro: string; aluno: { nome: string } };
 type Pending = { matriculaId: string; revisao: number; atualizadoEm: string; matricula: { registro: string; aluno: { nome: string } } };
@@ -52,11 +52,12 @@ export default function SecretaryScreen() {
   const [sourceReport, setSourceReport] = useState<ImportReport | null>(null);
 
   async function downloadSourceTemplate(kind: 'semestres' | 'macro') {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setNotice('');
     try {
       const bytes = await request<ArrayBuffer>(`/ml/fontes/importacoes/${kind}/modelo`, { binary: true });
       const name = kind === 'semestres' ? 'modelo-resumos-semestrais.xlsx' : 'modelo-indicadores-macro.xlsx';
-      await saveFile({ id: kind, nome: name, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', tamanho: bytes.byteLength }, bytes);
+      const saved = await saveWorkbookTemplate({ id: kind, nome: name, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', tamanho: bytes.byteLength }, bytes);
+      if (saved) setNotice(Platform.OS === 'android' ? 'Modelo salvo. Para importar depois, procure em Recentes ou na pasta escolhida.' : 'Modelo enviado para download ou compartilhamento.');
     } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Não foi possível baixar o modelo.'); }
     finally { setBusy(false); }
   }
@@ -260,6 +261,7 @@ export default function SecretaryScreen() {
     {editor && editorScope === 'cadastro' && <Editor config={editor} close={() => setEditor(null)} />}
     <Panel><PanelTitle>Importar fontes oficiais</PanelTitle>
       <BodyText>Envie até 100 registros por planilha. O resumo semestral atualiza os atributos acadêmicos; o indicador macroeconômico atualiza as coortes vinculadas. Guarde a referência da fonte em cada linha.</BodyText>
+      {Platform.OS === 'android' && <BodyText>Escolha a pasta Documentos ao baixar o modelo para mantê-lo disponível após fechar o app.</BodyText>}
       <ActionButton title="Baixar modelo de resumos semestrais" secondary disabled={busy} onPress={() => void downloadSourceTemplate('semestres')} />
       <ActionButton title="Importar resumos semestrais" disabled={busy} onPress={() => void importSource('semestres')} />
       {admin && <>

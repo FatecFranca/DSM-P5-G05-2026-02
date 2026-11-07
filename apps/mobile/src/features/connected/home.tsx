@@ -19,7 +19,7 @@ export function ConnectedHome() {
   const drafts = data?.classes.reduce((count, item) => count + item.snapshot.avaliacoes.filter((assessment) => !assessment.publicada).length, 0) ?? 0;
   const corrections = data?.classes.reduce((count, item) => count + item.snapshot.entregas.filter((delivery) => !delivery.corrigidaEm).length, 0) ?? 0;
   return <Screen><AcademicHeader title={student ? 'Meu desempenho' : tutor ? 'Acompanhamento' : 'Painel do professor'} subtitle={student ? 'Acompanhamento acadêmico individual' : 'Suas turmas e tarefas acadêmicas em um só lugar.'} />
-    <DataNotice>Dados registrados na API. Indicadores ausentes permanecem sem valor; não há previsão de abandono validada para as Fatecs.</DataNotice>
+    <DataNotice>Dados acadêmicos registrados na API. As previsões da planilha Excel são consultadas pela coordenação nas análises individuais.</DataNotice>
     <RequestState loading={overview.loading} error={overview.error} onRetry={overview.refresh} />
     {data && <>
       {student ? <View style={academicStyles.grid}>

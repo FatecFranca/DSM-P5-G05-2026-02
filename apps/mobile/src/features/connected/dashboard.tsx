@@ -54,7 +54,7 @@ export function ConnectedDashboard() {
         <Text accessibilityLiveRegion="polite" style={connectedStyles.caption}>{chosenBin ? `${stats.histogram[selectedGrade!]} estudante(s) com média entre ${chosenBin.label}.` : `${stats.graded} de ${stats.count} estudante(s) com nota publicada.`}</Text>
       </Card>
       <Card><View style={styles.chartHead}><Text style={connectedStyles.heading}>Situação das análises</Text><Text style={styles.chartUnit}>Modelo preditivo</Text></View>
-        <Text style={connectedStyles.body}>O modelo candidato ainda não foi validado com estudantes das Fatecs. A análise individual informa os dados e validações pendentes, sem atribuir faixa ou probabilidade.</Text>
+        <Text style={connectedStyles.body}>As análises importadas usam os 36 atributos da planilha Excel. Abra um aluno para consultar a classe e a probabilidade calculadas pelo modelo ativo.</Text>
         {canViewModel && <Pressable accessibilityRole="button" onPress={() => router.push('/connected/model')}><Text style={styles.link}>Ver estado do modelo →</Text></Pressable>}
       </Card>
       <Card><View style={styles.chartHead}><Text style={connectedStyles.heading}>Comparar turmas</Text><Text style={styles.chartUnit}>Média acadêmica</Text></View>

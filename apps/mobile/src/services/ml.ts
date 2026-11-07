@@ -1,4 +1,5 @@
 export interface MlSchema { features: string[]; classes: string[]; categories: Record<string, number[]>; previewEnabled?: boolean }
+export interface MlModelStatus { configured: boolean; ready: boolean; modelVersion?: string; originalInputReady?: boolean }
 export interface MlPrediction { modelVersion: string; predictedClass: 'Dropout' | 'Enrolled' | 'Graduate'; probabilities: Record<'Dropout' | 'Graduate', number> & Partial<Record<'Enrolled', number>> }
 export interface DemoMlPrediction extends MlPrediction { demonstracao: true; fonte: string }
 

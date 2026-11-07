@@ -19,7 +19,7 @@ export function ConnectedScenarios() {
   const enrollments = overview.data?.enrollments.filter((item) => item.classId === selected?.id) ?? [];
   if (state.status === 'signedIn' && state.user.perfil === 'ALUNO') return <Redirect href="/connected/report" />;
   return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow="LABORATÓRIO ACADÊMICO" title="Cenários" />
-    <DataNotice>O modelo português ainda não foi validado para os alunos desta instituição. Esta tela verifica a disponibilidade da análise com registros reais.</DataNotice>
+    <DataNotice>Importe a planilha Excel para registrar os atributos dos alunos e calcular as previsões do modelo.</DataNotice>
     <InstitutionPicker institutions={overview.institutions} selected={overview.institutionId} onSelect={(id) => { setClassId(null); overview.selectInstitution(id); }} />
     <RequestState loading={overview.loading} error={overview.error} onRetry={overview.refresh} />
     {overview.data && <>

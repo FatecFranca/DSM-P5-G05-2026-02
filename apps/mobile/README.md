@@ -37,6 +37,16 @@ Consulte [contrato e seed](../../docs/ml-matriculas.md). Desenvolva somente em `
 
 `npm run typecheck`, `npm run lint`, `npm test` e `npx expo export --platform web`.
 
+## Planilha de teste no emulador Android
+
+`fixtures/exemplo-importacao-10-alunos.xlsx` contém 10 alunos fictícios para a importação Excel da coordenação. As linhas usam a turma, a disciplina e o professor criados pela carga de desenvolvimento da API. Para disponibilizar o arquivo no seletor do emulador, execute na raiz do projeto:
+
+```powershell
+adb push apps/mobile/fixtures/exemplo-importacao-10-alunos.xlsx /sdcard/Download/
+```
+
+Depois, no aplicativo, use **Selecionar e importar Excel** e procure o arquivo em **Recentes** ou **Downloads**.
+
 ## Contrato e limites
 
 Consulte `../../docs/academic-api.md` para rotas, permissões, regras e pendências. Na web, adicione `http://localhost:8081` às origens permitidas da API. O refresh token web fica somente em memória, portanto recarregar a página exige novo login. As rotas protegidas não montam as telas acadêmicas sem sessão e não exibem dados demonstrativos em uma sessão real.
