@@ -8,15 +8,18 @@ import { palette } from '@/constants/design';
 import { Chip } from '@/demo/academic-ui';
 import { ComparisonBar, HistogramChart } from '@/demo/charts';
 import { gradeBins } from '@/demo/statistics';
-import { Card } from '@/demo/ui';
+import { Bar, Card } from '@/demo/ui';
 import { DataNotice, EnrollmentRow, InstitutionPicker, RequestState, connectedStyles } from './ui';
 import { summarizeEnrollments, useAcademicOverview } from './overview';
+import { classPredictionSummary, highestDropout } from './predictions';
+import { useImportedPredictions } from './use-predictions';
 
 export function ConnectedDashboard() {
   const router = useRouter();
   const { state } = useSession();
   const canViewModel = state.status === 'signedIn' && ['COORDENACAO'].includes(state.user.perfil);
   const overview = useAcademicOverview();
+  const analysis = useImportedPredictions(canViewModel);
   const [classId, setClassId] = useState('all');
   const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
   const classes = overview.data?.classes ?? [];
@@ -24,6 +27,7 @@ export function ConnectedDashboard() {
   const stats = summarizeEnrollments(enrollments);
   const selectedClass = classes.find((item) => item.id === classId);
   const chosenBin = selectedGrade === null ? null : gradeBins[selectedGrade];
+  const rankedStudents = canViewModel ? highestDropout(enrollments, analysis.predictions).slice(0, 5) : [];
 
   return <Screen>
     <TopBar />
@@ -36,7 +40,7 @@ export function ConnectedDashboard() {
         <View style={styles.heroSide}><Text style={styles.heroSideNumber}>{stats.graded}</Text><Text style={styles.heroSideCaption}>com nota publicada</Text></View>
       </View>
     </View>
-    <DataNotice>Dados acadêmicos da API. Indicadores usam somente registros publicados; nenhuma previsão de abandono está disponível.</DataNotice>
+    <DataNotice>{canViewModel ? 'Chances do modelo são estimativas experimentais para apoio humano. Os gráficos usam as previsões atuais disponíveis entre as 50 importações mais recentes.' : 'Dados acadêmicos da API. Indicadores usam somente registros publicados.'}</DataNotice>
     <InstitutionPicker institutions={overview.institutions} selected={overview.institutionId} onSelect={(id) => { setClassId('all'); setSelectedGrade(null); overview.selectInstitution(id); }} />
     <RequestState loading={overview.loading} error={overview.error} onRetry={overview.refresh} />
     {overview.data && <>
@@ -48,13 +52,32 @@ export function ConnectedDashboard() {
         <Stat value={stats.medianGrade?.toFixed(1).replace('.', ',') ?? '—'} label="Mediana das notas" />
         <Stat value={stats.meanAttendance === null ? '—' : `${stats.meanAttendance.toFixed(0)}%`} label="Presença média" />
       </View>
+      {canViewModel && <Card>
+        <View style={styles.chartHead}><Text style={connectedStyles.heading}>Chance média por turma</Text><Text style={styles.chartUnit}>Previsões atuais</Text></View>
+        {analysis.loading && <Text style={connectedStyles.body}>Carregando análises…</Text>}
+        {!!analysis.error && <Text accessibilityRole="alert" style={styles.error}>{analysis.error}</Text>}
+        {analysis.items && classes.filter((item) => classId === 'all' || item.id === classId).map((item) => {
+          const students = overview.data!.enrollments.filter((entry) => entry.classId === item.id);
+          const result = classPredictionSummary(students, analysis.predictions);
+          return <View key={item.id} style={styles.classPrediction}>
+            <Text style={styles.classTitle}>{item.name}</Text>
+            {result.count ? <>
+              <Bar label="Evasão" value={result.dropout!} color={palette.danger} valueLabel={`${(result.dropout! * 100).toFixed(1).replace('.', ',')}%`} />
+              <Bar label="Conclusão" value={result.graduate!} color={palette.success} valueLabel={`${(result.graduate! * 100).toFixed(1).replace('.', ',')}%`} />
+              <Text style={connectedStyles.body}>{result.count} de {students.length} estudante(s) com previsão atual neste recorte</Text>
+            </> : <Text style={connectedStyles.body}>Sem previsão atual neste recorte.</Text>}
+          </View>;
+        })}
+        {analysis.items && !classes.length && <Text style={connectedStyles.body}>Nenhuma turma para analisar.</Text>}
+        <Text style={connectedStyles.body}>Média das probabilidades disponíveis; não representa a turma inteira quando há análises ausentes.</Text>
+      </Card>}
       <Card><View style={styles.chartHead}><Text style={connectedStyles.heading}>Distribuição das notas</Text><Text style={styles.chartUnit}>Estudantes por faixa</Text></View>
         <Text style={connectedStyles.body}>Médias acadêmicas publicadas em escala de 0 a 10. Toque em uma coluna para ver a contagem.</Text>
         <HistogramChart counts={stats.histogram} selected={selectedGrade} onSelect={setSelectedGrade} />
         <Text accessibilityLiveRegion="polite" style={connectedStyles.caption}>{chosenBin ? `${stats.histogram[selectedGrade!]} estudante(s) com média entre ${chosenBin.label}.` : `${stats.graded} de ${stats.count} estudante(s) com nota publicada.`}</Text>
       </Card>
       <Card><View style={styles.chartHead}><Text style={connectedStyles.heading}>Situação das análises</Text><Text style={styles.chartUnit}>Modelo preditivo</Text></View>
-        <Text style={connectedStyles.body}>As análises importadas usam os 36 atributos da planilha Excel. Abra um aluno para consultar a classe e a probabilidade calculadas pelo modelo ativo.</Text>
+        <Text style={connectedStyles.body}>As análises importadas são estimativas experimentais. Abra um estudante para consultar as chances calculadas.</Text>
         {canViewModel && <Pressable accessibilityRole="button" onPress={() => router.push('/connected/model')}><Text style={styles.link}>Ver estado do modelo →</Text></Pressable>}
       </Card>
       <Card><View style={styles.chartHead}><Text style={connectedStyles.heading}>Comparar turmas</Text><Text style={styles.chartUnit}>Média acadêmica</Text></View>
@@ -62,10 +85,19 @@ export function ConnectedDashboard() {
           ? <Text key={item.id} style={connectedStyles.body}>{item.name} · sem nota publicada ({result.count} estudante(s))</Text>
           : <ComparisonBar key={item.id} label={item.name} value={result.meanGrade} count={result.count} selected={classId === item.id} onPress={() => setClassId(item.id)} />; }) : <Text style={connectedStyles.body}>Nenhuma turma para comparar.</Text>}
       </Card>
-      <View style={connectedStyles.sectionHead}><Text style={connectedStyles.heading}>Estudantes</Text><Text style={connectedStyles.sectionHint}>Até 3 neste recorte</Text></View>
-      {enrollments.slice(0, 3).map((item) => <EnrollmentRow key={item.id} enrollment={item} onPress={() => router.push({ pathname: '/person/[id]', params: { id: item.userId } })} />)}
-      {!enrollments.length && <Card><Text style={connectedStyles.body}>Nenhum estudante vinculado às turmas selecionadas.</Text></Card>}
-      <TextButton title="Atualizar panorama" onPress={overview.refresh} />
+      {canViewModel ? <>
+        <View style={connectedStyles.sectionHead}><Text style={connectedStyles.heading}>Maior chance de evasão</Text><Text style={connectedStyles.sectionHint}>Até 5 estudantes no recorte · estimativas</Text></View>
+        {rankedStudents.map((item) => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Abrir análise de ${item.name}, ${item.className}`} onPress={() => router.push({ pathname: '/person/[id]', params: { id: item.userId } })} style={styles.riskStudent}>
+          <View style={styles.riskStudentText}><Text style={styles.classTitle}>{item.name}</Text><Text style={connectedStyles.body}>{item.className} · {item.course}</Text></View>
+          <Text style={styles.riskValue}>{(analysis.predictions[item.registration].probabilities.Dropout * 100).toFixed(1).replace('.', ',')}%</Text>
+        </Pressable>)}
+        {analysis.items && !rankedStudents.length && <Card><Text style={connectedStyles.body}>Nenhuma previsão atual encontrada para estudantes deste recorte.</Text></Card>}
+      </> : <>
+        <View style={connectedStyles.sectionHead}><Text style={connectedStyles.heading}>Estudantes</Text><Text style={connectedStyles.sectionHint}>Até 3 neste recorte</Text></View>
+        {enrollments.slice(0, 3).map((item) => <EnrollmentRow key={item.id} enrollment={item} onPress={() => router.push({ pathname: '/person/[id]', params: { id: item.userId } })} />)}
+        {!enrollments.length && <Card><Text style={connectedStyles.body}>Nenhum estudante vinculado às turmas selecionadas.</Text></Card>}
+      </>}
+      <TextButton title="Atualizar panorama" onPress={() => { overview.refresh(); if (canViewModel) analysis.refresh(); }} />
     </>}
   </Screen>;
 }
@@ -84,4 +116,9 @@ const styles = StyleSheet.create({
   statValue: { color: palette.primary, fontSize: 26, fontWeight: '800', letterSpacing: -1 }, statLabel: { color: palette.muted, fontSize: 11 },
   chartHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }, chartUnit: { color: palette.muted, fontSize: 11 },
   link: { color: palette.secondary, fontSize: 13, fontWeight: '700', paddingVertical: 8 },
+  error: { color: palette.danger, fontSize: 13 },
+  classPrediction: { gap: 9, borderTopWidth: 1, borderTopColor: palette.line, paddingTop: 13 },
+  classTitle: { color: palette.ink, fontSize: 14, fontWeight: '700' },
+  riskStudent: { backgroundColor: palette.surface, borderColor: palette.line, borderWidth: 1, borderRadius: 11, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  riskStudentText: { flex: 1, gap: 3 }, riskValue: { color: palette.danger, fontSize: 17, fontWeight: '800' },
 });

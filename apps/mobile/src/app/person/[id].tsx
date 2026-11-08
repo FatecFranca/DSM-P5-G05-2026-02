@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen, SectionTitle } from '@/components/primitives';
 import { TopBar, useGoBack } from '@/components/top-bar';
@@ -9,18 +9,17 @@ import { Bar, Card, classColor, Metric } from '@/demo/ui';
 import { DataNotice, connectedStyles } from '@/features/connected/ui';
 import type { AcademicSnapshot } from '@/services/academic';
 import type { UserDetail } from '@/services/api';
-import { ML_FIELD_LABELS, type DemoMlPrediction, type EnrollmentMl, type MlImportedPrediction } from '@/services/ml';
+import { type DemoMlPrediction, type EnrollmentMl, type MlImportedPrediction, type MlPrediction } from '@/services/ml';
 
 interface AcademicRecord { enrollmentId: string; registration: string; course: string; className: string; average: number | null; attendance: number | null }
 interface MlDisplayData {
   personId: string;
-  profiles: Record<string, EnrollmentMl>;
-  predictions: Record<string, MlImportedPrediction>;
+  predictions: Record<string, MlPrediction & { calculadoEm?: string }>;
   error: string;
 }
 
 const CLASS_LABELS: Record<DemoMlPrediction['predictedClass'], string> = {
-  Dropout: 'Evasão', Enrolled: 'Matriculado', Graduate: 'Graduate (classe do modelo)',
+  Dropout: 'Evasão', Enrolled: 'Permanência na matrícula', Graduate: 'Conclusão',
 };
 
 export default function PersonDetail() {
@@ -36,7 +35,6 @@ export default function PersonDetail() {
   const [predictionErrors, setPredictionErrors] = useState<Record<string, string>>({});
   const [predictionLoading, setPredictionLoading] = useState(false);
   const [mlData, setMlData] = useState<MlDisplayData | null>(null);
-  const [expandedProfiles, setExpandedProfiles] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -93,33 +91,30 @@ export default function PersonDetail() {
     if (role !== 'COORDENACAO' || person?.id !== id || person.perfil !== 'ALUNO' || !person.matriculas.length) return;
     let active = true;
     void Promise.allSettled([
-      Promise.all(person.matriculas.map((item) => request<EnrollmentMl>(`/ml/matriculas/${encodeURIComponent(item.id)}`))),
+      Promise.allSettled(person.matriculas.map((item) => request<EnrollmentMl>(`/ml/matriculas/${encodeURIComponent(item.id)}`))),
       request<MlImportedPrediction[]>('/ml/importacoes'),
-    ]).then(([profilesResult, importsResult]) => {
+    ]).then(([profiles, imports]) => {
       if (!active) return;
-      const profiles = profilesResult.status === 'fulfilled'
-        ? Object.fromEntries(profilesResult.value.map((profile) => [profile.matriculaId, profile]))
-        : {};
-      const predictions: Record<string, MlImportedPrediction> = {};
-      if (importsResult.status === 'fulfilled') {
-        for (const prediction of importsResult.value) predictions[prediction.registro] ??= prediction;
+      const predictions: Record<string, MlPrediction & { calculadoEm?: string }> = {};
+      if (profiles.status === 'fulfilled') profiles.value.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value.resultado) predictions[person.matriculas[index].registro] = result.value.resultado;
+      });
+      if (imports.status === 'fulfilled') for (const item of imports.value) {
+        if (item.atual && item.calculadoEm > (predictions[item.registro]?.calculadoEm ?? '')) predictions[item.registro] = item;
       }
-      setMlData({ personId: person.id, profiles, predictions,
-        error: profilesResult.status === 'rejected' || importsResult.status === 'rejected'
-          ? 'Não foi possível carregar todos os dados importados. Tente abrir esta tela novamente.' : '' });
+      setMlData({ personId: person.id, predictions, error: profiles.status === 'rejected' || imports.status === 'rejected' || profiles.value.some((result) => result.status === 'rejected') ? 'Algumas análises não puderam ser consultadas.' : '' });
     });
     return () => { active = false; };
   }, [id, person, request, role]);
 
   const visibleMlData = mlData?.personId === person?.id ? mlData : null;
-  const mlProfiles = visibleMlData?.profiles ?? {};
   const importedPredictions = visibleMlData?.predictions ?? {};
   const mlLoading = role === 'COORDENACAO' && person?.perfil === 'ALUNO' && !visibleMlData;
   const mlError = visibleMlData?.error ?? '';
   const demoPerson = !!role && role !== 'ALUNO' && person?.nome === 'Aluno Demo SGEI' && person.matriculas.some((item) => /^SGEI-DEMO-(109|002|276|284)$/.test(item.registro));
   const hasImportedPrediction = person?.matriculas.some((item) => !!importedPredictions[item.registro]) ?? false;
   return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow={person?.perfil === 'ALUNO' ? 'ANÁLISE INDIVIDUAL' : 'CADASTRO'} title={person?.nome ?? 'Detalhes da pessoa'} />
-    <DataNotice>{demoPerson ? 'Dados demonstrativos. As probabilidades são calculadas pelo modelo a partir dos atributos cadastrados.' : hasImportedPrediction && role === 'COORDENACAO' ? 'A planilha Excel é a fonte principal dos atributos e da previsão deste aluno.' : 'Informações registradas na API. As previsões aparecem quando houver dados importados para a matrícula.'}</DataNotice>
+    <DataNotice>{demoPerson ? 'Dados demonstrativos. As probabilidades são estimativas para apoio humano.' : hasImportedPrediction && role === 'COORDENACAO' ? 'Previsão experimental: estimativa para apoio humano, não um desfecho confirmado.' : 'Informações registradas na API. As previsões aparecem quando houver dados para a matrícula.'}</DataNotice>
     {loading && <ActivityIndicator color={palette.primary} />}
     {!!error && <Card><Text accessibilityRole="alert" style={styles.error}>{error}</Text></Card>}
     {person && <>
@@ -129,12 +124,9 @@ export default function PersonDetail() {
         {records.map((item) => <View key={item.registration} style={styles.stack}>
           <Card><Text style={styles.heading}>{item.className}</Text><Text style={styles.text}>Matrícula: {item.registration}</Text><Text style={styles.text}>Curso: {item.course}</Text></Card>
           {role === 'COORDENACAO' && !demoPerson && <ImportedExcelCard
-            profile={mlProfiles[item.enrollmentId]}
             prediction={importedPredictions[item.registration]}
             loading={mlLoading}
             error={mlError}
-            expanded={!!expandedProfiles[item.enrollmentId]}
-            onToggle={() => setExpandedProfiles((current) => ({ ...current, [item.enrollmentId]: !current[item.enrollmentId] }))}
           />}
           <View style={styles.stack}><Text style={connectedStyles.caption}>Indicadores do diário acadêmico</Text><View style={connectedStyles.metricGrid}><Metric label="Média acadêmica" value={item.average?.toFixed(1).replace('.', ',') ?? '—'} /><Metric label="Frequência" value={item.attendance === null ? '—' : `${item.attendance.toFixed(0)}%`} /></View></View>
           {demoPerson && <Card><Text style={styles.heading}>Análise demonstrativa · modelo português</Text>
@@ -160,43 +152,27 @@ export default function PersonDetail() {
   </Screen>;
 }
 
-function ImportedExcelCard({ profile, prediction, loading, error, expanded, onToggle }: {
-  profile?: EnrollmentMl;
-  prediction?: MlImportedPrediction;
+function ImportedExcelCard({ prediction, loading, error }: {
+  prediction?: MlPrediction;
   loading: boolean;
   error: string;
-  expanded: boolean;
-  onToggle: () => void;
 }) {
-  const features = profile?.features ?? {};
-  const registered = Object.keys(features).length;
   return <Card>
-    <Text style={styles.heading}>{prediction ? 'Dados principais da planilha' : 'Dados para análise'}</Text>
+    <Text style={styles.heading}>Chance estimada pelo modelo</Text>
     {loading && <ActivityIndicator color={palette.primary} />}
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    {profile && <>
-      <Text style={styles.text}>{registered} de {registered + profile.faltantes.length} atributos registrados · perfil v{profile.versao}</Text>
-      {(['ucs_1sem_nota', 'ucs_2sem_nota'] as const).map((key) => Number.isFinite(features[key]) &&
-        <Text key={key} style={styles.text}>{ML_FIELD_LABELS[key]}: {String(features[key]).replace('.', ',')}</Text>)}
-      <Text style={connectedStyles.body}>Essas notas da planilha usam escala de 0 a 20. A média acadêmica acima depende de notas publicadas no diário; a frequência depende de presenças registradas.</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={expanded ? 'Ocultar atributos importados' : 'Ver todos os atributos importados'} onPress={onToggle}>
-        <Text style={styles.link}>{expanded ? 'Ocultar atributos' : 'Ver todos os atributos'}</Text>
-      </Pressable>
-      {expanded && Object.entries(ML_FIELD_LABELS).map(([key, label]) => Number.isFinite(features[key]) &&
-        <Text key={key} style={styles.text}>{label}: {String(features[key]).replace('.', ',')}</Text>)}
-    </>}
     {prediction && <>
-      <Text style={styles.heading}>Resultado do modelo</Text>
-      <Text style={styles.text}>Classe estimada: {CLASS_LABELS[prediction.predictedClass]}</Text>
-      <Text style={styles.text}>Probabilidade de evasão: {(prediction.probabilities.Dropout * 100).toFixed(1).replace('.', ',')}%</Text>
-      <Text style={connectedStyles.body}>Modelo {prediction.modelVersion} · {prediction.atual ? 'perfil atual' : 'perfil alterado desde a importação'}. A avaliação do modelo sem Enrolled está na aba Modelo.</Text>
+      <Bar label="Evasão" value={prediction.probabilities.Dropout} color={palette.danger} valueLabel={`${(prediction.probabilities.Dropout * 100).toFixed(1).replace('.', ',')}%`} />
+      <Bar label="Conclusão" value={prediction.probabilities.Graduate} color={palette.success} valueLabel={`${(prediction.probabilities.Graduate * 100).toFixed(1).replace('.', ',')}%`} />
+      <Text style={styles.text}>Resultado estimado: {CLASS_LABELS[prediction.predictedClass]}</Text>
+      {typeof prediction.probabilities.Enrolled === 'number' && <Text style={connectedStyles.body}>Há também {(prediction.probabilities.Enrolled * 100).toFixed(1).replace('.', ',')}% de chance de permanência na matrícula.</Text>}
+      <Text style={connectedStyles.body}>Modelo {prediction.modelVersion} · previsão experimental. Estimativa para apoio humano; não determina o futuro do estudante.</Text>
     </>}
-    {!loading && !error && !profile && !prediction && <Text style={connectedStyles.body}>Nenhum dado de análise disponível para esta matrícula.</Text>}
+    {!loading && !error && !prediction && <Text style={connectedStyles.body}>Nenhuma previsão atual disponível nas análises da matrícula ou nas 50 importações recentes.</Text>}
   </Card>;
 }
 
 const styles = StyleSheet.create({
   heading: { color: palette.ink, fontSize: 17, fontWeight: '700' }, text: { color: palette.ink, fontSize: 14 },
   error: { color: palette.danger, fontSize: 13 }, stack: { gap: 10 },
-  link: { color: palette.primary, fontSize: 14, fontWeight: '700' },
 });

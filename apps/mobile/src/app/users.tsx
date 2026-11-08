@@ -9,8 +9,10 @@ import { TopBar, useGoBack } from '@/components/top-bar';
 import { palette, roleLabel } from '@/constants/design';
 import { Editor, type EditorConfig } from '@/features/academic/editor';
 import { DataNotice } from '@/features/connected/ui';
-import { ApiError, type InstituicaoOption, type Perfil, type UserSummary } from '@/services/api';
+import { useImportedPredictions } from '@/features/connected/use-predictions';
+import { ApiError, type InstituicaoOption, type Perfil, type UserDetail, type UserSummary } from '@/services/api';
 import { api } from '@/services/api-config';
+import type { EnrollmentMl, MlImportedPrediction, MlPrediction } from '@/services/ml';
 
 export default function UsersScreen() {
   const router = useRouter();
@@ -18,6 +20,7 @@ export default function UsersScreen() {
   const { bottom } = useSafeAreaInsets();
   const { state, request } = useSession();
   const role = state.status === 'signedIn' ? state.user.perfil : null;
+  const analysis = useImportedPredictions(role === 'COORDENACAO' && state.status === 'signedIn' && state.mode === 'api');
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [instituicoes, setInstituicoes] = useState<InstituicaoOption[]>([]);
   const [selectedInstitution, setSelectedInstitution] = useState('all');
@@ -91,7 +94,7 @@ export default function UsersScreen() {
       <FlatList
         data={!loading && !error && !editor ? visibleUsers : []}
         keyExtractor={(user) => user.id}
-        renderItem={({ item }) => <UserCard user={item} onPress={() => router.push({ pathname: '/person/[id]', params: { id: item.id } })} />}
+        renderItem={({ item }) => <UserCard user={item} showPrediction={role === 'COORDENACAO'} imported={analysis.predictions} importError={!!analysis.error} onPress={() => router.push({ pathname: '/person/[id]', params: { id: item.id } })} />}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         contentContainerStyle={[styles.list, { paddingBottom: 24 + bottom }]}
@@ -99,7 +102,8 @@ export default function UsersScreen() {
           <View style={styles.headerContent}>
             <TopBar onBack={goBack} />
             <SectionTitle title="Estudantes" />
-            <DataNotice>Cadastros da API, conforme os vínculos e permissões da sua conta. Não há classificação de risco disponível.</DataNotice>
+            <DataNotice>{role === 'COORDENACAO' ? 'Resultados experimentais para apoio humano. As previsões importadas abrangem até 50 registros recentes; análises individuais da matrícula também são consultadas.' : 'Cadastros da API, conforme os vínculos e permissões da sua conta.'}</DataNotice>
+            {role === 'COORDENACAO' && !!analysis.error && <Text accessibilityRole="alert" style={styles.errorText}>{analysis.error}</Text>}
             <TextInput accessibilityLabel="Pesquisar estudantes e profissionais" autoCapitalize="none" placeholder="Buscar nome, e-mail ou Fatec" placeholderTextColor={palette.muted} value={query} onChangeText={setQuery} style={styles.search} />
             {role === 'COORDENACAO' && <><Text style={styles.label}>Fatec</Text><View style={styles.chips}><Chip label="Todas" selected={selectedInstitution === 'all'} onPress={() => setSelectedInstitution('all')} />{instituicoes.map((item) => <Chip key={item.id} label={item.nome} selected={selectedInstitution === item.id} onPress={() => setSelectedInstitution(item.id)} />)}</View></>}
             <Text style={styles.label}>Perfil</Text><View style={styles.chips}><Chip label="Todos" selected={selectedRole === 'ALL'} onPress={() => setSelectedRole('ALL')} />{(['ALUNO', 'PROFESSOR', 'TUTOR', 'COORDENACAO', 'SECRETARIA'] as Perfil[]).filter((perfil) => role === 'COORDENACAO' || perfil === 'ALUNO').map((perfil) => <Chip key={perfil} label={roleLabel[perfil]} selected={selectedRole === perfil} onPress={() => setSelectedRole(perfil)} />)}</View>
@@ -113,13 +117,40 @@ export default function UsersScreen() {
           </View>
         }
         ListEmptyComponent={!loading && !error && !editor ? <View style={styles.empty}><Text style={styles.emptyTitle}>Nenhuma pessoa encontrada</Text><Text style={styles.emptyText}>Verifique os filtros ou os vínculos acadêmicos.</Text></View> : undefined}
-        ListFooterComponent={!loading && !error && !editor ? <TextButton title="Atualizar lista" onPress={() => void load()} /> : undefined}
+        ListFooterComponent={!loading && !error && !editor ? <TextButton title="Atualizar lista" onPress={() => { void load(); if (role === 'COORDENACAO') analysis.refresh(); }} /> : undefined}
       />
     </SafeAreaView>
   );
 }
 
-function UserCard({ user, onPress }: { user: UserSummary; onPress: () => void }) {
+function UserCard({ user, showPrediction, imported, importError, onPress }: { user: UserSummary; showPrediction: boolean; imported: Record<string, MlImportedPrediction>; importError: boolean; onPress: () => void }) {
+  const { request } = useSession();
+  const [registrations, setRegistrations] = useState<string[] | null>(null);
+  const [profilePrediction, setProfilePrediction] = useState<EnrollmentMl['resultado'] | undefined>(undefined);
+  const [predictionError, setPredictionError] = useState(false);
+  useEffect(() => {
+    if (!showPrediction || user.perfil !== 'ALUNO') return;
+    let active = true;
+    void request<UserDetail>(`/usuarios/${encodeURIComponent(user.id)}`)
+      .then((detail) => {
+        if (active) setRegistrations(detail.matriculas.map((item) => item.registro));
+        return Promise.allSettled(detail.matriculas.map((item) => request<EnrollmentMl>(`/ml/matriculas/${encodeURIComponent(item.id)}`)));
+      })
+      .then((results) => {
+        if (!active) return;
+        const available = results.flatMap((result) => result.status === 'fulfilled' && result.value.resultado ? [result.value.resultado] : []);
+        setProfilePrediction(available.sort((a, b) => b.probabilities.Dropout - a.probabilities.Dropout)[0] ?? null);
+        setPredictionError(results.some((result) => result.status === 'rejected'));
+      })
+      .catch(() => { if (active) { setProfilePrediction(null); setPredictionError(true); } });
+    return () => { active = false; };
+  }, [request, showPrediction, user.id, user.perfil]);
+  const importedPrediction = registrations?.flatMap((registration) => imported[registration] ? [imported[registration]] : [])
+    .sort((a, b) => b.probabilities.Dropout - a.probabilities.Dropout)[0];
+  const prediction: MlPrediction | null | undefined = importedPrediction && profilePrediction
+    ? (importedPrediction.calculadoEm >= profilePrediction.calculadoEm ? importedPrediction : profilePrediction)
+    : importedPrediction ?? profilePrediction;
+  const resultLabel = prediction?.predictedClass === 'Dropout' ? 'Evasão prevista' : prediction?.predictedClass === 'Graduate' ? 'Conclusão prevista' : prediction ? 'Permanência prevista' : predictionError || importError ? 'Análise indisponível' : 'Sem análise no recorte';
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Abrir detalhes de ${user.nome}`} onPress={onPress} style={styles.userCard}>
       <View style={styles.initial}><Text style={styles.initialText}>{user.nome.trim().charAt(0).toUpperCase()}</Text></View>
@@ -127,7 +158,8 @@ function UserCard({ user, onPress }: { user: UserSummary; onPress: () => void })
         <Text style={styles.userName}>{user.nome}</Text>
         <Text style={styles.userEmail}>{user.email}</Text>
         <Text style={styles.userEmail}>{user.instituicao?.nome ?? 'Fatec não informada'}</Text>
-        <View style={styles.badges}><Text style={styles.roleBadge}>{roleLabel[user.perfil]}</Text><Text style={[styles.stateBadge, !user.ativo && styles.inactive]}>{user.ativo ? 'Ativo' : 'Inativo'}</Text></View>
+        <View style={styles.badges}><Text style={styles.roleBadge}>{roleLabel[user.perfil]}</Text>{user.perfil === 'ALUNO' && showPrediction ? <Text style={[styles.stateBadge, prediction?.predictedClass === 'Dropout' && styles.inactive]}>{prediction === undefined ? 'Carregando análise…' : resultLabel}</Text> : <Text style={[styles.stateBadge, !user.ativo && styles.inactive]}>{user.ativo ? 'Ativo' : 'Inativo'}</Text>}</View>
+        {!user.ativo && user.perfil === 'ALUNO' && showPrediction && <Text style={styles.userEmail}>Conta inativa</Text>}
       </View>
     </Pressable>
   );
@@ -164,7 +196,7 @@ const styles = StyleSheet.create({
   userText: { flex: 1, gap: 3 },
   userName: { color: palette.ink, fontSize: 14, fontWeight: '700' },
   userEmail: { color: palette.muted, fontSize: 12 },
-  badges: { flexDirection: 'row', gap: 6, marginTop: 7 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 },
   roleBadge: { color: palette.primary, backgroundColor: palette.primarySoft, borderRadius: 7, paddingHorizontal: 7, paddingVertical: 5, overflow: 'hidden', fontSize: 11, fontWeight: '700' },
   stateBadge: { color: palette.primary, backgroundColor: '#E8F6EE', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 5, overflow: 'hidden', fontSize: 11, fontWeight: '700' },
   inactive: { color: palette.danger, backgroundColor: palette.dangerSoft },
