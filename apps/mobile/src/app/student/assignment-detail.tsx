@@ -13,7 +13,7 @@ export default function StudentAssignmentDetail() {
   const [fileName, setFileName] = useState('');
   const [feedback, setFeedback] = useState('');
   const [now] = useState(() => Date.now());
-  const assignment = data.assignments.find((item) => item.id === id && item.status === 'PUBLISHED' && demoStudentSubjects.some((subject) => subject.id === item.subjectId));
+  const assignment = data.assignments.find((item) => item.id === id && item.status !== 'DRAFT' && demoStudentSubjects.some((subject) => subject.id === item.subjectId));
   if (!assignment) return <Screen><AcademicHeader title="Atividade indisponível" back backHref="/student/assignments" /><EmptyState title="Acesso não disponível" detail="Atividade não publicada ou fora da matrícula demonstrativa." /></Screen>;
   const assignmentId = assignment.id;
   const subject = demoStudentSubjects.find((item) => item.id === assignment.subjectId)!;

@@ -21,6 +21,8 @@ export default function ConnectedLayout() {
     <Tabs.Screen name="materials" options={manager ? hiddenTab : { title: 'Materiais', tabBarIcon: ({ color }) => <TabIcon symbol="▣" color={color} /> }} />
     <Tabs.Screen name="report" options={hiddenTab} />
     <Tabs.Screen name="account" options={hiddenTab} />
+    <Tabs.Screen name="billing" options={hiddenTab} />
     <Tabs.Screen name="class/[id]" options={hiddenTab} />
+    <Tabs.Screen name="subject/[id]" options={hiddenTab} />
   </AppTabs>;
 }
