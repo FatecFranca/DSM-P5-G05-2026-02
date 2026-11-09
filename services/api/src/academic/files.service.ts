@@ -9,6 +9,8 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { AuthUser } from '../auth/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
+import { canChat } from '../messages/messages.policy';
+import { channelPostWhere } from '../messages/messages.scope';
 import { enrollmentScope, requireRole, subjectScope } from './academic.policy';
 
 export interface AcademicUpload {
@@ -80,12 +82,33 @@ export class FilesService {
     }
   }
   async download(actor: AuthUser, id: string) {
+    // Anexos de mensagens: só quem participa da conversa, ou quem enxerga o canal da publicação.
+    const posts = channelPostWhere(actor);
     const file = await this.db.arquivo.findFirst({
       where: {
         id,
         instituicaoId: actor.instituicaoId,
         OR: [
           { autorId: actor.id },
+          ...(canChat(actor.perfil)
+            ? [
+                {
+                  mensagens: {
+                    some: {
+                      conversa: {
+                        participantes: { some: { usuarioId: actor.id } },
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(posts
+            ? [
+                { publicacoes: { some: posts } },
+                { respostas: { some: { publicacao: posts } } },
+              ]
+            : []),
           ...(actor.perfil === 'TUTOR'
             ? []
             : [{ materiais: { some: { disciplina: subjectScope(actor) } } }]),

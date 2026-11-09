@@ -12,6 +12,7 @@ import { enrollmentScope } from '../academic/academic.policy';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ListUsersDto } from './dto/list-users.dto';
+import { generateTempPassword } from './temp-password';
 
 const safeUser = {
   id: true,
@@ -157,7 +158,11 @@ export class UsersService {
     if (nome.length < 2) {
       throw new BadRequestException('Nome deve ter pelo menos 2 caracteres');
     }
-    const senhaHash = await argon2.hash(dto.senha, { type: argon2.argon2id });
+    // Sem senha informada, gera uma temporária (devolvida uma vez). Em qualquer caso a pessoa troca a
+    // senha no primeiro acesso: quem a definiu foi o administrador, não ela.
+    const generated = dto.senha === undefined;
+    const senha = dto.senha ?? generateTempPassword();
+    const senhaHash = await argon2.hash(senha, { type: argon2.argon2id });
     try {
       return await this.prisma.$transaction(async (tx) => {
         const created = await tx.usuario.create({
@@ -167,6 +172,7 @@ export class UsersService {
             nome,
             senhaHash,
             perfil: dto.perfil,
+            trocaSenhaObrigatoria: true,
           },
           select: safeUser,
         });
@@ -179,7 +185,7 @@ export class UsersService {
             recursoId: created.id,
           },
         });
-        return created;
+        return generated ? { ...created, senhaTemporaria: senha } : created;
       });
     } catch (error: unknown) {
       if (this.isUniqueViolation(error)) {

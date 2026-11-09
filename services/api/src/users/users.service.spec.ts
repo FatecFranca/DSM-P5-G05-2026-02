@@ -185,6 +185,35 @@ describe('UsersService: isolamento por instituição', () => {
     expect(auditArgs.data.recursoId).toBe('novo-id');
   });
 
+  it('exige a troca de senha, e gera uma senha temporária quando ela não é informada', async () => {
+    create.mockResolvedValue({ id: 'novo-id' });
+    auditCreate.mockResolvedValue({});
+    const withoutPassword = { ...dto, senha: undefined };
+    const result = (await service.create(actor, withoutPassword)) as {
+      senhaTemporaria?: string;
+    };
+    expect(result.senhaTemporaria).toHaveLength(14);
+    const calls = create.mock.calls as Array<
+      [{ data: { senhaHash: string; trocaSenhaObrigatoria: boolean } }]
+    >;
+    expect(calls[0][0].data.trocaSenhaObrigatoria).toBe(true);
+    expect(
+      await argon2.verify(calls[0][0].data.senhaHash, result.senhaTemporaria!),
+    ).toBe(true);
+
+    create.mockClear();
+    create.mockResolvedValue({ id: 'outro-id' });
+    const informed = (await service.create(actor, dto)) as Record<
+      string,
+      unknown
+    >;
+    expect(informed.senhaTemporaria).toBeUndefined();
+    const informedCalls = create.mock.calls as Array<
+      [{ data: { trocaSenhaObrigatoria: boolean } }]
+    >;
+    expect(informedCalls[0][0].data.trocaSenhaObrigatoria).toBe(true);
+  });
+
   it('recusa criar usuário em outra instituição', async () => {
     await expect(
       service.create(actor, { ...dto, instituicaoId: 'outra' }),

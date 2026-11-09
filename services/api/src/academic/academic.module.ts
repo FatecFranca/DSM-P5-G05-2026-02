@@ -4,9 +4,10 @@ import { AcademicController } from './academic.controller';
 import { FilesService } from './files.service';
 import { FilesController } from './files.controller';
 import { FeedsService } from './feeds.service';
+import { ParticipantsService } from './participants.service';
 
 @Module({
-  providers: [AcademicService, FilesService, FeedsService],
+  providers: [AcademicService, FilesService, FeedsService, ParticipantsService],
   controllers: [AcademicController, FilesController],
 })
 export class AcademicModule {}

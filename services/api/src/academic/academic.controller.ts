@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -16,13 +19,60 @@ import { Perfil } from '../generated/prisma/enums';
 import { AcademicService } from './academic.service';
 import * as D from './academic.dto';
 import { FeedsService } from './feeds.service';
+import { ParticipantsService } from './participants.service';
 
 @Controller()
 export class AcademicController {
   constructor(
     private readonly academic: AcademicService,
     private readonly feeds: FeedsService,
+    private readonly participants: ParticipantsService,
   ) {}
+
+  @Get('turmas/:id/participantes')
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA, Perfil.PROFESSOR, Perfil.TUTOR)
+  classParticipants(
+    @Req() req: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.participants.list(req.currentUser, id);
+  }
+
+  @Delete('matriculas/:id')
+  @Roles(Perfil.COORDENACAO, Perfil.SECRETARIA)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeEnrollment(
+    @Req() req: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.academic.removeEnrollment(req.currentUser, id);
+  }
+
+  @Delete('lotacoes/:disciplinaId/:professorId')
+  @Roles(Perfil.COORDENACAO)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeTeaching(
+    @Req() req: AuthRequest,
+    @Param('disciplinaId', ParseUUIDPipe) disciplinaId: string,
+    @Param('professorId', ParseUUIDPipe) professorId: string,
+  ) {
+    await this.academic.removeTeaching(
+      req.currentUser,
+      disciplinaId,
+      professorId,
+    );
+  }
+
+  @Delete('tutorias/:matriculaId/:tutorId')
+  @Roles(Perfil.COORDENACAO)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeTutoring(
+    @Req() req: AuthRequest,
+    @Param('matriculaId', ParseUUIDPipe) matriculaId: string,
+    @Param('tutorId', ParseUUIDPipe) tutorId: string,
+  ) {
+    await this.academic.removeTutoring(req.currentUser, matriculaId, tutorId);
+  }
 
   @Get('academico/calendario')
   calendar(@Req() req: AuthRequest, @Query() query: D.CalendarioQuery) {
@@ -32,6 +82,16 @@ export class AcademicController {
   @Get('academico/avisos')
   notices(@Req() req: AuthRequest, @Query() query: D.FeedQuery) {
     return this.feeds.notices(req.currentUser, query);
+  }
+
+  @Get('academico/avisos/leitura')
+  noticesReadState(@Req() req: AuthRequest) {
+    return this.feeds.noticesReadState(req.currentUser);
+  }
+
+  @Put('academico/avisos/leitura')
+  markNoticesRead(@Req() req: AuthRequest, @Body() dto: D.LeituraAvisosDto) {
+    return this.feeds.markNoticesRead(req.currentUser, dto);
   }
 
   @Get('academico/resumo')

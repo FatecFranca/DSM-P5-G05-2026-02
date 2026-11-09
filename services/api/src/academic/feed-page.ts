@@ -11,6 +11,7 @@ export interface AcademicEvent {
     | 'CORRECAO';
   titulo: string;
   data: Date;
+  turmaId: string;
   disciplinaId: string;
   disciplina: string;
 }

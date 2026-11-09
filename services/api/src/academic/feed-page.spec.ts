@@ -7,6 +7,7 @@ function item(id: string, date: string): AcademicEvent {
     tipo: 'AULA',
     titulo: id,
     data: new Date(date),
+    turmaId: 'turma',
     disciplinaId: 'disciplina',
     disciplina: 'Matemática',
   };

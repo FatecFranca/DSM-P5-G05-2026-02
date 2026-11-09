@@ -131,3 +131,8 @@ export class CalendarioQuery extends FeedQuery {
   @IsDateString({ strict: true }) inicio!: string;
   @IsDateString({ strict: true }) fim!: string;
 }
+
+export class LeituraAvisosDto {
+  /** Data do aviso mais recente que a pessoa viu; sem ela vale o instante da chamada. */
+  @IsOptional() @IsDateString({ strict: true }) ate?: string;
+}

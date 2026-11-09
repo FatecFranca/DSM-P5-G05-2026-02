@@ -1,17 +1,23 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
-import type { CalendarioQuery, FeedQuery } from './academic.dto';
+import type {
+  CalendarioQuery,
+  FeedQuery,
+  LeituraAvisosDto,
+} from './academic.dto';
 import { enrollmentScope, subjectScope } from './academic.policy';
 import { feedPage, type AcademicEvent } from './feed-page';
 
-const disciplinaSelect = { select: { id: true, nome: true } } as const;
+const disciplinaSelect = {
+  select: { id: true, nome: true, turmaId: true },
+} as const;
 function event(
   tipo: AcademicEvent['tipo'],
   id: string,
   titulo: string,
   data: Date,
-  disciplina: { id: string; nome: string },
+  disciplina: { id: string; nome: string; turmaId: string },
 ): AcademicEvent {
   return {
     id: `${tipo}:${id}`,
@@ -19,6 +25,7 @@ function event(
     tipo,
     titulo,
     data,
+    turmaId: disciplina.turmaId,
     disciplinaId: disciplina.id,
     disciplina: disciplina.nome,
   };
@@ -112,6 +119,53 @@ export class FeedsService {
       query.tamanho,
     );
   }
+  /** Até quando a pessoa viu os avisos; `null` se nunca abriu a aba Atividade. */
+  async noticesReadState(actor: AuthUser) {
+    const row = await this.db.leituraAvisos.findUnique({
+      where: {
+        instituicaoId_usuarioId: {
+          instituicaoId: actor.instituicaoId,
+          usuarioId: actor.id,
+        },
+      },
+      select: { lidoAte: true },
+    });
+    return { lidoAte: row ? row.lidoAte.toISOString() : null };
+  }
+
+  /**
+   * Marca os avisos como vistos até `ate` (o mais recente que a tela exibiu). Nunca recua e nunca passa
+   * do instante atual, para que um aviso publicado durante a leitura não seja dado como visto.
+   */
+  async markNoticesRead(actor: AuthUser, dto: LeituraAvisosDto) {
+    const now = new Date();
+    const requested = dto.ate ? new Date(dto.ate) : now;
+    const value = requested > now ? now : requested;
+    const key = {
+      instituicaoId_usuarioId: {
+        instituicaoId: actor.instituicaoId,
+        usuarioId: actor.id,
+      },
+    };
+    const current = await this.db.leituraAvisos.findUnique({
+      where: key,
+      select: { lidoAte: true },
+    });
+    if (current && current.lidoAte >= value) {
+      return { lidoAte: current.lidoAte.toISOString() };
+    }
+    await this.db.leituraAvisos.upsert({
+      where: key,
+      create: {
+        instituicaoId: actor.instituicaoId,
+        usuarioId: actor.id,
+        lidoAte: value,
+      },
+      update: { lidoAte: value },
+    });
+    return { lidoAte: value.toISOString() };
+  }
+
   async notices(actor: AuthUser, query: FeedQuery) {
     const where = {
       instituicaoId: actor.instituicaoId,

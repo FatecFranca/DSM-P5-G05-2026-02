@@ -55,6 +55,16 @@ model Usuario {
   lotacoes      Lotacao[]
   tutorias      Tutoria[]
   arquivos      Arquivo[]
+  conversasCriadas   Conversa[]              @relation("ConversaCriadaPor")
+  participacoes      ConversaParticipante[]
+  mensagens          Mensagem[]
+  publicacoes        Publicacao[]
+  respostas          RespostaPublicacao[]
+  curtidasMensagem   CurtidaMensagem[]
+  curtidasPublicacao CurtidaPublicacao[]
+  curtidasResposta   CurtidaResposta[]
+  leiturasCanal      LeituraCanal[]
+  leituraAvisos      LeituraAvisos?
 
   @@unique([instituicaoId, email])
   @@unique([instituicaoId, id])
@@ -102,6 +112,7 @@ model Turma {
   instituicao   Instituicao  @relation(fields: [instituicaoId], references: [id])
   disciplinas   Disciplina[]
   matriculas    Matricula[]
+  publicacoes   Publicacao[]
 
   @@unique([instituicaoId, id])
   @@unique([instituicaoId, nome, periodo])
@@ -119,6 +130,7 @@ model Disciplina {
   avaliacoes    Avaliacao[]
   atividades    Atividade[]
   materiais     Material[]
+  publicacoes   Publicacao[]
 
   @@unique([instituicaoId, id])
   @@unique([instituicaoId, turmaId, nome])
@@ -487,6 +499,9 @@ model Arquivo {
   autor         Usuario    @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
   materiais     Material[]
   entregas      Entrega[]
+  mensagens     Mensagem[]
+  publicacoes   Publicacao[]
+  respostas     RespostaPublicacao[]
 
   @@unique([instituicaoId, id])
   @@index([instituicaoId, autorId])
@@ -524,4 +539,168 @@ model Material {
   @@unique([instituicaoId, id])
   @@index([instituicaoId, disciplinaId])
   @@map("material")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Mensagens: conversas (diretas e em grupo) e canais da turma (publicações com respostas).
+// Todo registro pertence a uma instituição; as chaves compostas impedem referências entre elas.
+// ---------------------------------------------------------------------------------------------
+
+enum TipoConversa {
+  DIRETA
+  GRUPO
+}
+
+model Conversa {
+  id            String       @id @default(uuid()) @db.Uuid
+  instituicaoId String       @db.Uuid
+  tipo          TipoConversa
+  titulo        String?      @db.VarChar(120)
+  /// Só nas conversas diretas ("idMenor:idMaior"): garante uma única conversa por par de pessoas.
+  chaveDireta   String?      @db.VarChar(80)
+  criadaPorId   String       @db.Uuid
+  criadaEm      DateTime     @default(now())
+  criadaPor     Usuario      @relation("ConversaCriadaPor", fields: [instituicaoId, criadaPorId], references: [instituicaoId, id])
+  participantes ConversaParticipante[]
+  mensagens     Mensagem[]
+
+  @@unique([instituicaoId, id])
+  @@unique([instituicaoId, chaveDireta])
+  @@map("conversa")
+}
+
+model ConversaParticipante {
+  instituicaoId String    @db.Uuid
+  conversaId    String    @db.Uuid
+  usuarioId     String    @db.Uuid
+  entrouEm      DateTime  @default(now())
+  /// Última leitura da conversa por esta pessoa; o que veio depois e é de outros conta como não lido.
+  lidoAte       DateTime?
+  conversa      Conversa  @relation(fields: [instituicaoId, conversaId], references: [instituicaoId, id])
+  usuario       Usuario   @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, conversaId, usuarioId])
+  @@index([instituicaoId, usuarioId])
+  @@map("conversa_participante")
+}
+
+model Mensagem {
+  id            String    @id @default(uuid()) @db.Uuid
+  instituicaoId String    @db.Uuid
+  conversaId    String    @db.Uuid
+  autorId       String    @db.Uuid
+  texto         String    @db.VarChar(2000)
+  arquivoId     String?   @db.Uuid
+  criadaEm      DateTime  @default(now())
+  conversa      Conversa  @relation(fields: [instituicaoId, conversaId], references: [instituicaoId, id])
+  autor         Usuario   @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+  arquivo       Arquivo?  @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+  curtidas      CurtidaMensagem[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, conversaId, criadaEm])
+  @@map("mensagem")
+}
+
+model Publicacao {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @db.Uuid
+  turmaId       String      @db.Uuid
+  /// Nulo no canal "Geral" da turma; preenchido no canal de uma disciplina.
+  disciplinaId  String?     @db.Uuid
+  autorId       String      @db.Uuid
+  texto         String      @db.VarChar(2000)
+  importante    Boolean     @default(false)
+  arquivoId     String?     @db.Uuid
+  criadaEm      DateTime    @default(now())
+  turma         Turma       @relation(fields: [instituicaoId, turmaId], references: [instituicaoId, id])
+  disciplina    Disciplina? @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  autor         Usuario     @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+  arquivo       Arquivo?    @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+  respostas     RespostaPublicacao[]
+  curtidas      CurtidaPublicacao[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, turmaId, disciplinaId, criadaEm])
+  @@map("publicacao")
+}
+
+model RespostaPublicacao {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  publicacaoId  String     @db.Uuid
+  autorId       String     @db.Uuid
+  texto         String     @db.VarChar(2000)
+  arquivoId     String?    @db.Uuid
+  criadaEm      DateTime   @default(now())
+  publicacao    Publicacao @relation(fields: [instituicaoId, publicacaoId], references: [instituicaoId, id])
+  autor         Usuario    @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+  arquivo       Arquivo?   @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+  curtidas      CurtidaResposta[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, publicacaoId, criadaEm])
+  @@map("resposta_publicacao")
+}
+
+model CurtidaMensagem {
+  instituicaoId String   @db.Uuid
+  mensagemId    String   @db.Uuid
+  usuarioId     String   @db.Uuid
+  criadaEm      DateTime @default(now())
+  mensagem      Mensagem @relation(fields: [instituicaoId, mensagemId], references: [instituicaoId, id])
+  usuario       Usuario  @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, mensagemId, usuarioId])
+  @@index([instituicaoId, usuarioId])
+  @@map("curtida_mensagem")
+}
+
+model CurtidaPublicacao {
+  instituicaoId String     @db.Uuid
+  publicacaoId  String     @db.Uuid
+  usuarioId     String     @db.Uuid
+  criadaEm      DateTime   @default(now())
+  publicacao    Publicacao @relation(fields: [instituicaoId, publicacaoId], references: [instituicaoId, id])
+  usuario       Usuario    @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, publicacaoId, usuarioId])
+  @@index([instituicaoId, usuarioId])
+  @@map("curtida_publicacao")
+}
+
+model CurtidaResposta {
+  instituicaoId String             @db.Uuid
+  respostaId    String             @db.Uuid
+  usuarioId     String             @db.Uuid
+  criadaEm      DateTime           @default(now())
+  resposta      RespostaPublicacao @relation(fields: [instituicaoId, respostaId], references: [instituicaoId, id])
+  usuario       Usuario            @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, respostaId, usuarioId])
+  @@index([instituicaoId, usuarioId])
+  @@map("curtida_resposta")
+}
+
+/// Última leitura de um canal por pessoa. `canal` é "turmaId:geral" ou "turmaId:disciplinaId".
+model LeituraCanal {
+  instituicaoId String   @db.Uuid
+  usuarioId     String   @db.Uuid
+  canal         String   @db.VarChar(80)
+  lidoAte       DateTime
+  usuario       Usuario  @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, usuarioId, canal])
+  @@map("leitura_canal")
+}
+
+/// Última vez que a pessoa abriu a aba Atividade (feed de avisos), para sincronizar entre aparelhos.
+model LeituraAvisos {
+  instituicaoId String   @db.Uuid
+  usuarioId     String   @db.Uuid
+  lidoAte       DateTime
+  usuario       Usuario  @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, usuarioId])
+  @@map("leitura_avisos")
 }

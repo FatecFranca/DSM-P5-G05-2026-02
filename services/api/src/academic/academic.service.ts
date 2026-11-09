@@ -327,6 +327,101 @@ export class AcademicService {
       });
     });
   }
+  /**
+   * Desfaz uma matrícula feita por engano. Só é possível enquanto ela não tem movimentação: notas,
+   * presenças, entregas, cobranças ou dados de análise ficam presos a ela e não podem se perder.
+   * Depois disso, a saída é fechar o período da turma.
+   */
+  async removeEnrollment(actor: AuthUser, id: string) {
+    requireRole(actor, ['COORDENACAO', 'SECRETARIA']);
+    const scoped = await this.adminActorForEnrollment(actor, id);
+    return this.change(actor, 'REMOVER_MATRICULA', async (tx) => {
+      const enrollment = await tx.matricula.findFirst({
+        where: { id, instituicaoId: scoped.instituicaoId },
+        select: { turmaId: true },
+      });
+      if (!enrollment) throw new NotFoundException('Matrícula não encontrada');
+      await this.openClass(tx, scoped, enrollment.turmaId);
+      const withRecords = await tx.matricula.count({
+        where: {
+          id,
+          instituicaoId: scoped.instituicaoId,
+          OR: [
+            { presencas: { some: {} } },
+            { notas: { some: {} } },
+            { entregas: { some: {} } },
+            { faturas: { some: {} } },
+            { planoMensalidade: { isNot: null } },
+            { bolsa: { isNot: null } },
+            { perfilMl: { isNot: null } },
+            { eventosAtributos: { some: {} } },
+            { resumosMl: { some: {} } },
+            { declaracaoIngresso: { isNot: null } },
+            { fonteIngresso: { isNot: null } },
+            { previsoesImportadas: { some: {} } },
+            { previsoesAutomaticas: { some: {} } },
+          ],
+        },
+      });
+      if (withRecords) {
+        throw new ConflictException(
+          'Esta matrícula já tem registros (notas, presenças, entregas, cobranças ou dados de análise) e não pode ser removida. Para encerrar o período, feche a turma.',
+        );
+      }
+      await tx.tutoria.deleteMany({
+        where: { instituicaoId: scoped.instituicaoId, matriculaId: id },
+      });
+      await tx.matricula.delete({
+        where: {
+          instituicaoId_id: { instituicaoId: scoped.instituicaoId, id },
+        },
+      });
+    });
+  }
+
+  /** Tira o docente da disciplina. Aulas, notas e atividades já lançadas continuam na disciplina. */
+  async removeTeaching(
+    actor: AuthUser,
+    disciplinaId: string,
+    professorId: string,
+  ) {
+    requireRole(actor, ['COORDENACAO']);
+    const scoped = await this.adminActorForSubject(actor, disciplinaId);
+    return this.change(actor, 'DESVINCULAR_PROFESSOR', async (tx) => {
+      const subject = await tx.disciplina.findFirst({
+        where: { id: disciplinaId, instituicaoId: scoped.instituicaoId },
+        select: { turmaId: true },
+      });
+      if (!subject) throw new NotFoundException('Disciplina não encontrada');
+      await this.openClass(tx, scoped, subject.turmaId);
+      const removed = await tx.lotacao.deleteMany({
+        where: {
+          instituicaoId: scoped.instituicaoId,
+          disciplinaId,
+          professorId,
+        },
+      });
+      if (!removed.count) throw new NotFoundException('Vínculo não encontrado');
+    });
+  }
+
+  async removeTutoring(actor: AuthUser, matriculaId: string, tutorId: string) {
+    requireRole(actor, ['COORDENACAO']);
+    const scoped = await this.adminActorForEnrollment(actor, matriculaId);
+    return this.change(actor, 'DESVINCULAR_TUTOR', async (tx) => {
+      const enrollment = await tx.matricula.findFirst({
+        where: { id: matriculaId, instituicaoId: scoped.instituicaoId },
+        select: { turmaId: true },
+      });
+      if (!enrollment) throw new NotFoundException('Matrícula não encontrada');
+      await this.openClass(tx, scoped, enrollment.turmaId);
+      const removed = await tx.tutoria.deleteMany({
+        where: { instituicaoId: scoped.instituicaoId, matriculaId, tutorId },
+      });
+      if (!removed.count) throw new NotFoundException('Vínculo não encontrado');
+    });
+  }
+
   async closeClass(actor: AuthUser, id: string, fechada: boolean) {
     requireRole(actor, ['COORDENACAO']);
     const scoped = await this.adminActorForClass(actor, id);

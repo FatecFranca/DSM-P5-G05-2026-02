@@ -22,10 +22,12 @@ export class CreateUserDto {
   @MaxLength(160)
   nome!: string;
 
+  /** Opcional: sem ela o servidor gera uma senha temporária e a devolve uma única vez. */
+  @IsOptional()
   @IsString()
   @MinLength(12)
   @MaxLength(128)
-  senha!: string;
+  senha?: string;
 
   @IsEnum(Perfil)
   perfil!: Perfil;

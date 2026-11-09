@@ -11,6 +11,7 @@ import { RolesGuard } from './common/roles/roles.guard';
 import { validateEnvironment } from './config/validate-environment';
 import { AcademicModule } from './academic/academic.module';
 import { BillingModule } from './billing/billing.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { BillingModule } from './billing/billing.module';
     MlModule,
     AcademicModule,
     BillingModule,
+    MessagesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
