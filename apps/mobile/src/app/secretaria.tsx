@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSession } from '@/auth/session';
-import { Screen } from '@/components/primitives';
+import { Screen, TextButton } from '@/components/primitives';
 import { TopBar } from '@/components/top-bar';
-import { ActionButton, BodyText, Chip, Feedback, FormField, Panel, PanelTitle, academicStyles } from '@/demo/academic-ui';
+import { palette, space, type } from '@/constants/design';
+import { ActionButton, Avatar, BodyText, Feedback, FormField, ListRow, Panel, PanelTitle, RowList, SegmentTabs, TypeIcon, academicStyles } from '@/demo/academic-ui';
 import { Editor, type EditorConfig } from '@/features/academic/editor';
-import type { UserSummary } from '@/services/api';
+import { PeopleImport } from '@/features/people/people-import';
+import { ClassParticipants } from '@/features/connected/class-participants';
 import { ML_FIELD_LABELS, parsePartialMlFields, type MlSchema } from '@/services/ml';
 import { chooseMlWorkbook, saveWorkbookTemplate } from '@/features/academic/files';
 
+type Section = 'ingresso' | 'cadastro' | 'fontes';
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 type Enrollment = { id: string; registro: string; aluno: { nome: string } };
 type Pending = { matriculaId: string; revisao: number; atualizadoEm: string; matricula: { registro: string; aluno: { nome: string } } };
 type Ingress = {
@@ -33,10 +37,8 @@ export default function SecretaryScreen() {
   const admin = state.status === 'signedIn' && state.user.perfil === 'COORDENACAO';
   const [pending, setPending] = useState<Pending[]>([]);
   const [schema, setSchema] = useState<MlSchema | null>(null);
-  const [classes, setClasses] = useState<{ id: string; nome: string; periodo: string }[]>([]);
-  const [studentSearch, setStudentSearch] = useState('');
-  const [students, setStudents] = useState<UserSummary[]>([]);
-  const [chosenStudent, setChosenStudent] = useState<UserSummary | null>(null);
+  const [classes, setClasses] = useState<{ id: string; nome: string; curso: string; periodo: string }[]>([]);
+  const [openClass, setOpenClass] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorConfig | null>(null);
   const [editorScope, setEditorScope] = useState<'cadastro' | 'fonte'>('cadastro');
   const [query, setQuery] = useState('');
@@ -50,6 +52,9 @@ export default function SecretaryScreen() {
   const [notice, setNotice] = useState('');
   const [revision, setRevision] = useState(0);
   const [sourceReport, setSourceReport] = useState<ImportReport | null>(null);
+  // `null` = ainda não escolheu: abre em Ingresso se há declaração esperando, senão em Cadastro.
+  const [section, setSection] = useState<Section | null>(null);
+  const [importing, setImporting] = useState(false);
 
   async function downloadSourceTemplate(kind: 'semestres' | 'macro') {
     setBusy(true); setError(''); setNotice('');
@@ -85,7 +90,7 @@ export default function SecretaryScreen() {
 
   useEffect(() => {
     let active = true;
-    void request<{ id: string; nome: string; periodo: string }[]>('/turmas')
+    void request<{ id: string; nome: string; curso: string; periodo: string }[]>('/turmas')
       .then((items) => { if (active) setClasses(items); })
       .catch((cause: unknown) => { if (active) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar as turmas.'); });
     return () => { active = false; };
@@ -112,42 +117,6 @@ export default function SecretaryScreen() {
       setMatches(await request<Enrollment[]>(`/ml/ingressos/matriculas?registro=${encodeURIComponent(query.trim())}`));
     } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Busca indisponível.'); }
     finally { setBusy(false); }
-  }
-
-  async function searchStudents() {
-    if (studentSearch.trim().length < 2) { setError('Informe ao menos 2 caracteres do nome ou e-mail do aluno.'); return; }
-    setBusy(true); setError('');
-    try {
-      const results = await request<UserSummary[]>(`/usuarios?perfil=ALUNO&busca=${encodeURIComponent(studentSearch.trim())}`);
-      setStudents(results);
-      setChosenStudent(null);
-    } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Não foi possível buscar alunos.'); }
-    finally { setBusy(false); }
-  }
-
-  function openStudent() {
-    setEditorScope('cadastro');
-    setEditor({ title: 'Criar conta de aluno', fields: [
-      { key: 'nome', label: 'Nome completo' }, { key: 'email', label: 'E-mail' },
-      { key: 'senha', label: 'Senha inicial (mínimo 12 caracteres)', type: 'password' },
-    ], submit: async (values) => {
-      const created = await request<UserSummary>('/usuarios', { method: 'POST', body: { nome: values.nome.trim(), email: values.email.trim(), senha: values.senha, perfil: 'ALUNO' } });
-      setStudents([created]); setChosenStudent(created);
-      setNotice('Conta de aluno criada. Agora registre sua matrícula.');
-    } });
-  }
-
-  function openEnrollment() {
-    if (!chosenStudent) return;
-    setEditorScope('cadastro');
-    setEditor({ title: `Matricular ${chosenStudent.nome}`, fields: [
-      { key: 'turmaId', label: 'Turma', options: classes.map((item) => ({ id: item.id, label: `${item.nome} · ${item.periodo}` })) },
-      { key: 'registro', label: 'Registro acadêmico' },
-    ], submit: async (values) => {
-      await request('/matriculas', { method: 'POST', body: { turmaId: values.turmaId, alunoId: chosenStudent.id, registro: values.registro.trim() } });
-      setNotice('Matrícula criada. O aluno já pode enviar sua declaração de ingresso.');
-      setChosenStudent(null);
-    } });
   }
 
   async function openSemester(semester: 1 | 2) {
@@ -246,65 +215,130 @@ export default function SecretaryScreen() {
     finally { setBusy(false); }
   }
 
+  const active = section ?? (pending.length ? 'ingresso' : 'cadastro');
+  const openFromList = (next: Enrollment) => { setError(''); setNotice(''); setIngress(null); setSelected(next); };
+
   return <Screen>
     <TopBar />
-    <Panel><PanelTitle>Financeiro</PanelTitle><BodyText>Mensalidades, pagamentos e bolsas da instituição.</BodyText><ActionButton title="Abrir financeiro" onPress={() => router.push('/financeiro')} /></Panel>
-    <Panel><PanelTitle>Cadastro acadêmico</PanelTitle>
-      <BodyText>Crie uma conta de aluno ou localize uma existente e vincule-a a uma turma da instituição.</BodyText>
-      <ActionButton title="Criar conta de aluno" onPress={openStudent} />
-      <FormField label="Buscar aluno por nome ou e-mail" value={studentSearch} onChangeText={setStudentSearch} />
-      <ActionButton title="Buscar aluno" secondary disabled={busy} onPress={() => void searchStudents()} />
-      <View style={academicStyles.chips}>{students.slice(0, 20).map((item) => <Chip key={item.id} label={item.nome} selected={chosenStudent?.id === item.id} onPress={() => setChosenStudent(item)} />)}</View>
-      {chosenStudent && <ActionButton title={`Matricular ${chosenStudent.nome}`} disabled={!classes.length} onPress={openEnrollment} />}
-      {!classes.length && <BodyText>Nenhuma turma disponível para matrícula.</BodyText>}
-    </Panel>
-    {editor && editorScope === 'cadastro' && <Editor config={editor} close={() => setEditor(null)} />}
-    <Panel><PanelTitle>Importar fontes oficiais</PanelTitle>
-      <BodyText>Envie até 100 registros por planilha. O resumo semestral atualiza os atributos acadêmicos; o indicador macroeconômico atualiza as coortes vinculadas. Guarde a referência da fonte em cada linha.</BodyText>
-      {Platform.OS === 'android' && <BodyText>Escolha a pasta Documentos ao baixar o modelo para mantê-lo disponível após fechar o app.</BodyText>}
-      <ActionButton title="Baixar modelo de resumos semestrais" secondary disabled={busy} onPress={() => void downloadSourceTemplate('semestres')} />
-      <ActionButton title="Importar resumos semestrais" disabled={busy} onPress={() => void importSource('semestres')} />
-      {admin && <>
-        <ActionButton title="Baixar modelo macroeconômico" secondary disabled={busy} onPress={() => void downloadSourceTemplate('macro')} />
-        <ActionButton title="Importar indicadores macroeconômicos" disabled={busy} onPress={() => void importSource('macro')} />
-      </>}
+    <View style={styles.titleBlock}>
+      <Text accessibilityRole="header" style={styles.title}>Secretaria</Text>
+      <Text style={styles.subtitle}>{pending.length ? `${plural(pending.length, 'declaração aguarda', 'declarações aguardam')} conferência` : 'Nenhuma declaração aguardando conferência'}</Text>
+    </View>
+    <Panel><ListRow title="Financeiro" meta="Mensalidades, pagamentos e bolsas" leading={<TypeIcon name="doc" />} onPress={() => router.push('/financeiro')} /></Panel>
+    <SegmentTabs
+      label="Área da secretaria"
+      selected={active}
+      onSelect={setSection}
+      items={[{ key: 'ingresso', label: 'Ingresso', count: pending.length }, { key: 'cadastro', label: 'Cadastro' }, { key: 'fontes', label: 'Fontes oficiais' }]} />
+    {!!error && <Feedback error message={error} />}
+    {!!notice && <Feedback message={notice} />}
+
+    {active === 'cadastro' && <>
+      <Panel>
+        <PanelTitle>Turmas</PanelTitle>
+        <BodyText>Abra uma turma para matricular estudantes (de uma conta existente ou nova) ou remover uma matrícula.</BodyText>
+        {classes.length
+          ? <RowList>{classes.map((item) => <ListRow
+            key={item.id}
+            leading={<Avatar name={item.nome} label={item.nome.split(' ')[0]} square />}
+            title={item.nome}
+            meta={`${item.curso} · ${item.periodo}`}
+            badge={openClass === item.id ? { text: 'Aberta', tone: 'neutral' } : undefined}
+            onPress={() => setOpenClass(openClass === item.id ? null : item.id)} />)}</RowList>
+          : <BodyText>Nenhuma turma cadastrada ainda. A coordenação cria as turmas.</BodyText>}
+      </Panel>
+      {openClass ? <ClassParticipants key={openClass} turmaId={openClass} /> : null}
+      <Panel>
+        <PanelTitle>Cadastro em lote</PanelTitle>
+        <BodyText>Cadastre e matricule vários estudantes de uma vez por planilha.</BodyText>
+        {!importing ? <View style={styles.inline}><ActionButton compact secondary title="Importar planilha" onPress={() => setImporting(true)} /></View> : null}
+      </Panel>
+      {importing ? <PeopleImport profiles={['ALUNO']} onClose={() => setImporting(false)} /> : null}
+    </>}
+
+    {active === 'ingresso' && <>
+      <Panel>
+        <PanelTitle>Declarações para conferir</PanelTitle>
+        {pending.length
+          ? <RowList>{pending.map((item) => <ListRow
+            key={item.matriculaId}
+            leading={<Avatar name={item.matricula.aluno.nome} size={40} />}
+            title={item.matricula.aluno.nome}
+            meta={`Registro ${item.matricula.registro}`}
+            badge={selected?.id === item.matriculaId ? { text: 'Aberta', tone: 'neutral' } : { text: 'Aguardando', tone: 'attention' }}
+            onPress={() => openFromList({ id: item.matriculaId, ...item.matricula })} />)}</RowList>
+          : <BodyText>Nenhuma declaração aguardando conferência. Confira a documentação do aluno e registre os dados oficiais pela busca abaixo.</BodyText>}
+        <TextButton title="Atualizar fila" onPress={() => setRevision((value) => value + 1)} />
+      </Panel>
+      <Panel>
+        <PanelTitle>Localizar matrícula</PanelTitle>
+        <FormField label="Registro do aluno" value={query} onChangeText={setQuery} placeholder="Digite ao menos 2 caracteres" />
+        <ActionButton compact secondary title="Buscar registro" disabled={busy} onPress={() => void search()} />
+        {matches.length
+          ? <RowList>{matches.map((item) => <ListRow
+            key={item.id}
+            leading={<Avatar name={item.aluno.nome} size={40} />}
+            title={item.aluno.nome}
+            meta={`Registro ${item.registro}`}
+            badge={selected?.id === item.id ? { text: 'Aberta', tone: 'neutral' } : undefined}
+            onPress={() => openFromList(item)} />)}</RowList>
+          : null}
+        {matches.length === 20 && <BodyText>Mostrando os 20 primeiros registros. Refine a busca.</BodyText>}
+      </Panel>
+      {selected && <Panel>
+        <PanelTitle>{selected.aluno.nome} · {selected.registro}</PanelTitle>
+        <BodyText>Atualize somente após conferir os documentos e a escala do dataset português.</BodyText>
+        <View style={styles.inline}>
+          <ActionButton compact secondary title="Homologar 1º semestre" disabled={busy} onPress={() => void openSemester(1)} />
+          <ActionButton compact secondary title="Homologar 2º semestre" disabled={busy} onPress={() => void openSemester(2)} />
+          <ActionButton compact secondary title="Vincular país e ano da coorte" disabled={busy} onPress={() => void openCohort()} />
+          {admin && <ActionButton compact secondary title="Publicar indicadores macroeconômicos" disabled={busy} onPress={() => void openMacroSource()} />}
+        </View>
+        {editor && editorScope === 'fonte' && <Editor config={editor} close={() => setEditor(null)} />}
+        {!ingress && !error && <BodyText>Carregando dados de ingresso…</BodyText>}
+        {ingress && <>
+          <BodyText>{ingress.declaration?.pendente ? 'Declaração do aluno aguardando conferência:' : 'Nenhuma declaração pendente nesta matrícula.'}</BodyText>
+          {ingress.declaration?.pendente && Object.entries(ingress.declaration.dados).map(([key, value]) => <BodyText key={key}>{key}: {typeof value === 'boolean' ? value ? 'Sim' : 'Não' : value}</BodyText>)}
+          <FormField label="Documento ou referência da fonte oficial" value={reference} onChangeText={setReference} placeholder="Ex.: ficha de ingresso, processo 2026/123" />
+          {INGRESS.map((key) => <View key={key} style={academicStyles.stack}>
+            <FormField label={ML_FIELD_LABELS[key] ?? key} value={fields[key] ?? ''} onChangeText={(value) => setFields((current) => ({ ...current, [key]: value }))} keyboardType="decimal-pad" />
+            {schema?.categories[key] && <BodyText>Códigos aceitos: {schema.categories[key].join(', ')}</BodyText>}
+          </View>)}
+          <ActionButton compact title={busy ? 'Salvando…' : 'Homologar dados oficiais'} disabled={busy || !schema} onPress={() => void save()} />
+        </>}
+      </Panel>}
+    </>}
+
+    {active === 'fontes' && <Panel>
+      <PanelTitle>Importar fontes oficiais</PanelTitle>
+      <BodyText>Até 100 registros por planilha, com a referência da fonte em cada linha. O resumo semestral atualiza os atributos acadêmicos; os indicadores macroeconômicos atualizam as coortes vinculadas.</BodyText>
+      {Platform.OS === 'android' && <BodyText>Ao baixar o modelo, escolha a pasta Documentos para mantê-lo depois de fechar o app.</BodyText>}
+      <SourceRow title="Resumos semestrais" busy={busy} onImport={() => void importSource('semestres')} onTemplate={() => void downloadSourceTemplate('semestres')} />
+      {admin && <SourceRow title="Indicadores macroeconômicos" busy={busy} onImport={() => void importSource('macro')} onTemplate={() => void downloadSourceTemplate('macro')} />}
       {sourceReport && <>
         <Feedback message={`${sourceReport.salvos} registros salvos, ${sourceReport.repetidos} repetidos e ${sourceReport.erros.length} erros de ${sourceReport.total} linhas.`} />
         {sourceReport.erros.map((item) => <Feedback key={`${item.linha}-${item.registro}`} error message={`Linha ${item.linha} (${item.registro}): ${item.motivo}`} />)}
       </>}
-    </Panel>
-    <Panel><PanelTitle>Secretaria · ingresso</PanelTitle>
-      <BodyText>Confira a declaração do aluno com a documentação institucional e registre os códigos equivalentes ao modelo português. Dados declarados não substituem a fonte oficial.</BodyText>
-      <ActionButton title="Atualizar fila" secondary onPress={() => setRevision((value) => value + 1)} />
-      <BodyText>{pending.length ? `${pending.length} declaração(ões) aguardando conferência.` : 'Nenhuma declaração pendente.'}</BodyText>
-      {pending.map((item) => <Chip key={item.matriculaId} label={`${item.matricula.aluno.nome} · ${item.matricula.registro}`} selected={selected?.id === item.matriculaId} onPress={() => { setError(''); setNotice(''); setIngress(null); setSelected({ id: item.matriculaId, ...item.matricula }); }} />)}
-    </Panel>
-    <Panel><PanelTitle>Localizar matrícula</PanelTitle>
-      <FormField label="Registro do aluno" value={query} onChangeText={setQuery} placeholder="Digite ao menos 2 caracteres" />
-      <ActionButton title="Buscar registro" disabled={busy} onPress={() => void search()} />
-      <View style={academicStyles.chips}>{matches.map((item) => <Chip key={item.id} label={`${item.aluno.nome} · ${item.registro}`} selected={selected?.id === item.id} onPress={() => { setError(''); setNotice(''); setIngress(null); setSelected(item); }} />)}</View>
-      {matches.length === 20 && <BodyText>Mostrando os 20 primeiros registros. Refine a busca.</BodyText>}
-    </Panel>
-    {!!error && <Feedback error message={error} />}
-    {!!notice && <Feedback message={notice} />}
-    {selected && <Panel><PanelTitle>{selected.aluno.nome} · {selected.registro}</PanelTitle>
-      <BodyText>Fontes acadêmicas oficiais: atualize somente após conferir os documentos e a escala do dataset português.</BodyText>
-      <ActionButton title="Homologar 1º semestre" secondary disabled={busy} onPress={() => void openSemester(1)} />
-      <ActionButton title="Homologar 2º semestre" secondary disabled={busy} onPress={() => void openSemester(2)} />
-      <ActionButton title="Vincular país e ano da coorte" secondary disabled={busy} onPress={() => void openCohort()} />
-      {admin && <ActionButton title="Publicar indicadores macroeconômicos" secondary disabled={busy} onPress={() => void openMacroSource()} />}
-      {editor && editorScope === 'fonte' && <Editor config={editor} close={() => setEditor(null)} />}
-      {!ingress && !error && <BodyText>Carregando dados de ingresso…</BodyText>}
-      {ingress && <>
-        <BodyText>{ingress.declaration?.pendente ? 'Declaração do aluno aguardando conferência:' : 'Nenhuma declaração pendente nesta matrícula.'}</BodyText>
-        {ingress.declaration?.pendente && Object.entries(ingress.declaration.dados).map(([key, value]) => <BodyText key={key}>{key}: {typeof value === 'boolean' ? value ? 'Sim' : 'Não' : value}</BodyText>)}
-        <FormField label="Documento ou referência da fonte oficial" value={reference} onChangeText={setReference} placeholder="Ex.: ficha de ingresso, processo 2026/123" />
-        {INGRESS.map((key) => <View key={key} style={academicStyles.stack}>
-          <FormField label={ML_FIELD_LABELS[key] ?? key} value={fields[key] ?? ''} onChangeText={(value) => setFields((current) => ({ ...current, [key]: value }))} keyboardType="decimal-pad" />
-          {schema?.categories[key] && <BodyText>Códigos aceitos: {schema.categories[key].join(', ')}</BodyText>}
-        </View>)}
-        <ActionButton title={busy ? 'Salvando…' : 'Homologar dados oficiais'} disabled={busy || !schema} onPress={() => void save()} />
-      </>}
     </Panel>}
   </Screen>;
 }
+
+/** Uma fonte oficial: o nome, importar e baixar o modelo. Duas fontes não competem por um botão primário. */
+function SourceRow({ title, busy, onImport, onTemplate }: { title: string; busy: boolean; onImport: () => void; onTemplate: () => void }) {
+  return <View style={styles.sourceRow}>
+    <Text style={styles.sourceTitle}>{title}</Text>
+    <View style={styles.inline}>
+      <ActionButton compact secondary title="Importar planilha" disabled={busy} onPress={onImport} />
+      <TextButton flush title="Baixar modelo" onPress={onTemplate} />
+    </View>
+  </View>;
+}
+
+const styles = StyleSheet.create({
+  titleBlock: { gap: 2 },
+  title: { color: palette.ink, ...type.title },
+  subtitle: { color: palette.muted, ...type.body },
+  inline: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: space.md, rowGap: space.sm },
+  sourceRow: { gap: space.sm, paddingTop: space.md, borderTopWidth: 1, borderTopColor: palette.line },
+  sourceTitle: { color: palette.ink, ...type.label },
+});

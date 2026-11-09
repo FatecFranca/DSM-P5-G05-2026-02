@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Text } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen } from '@/components/primitives';
-import { AcademicHeader, Panel, PanelTitle, Stat, academicStyles } from '@/demo/academic-ui';
+import { AcademicHeader, ListRow, Panel, PanelHeader, RowList, StatStrip, academicStyles, pendingBadge } from '@/demo/academic-ui';
 import { DataNotice, RequestState } from './ui';
 import { summarizeEnrollments, useAcademicOverview } from './overview';
 import { StudentBilling } from './student-billing';
@@ -15,37 +15,58 @@ export function ConnectedHome() {
   const tutor = state.status === 'signedIn' && state.user.perfil === 'TUTOR';
   const data = overview.data;
   const stats = summarizeEnrollments(data?.enrollments ?? []);
-  const pending = data?.classes.flatMap((item) => item.snapshot.atividades.filter((activity) => activity.estado === 'PUBLICADA' && Date.parse(activity.prazo) > Date.now() && !item.snapshot.entregas.some((delivery) => delivery.atividadeId === activity.id)).map((activity) => ({ ...activity, className: item.name }))) ?? [];
+  const pending = data?.classes.flatMap((item) => item.snapshot.atividades.filter((activity) => activity.estado === 'PUBLICADA' && Date.parse(activity.prazo) > Date.now() && !item.snapshot.entregas.some((delivery) => delivery.atividadeId === activity.id)).map((activity) => ({ ...activity, className: item.name, classId: item.id }))) ?? [];
   const drafts = data?.classes.reduce((count, item) => count + item.snapshot.avaliacoes.filter((assessment) => !assessment.publicada).length, 0) ?? 0;
   const corrections = data?.classes.reduce((count, item) => count + item.snapshot.entregas.filter((delivery) => !delivery.corrigidaEm).length, 0) ?? 0;
-  return <Screen><AcademicHeader title={student ? 'Meu desempenho' : tutor ? 'Acompanhamento' : 'Painel do professor'} subtitle={student ? 'Acompanhamento acadêmico individual' : 'Suas turmas e tarefas acadêmicas em um só lugar.'} />
+  const rows = data?.classes.flatMap((item) => student
+    ? item.snapshot.disciplinas.map((subject) => ({ id: subject.id, title: subject.nome, subtitle: `${item.course} · ${item.name}`, classId: item.id }))
+    : [{ id: item.id, title: item.name, subtitle: `${item.course} · ${item.period}`, classId: item.id }]).slice(0, 5) ?? [];
+  const openClass = (classId: string) => router.push({ pathname: '/connected/class/[id]', params: { id: classId } });
+
+  return <Screen>
+    <AcademicHeader title={student ? 'Meu desempenho' : tutor ? 'Acompanhamento' : 'Painel do professor'} subtitle={student ? 'Acompanhamento acadêmico individual' : data ? `${data.classes.length} ${data.classes.length === 1 ? 'turma' : 'turmas'} · ${data.enrollments.length} ${data.enrollments.length === 1 ? 'matrícula' : 'matrículas'}` : 'Suas turmas e tarefas acadêmicas em um só lugar.'} />
     <DataNotice>Dados acadêmicos registrados na API. As previsões da planilha Excel são consultadas pela coordenação nas análises individuais.</DataNotice>
     <RequestState loading={overview.loading} error={overview.error} onRetry={overview.refresh} />
     {data && <>
-      {student ? <View style={academicStyles.grid}>
-        <Stat label="Média publicada" value={stats.meanGrade?.toFixed(1).replace('.', ',') ?? '—'} />
-        <Stat label="Presença registrada" value={stats.meanAttendance === null ? '—' : `${stats.meanAttendance.toFixed(0)}%`} />
-        <Stat label="Turmas vinculadas" value={String(data.classes.length)} />
-        <Stat label="Atividades pendentes" value={String(pending.length)} />
-      </View> : <View style={academicStyles.grid}>
-        <Stat label="Turmas vinculadas" value={String(data.classes.length)} />
-        <Stat label="Matrículas visíveis" value={String(data.enrollments.length)} />
-        <Stat label="Avaliações não publicadas" value={String(drafts)} />
-        <Stat label="Entregas para corrigir" value={String(corrections)} />
-      </View>}
-      <Panel><PanelTitle>{student ? 'Minhas disciplinas' : 'Minhas turmas'}</PanelTitle>
-        {data.classes.length ? data.classes.flatMap((item) => student ? item.snapshot.disciplinas.map((subject) => ({ id: subject.id, title: subject.nome, subtitle: `${item.course} · ${item.name}`, classId: item.id })) : [{ id: item.id, title: item.name, subtitle: `${item.course} · ${item.period}`, classId: item.id }]).slice(0, 5).map((item) => <View key={item.id} style={academicStyles.row}><View style={{ flex: 1 }}><Text style={academicStyles.strong}>{item.title}</Text><Text style={academicStyles.meta}>{item.subtitle}</Text></View><Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/connected/class/[id]', params: { id: item.classId } })}><Text style={academicStyles.link}>Detalhes</Text></Pressable></View>) : <Text style={academicStyles.meta}>Nenhuma turma vinculada.</Text>}
+      {student ? <>
+        <Panel>
+          <PanelHeader title="Próximas entregas" actionLabel="Atividades" onAction={() => router.push('/connected/assignments')} />
+          {pending.length
+            ? <RowList>{pending.slice(0, 3).map((item) => <ListRow key={item.id} title={item.titulo} meta={`${item.className} · prazo ${new Date(item.prazo).toLocaleDateString('pt-BR')}`} onPress={() => router.push({ pathname: '/connected/assignment/[id]', params: { id: item.id, turmaId: item.classId } })} />)}</RowList>
+            : <Text style={academicStyles.meta}>Nenhuma entrega pendente.</Text>}
+        </Panel>
+        <StatStrip items={[
+          { label: 'Média publicada', value: stats.meanGrade?.toFixed(1).replace('.', ',') ?? '—' },
+          { label: 'Presença registrada', value: stats.meanAttendance === null ? '—' : `${stats.meanAttendance.toFixed(0)}%` },
+          { label: 'Turmas vinculadas', value: String(data.classes.length) },
+        ]} />
+      </> : <Panel>
+        <PanelHeader title="Pendências" />
+        <RowList>
+          <ListRow title="Entregas para corrigir" meta="Atividades enviadas aguardando correção" badge={pendingBadge(corrections)} onPress={() => router.push('/connected/assignments')} />
+          <ListRow title="Avaliações não publicadas" meta="Notas ainda não publicadas aos estudantes" badge={pendingBadge(drafts)} onPress={() => router.push('/connected/grades')} />
+        </RowList>
+      </Panel>}
+      <Panel>
+        <PanelHeader title={student ? 'Minhas disciplinas' : 'Minhas turmas'} actionLabel={student ? undefined : 'Ver todas'} onAction={student ? undefined : () => router.push('/connected/classes')} />
+        {rows.length
+          ? <RowList>{rows.map((item) => <ListRow key={item.id} title={item.title} meta={item.subtitle} onPress={() => openClass(item.classId)} />)}</RowList>
+          : <Text style={academicStyles.meta}>Nenhuma turma vinculada.</Text>}
       </Panel>
       {student ? <>
         <StudentBilling enrollments={data.enrollments} />
-        <Panel><PanelTitle>Próximas entregas</PanelTitle>{pending.length ? pending.slice(0, 3).map((item) => <Text key={item.id} style={academicStyles.meta}>{item.titulo} · {item.className} · {new Date(item.prazo).toLocaleDateString('pt-BR')}</Text>) : <Text style={academicStyles.meta}>Nenhuma entrega pendente.</Text>}</Panel>
-        <Panel><PanelTitle>Minha situação</PanelTitle><Text style={academicStyles.meta}>Conte sobre seu ingresso em linguagem comum. As respostas são vinculadas à sua matrícula.</Text><Pressable accessibilityRole="button" onPress={() => router.push('/connected/report')}><Text style={academicStyles.link}>Abrir formulário →</Text></Pressable></Panel>
-      </> : <Panel><PanelTitle>Acesso rápido</PanelTitle><View style={academicStyles.chips}>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/connected/classes')}><Text style={academicStyles.link}>Minhas turmas</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/connected/attendance')}><Text style={academicStyles.link}>Chamada</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/connected/grades')}><Text style={academicStyles.link}>Notas</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/connected/people')}><Text style={academicStyles.link}>Estudantes vinculados</Text></Pressable>
-      </View></Panel>}
+        <Panel>
+          <PanelHeader title="Minha situação" />
+          <RowList><ListRow title="Contar sobre meu ingresso" meta="Em linguagem comum. As respostas são vinculadas à sua matrícula." onPress={() => router.push('/connected/report')} /></RowList>
+        </Panel>
+      </> : <Panel>
+        <PanelHeader title="Registrar e consultar" />
+        <RowList>
+          <ListRow title="Chamada" onPress={() => router.push('/connected/attendance')} />
+          <ListRow title="Notas" onPress={() => router.push('/connected/grades')} />
+          <ListRow title="Estudantes vinculados" onPress={() => router.push('/connected/people')} />
+        </RowList>
+      </Panel>}
     </>}
   </Screen>;
 }

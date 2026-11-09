@@ -49,6 +49,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.background }, content: { width: '100%', maxWidth: 900, alignSelf: 'center', padding: 16, paddingBottom: 32 }, header: { gap: 13, marginBottom: 14 },
   title: { color: palette.ink, fontSize: 26, fontWeight: '800' }, input: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, borderRadius: 12, minHeight: 50, paddingHorizontal: 14, color: palette.ink },
   label: { fontSize: 13, color: palette.ink, fontWeight: '700' }, chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  chip: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, paddingHorizontal: 12, minHeight: 38, justifyContent: 'center', borderRadius: 99 }, activeChip: { backgroundColor: palette.primary, borderColor: palette.primary },
+  chip: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, paddingHorizontal: 12, minHeight: 44, justifyContent: 'center', borderRadius: 99 }, activeChip: { backgroundColor: palette.primary, borderColor: palette.primary },
   chipText: { color: palette.ink, fontSize: 12 }, activeText: { color: palette.surface }, count: { color: palette.muted, fontSize: 12 }, empty: { color: palette.muted, marginTop: 24, textAlign: 'center' },
 });

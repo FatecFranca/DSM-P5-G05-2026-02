@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   heading: { gap: 5 }, kicker: { color: palette.secondary, fontSize: 12, fontWeight: '700' }, title: { color: palette.ink, fontSize: 29, fontWeight: '800', letterSpacing: -1 },
   body: { color: palette.muted, fontSize: 13, lineHeight: 19 },
   hero: { backgroundColor: palette.primary, borderRadius: 15, padding: 23, gap: 16 }, heroLabel: { color: '#B9D8D5', fontSize: 12 }, heroValue: { color: palette.surface, fontSize: 56, fontWeight: '800', letterSpacing: -2, lineHeight: 64 }, heroCaption: { color: '#C8E2DF', fontSize: 12 },
-  heroRule: { height: 1, backgroundColor: '#4F7075' }, heroFooter: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }, heroFootLabel: { color: '#C8E2DF', fontSize: 12 }, heroFootValue: { color: palette.gold, fontSize: 20, fontWeight: '800', marginRight: 14 },
+  heroRule: { height: 1, backgroundColor: palette.onPrimaryRule }, heroFooter: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }, heroFootLabel: { color: '#C8E2DF', fontSize: 12 }, heroFootValue: { color: palette.gold, fontSize: 20, fontWeight: '800', marginRight: 14 },
   sectionTitle: { color: palette.ink, fontSize: 18, fontWeight: '800' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 }, chip: { borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9 }, chipActive: { backgroundColor: palette.primary, borderColor: palette.primary }, chipText: { color: palette.ink, fontSize: 12, fontWeight: '700' }, chipTextActive: { color: palette.surface },
   classCaption: { color: palette.secondary, fontSize: 12, fontWeight: '800', marginTop: 4 },

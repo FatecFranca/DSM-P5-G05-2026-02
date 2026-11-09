@@ -6,7 +6,7 @@ import { TopBar, useGoBack } from '@/components/top-bar';
 import { Chip } from '@/demo/academic-ui';
 import { Card } from '@/demo/ui';
 import { MlEnrollments } from '@/features/academic/ml-enrollment';
-import { DataNotice, InstitutionPicker, RequestState, connectedStyles } from './ui';
+import { DataNotice, RequestState, connectedStyles } from './ui';
 import { useAcademicOverview } from './overview';
 import { Text, View } from 'react-native';
 
@@ -20,7 +20,6 @@ export function ConnectedScenarios() {
   if (state.status === 'signedIn' && state.user.perfil === 'ALUNO') return <Redirect href="/connected/report" />;
   return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow="LABORATÓRIO ACADÊMICO" title="Cenários" />
     <DataNotice>Importe a planilha Excel para registrar os atributos dos alunos e calcular as previsões do modelo.</DataNotice>
-    <InstitutionPicker institutions={overview.institutions} selected={overview.institutionId} onSelect={(id) => { setClassId(null); overview.selectInstitution(id); }} />
     <RequestState loading={overview.loading} error={overview.error} onRetry={overview.refresh} />
     {overview.data && <>
       <Card><Text style={connectedStyles.heading}>Selecione uma turma</Text><View style={connectedStyles.chips}>{overview.data.classes.map((item) => <Chip key={item.id} label={item.name} selected={item.id === selected?.id} onPress={() => setClassId(item.id)} />)}</View>

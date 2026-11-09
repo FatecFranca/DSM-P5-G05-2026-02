@@ -6,6 +6,7 @@ import { Screen } from '@/components/primitives';
 import { TopBar } from '@/components/top-bar';
 import { palette } from '@/constants/design';
 import { demoClasses, demoStudents, riskLevel, studentsInClass, type RiskLevel } from '@/demo/data';
+import { StatStrip } from '@/demo/academic-ui';
 import { ComparisonBar, HistogramChart } from '@/demo/charts';
 import { gradeBins, describeStudents } from '@/demo/statistics';
 import { Card, DemoBanner, StudentRow } from '@/demo/ui';
@@ -51,11 +52,11 @@ export default function Dashboard() {
       {[{ id: 'all', name: 'Todas' }, ...demoClasses].map((item) => <Pressable key={item.id} accessibilityRole="button" accessibilityState={{ selected: classId === item.id }} accessibilityLabel={`Filtrar turma ${item.name}`} onPress={() => { setClassId(item.id); setSelectedGrade(null); }} style={[styles.chip, classId === item.id && styles.chipActive]}><Text style={[styles.chipText, classId === item.id && styles.chipTextActive]}>{item.name}</Text></Pressable>)}
     </View>
 
-    <View style={styles.statGrid}>
-      <View style={styles.stat}><Text style={styles.statValue}>{summary.meanGrade?.toFixed(1) ?? '—'}</Text><Text style={styles.statLabel}>Média das notas</Text></View>
-      <View style={styles.stat}><Text style={styles.statValue}>{summary.medianGrade?.toFixed(1) ?? '—'}</Text><Text style={styles.statLabel}>Mediana das notas</Text></View>
-      <View style={styles.stat}><Text style={styles.statValue}>{summary.meanAttendance?.toFixed(0) ?? '—'}%</Text><Text style={styles.statLabel}>Presença média</Text></View>
-    </View>
+    <StatStrip items={[
+      { label: 'Média das notas', value: summary.meanGrade?.toFixed(1) ?? '—' },
+      { label: 'Mediana das notas', value: summary.medianGrade?.toFixed(1) ?? '—' },
+      { label: 'Presença média', value: `${summary.meanAttendance?.toFixed(0) ?? '—'}%` },
+    ]} />
 
     <Card>
       <View style={styles.chartHead}><Text style={styles.sectionTitle}>Distribuição das notas</Text><Text style={styles.chartUnit}>Estudantes por faixa</Text></View>
@@ -90,16 +91,14 @@ const styles = StyleSheet.create({
   hero: { backgroundColor: palette.primary, borderRadius: 15, padding: 24, gap: 9 },
   heroOverline: { color: '#A7D6CF', fontSize: 13, fontWeight: '600' },
   heroTitle: { color: palette.surface, fontSize: 30, fontWeight: '800', letterSpacing: -1, lineHeight: 35 },
-  heroDivider: { height: 1, backgroundColor: '#4F7075', marginTop: 10 },
+  heroDivider: { height: 1, backgroundColor: palette.onPrimaryRule, marginTop: 10 },
   heroBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 },
   heroNumber: { color: palette.surface, fontSize: 49, fontWeight: '800', lineHeight: 56, letterSpacing: -2 },
-  heroCaption: { color: '#C3DCDA', fontSize: 12 },
-  heroSide: { alignItems: 'flex-end', paddingBottom: 2 }, heroSideNumber: { color: palette.gold, fontSize: 29, fontWeight: '800' }, heroSideCaption: { color: '#C3DCDA', fontSize: 11, maxWidth: 125, textAlign: 'right' },
+  heroCaption: { color: palette.onPrimaryMuted, fontSize: 12 },
+  heroSide: { alignItems: 'flex-end', paddingBottom: 2 }, heroSideNumber: { color: palette.gold, fontSize: 29, fontWeight: '800' }, heroSideCaption: { color: palette.onPrimaryMuted, fontSize: 11, maxWidth: 125, textAlign: 'right' },
   sectionHead: { gap: 2 }, sectionTitle: { color: palette.ink, fontSize: 18, fontWeight: '800', letterSpacing: -0.4 }, sectionHint: { color: palette.muted, fontSize: 12 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { borderWidth: 1, borderColor: palette.line, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 8, backgroundColor: palette.surface },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { borderWidth: 1, borderColor: palette.line, paddingHorizontal: 13, minHeight: 44, justifyContent: 'center', borderRadius: 8, backgroundColor: palette.surface },
   chipActive: { backgroundColor: palette.primary, borderColor: palette.primary }, chipText: { color: palette.ink, fontSize: 12, fontWeight: '600' }, chipTextActive: { color: palette.surface },
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, stat: { flexGrow: 1, flexBasis: '30%', minWidth: 125, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, borderRadius: 11, padding: 15, gap: 4 },
-  statValue: { color: palette.primary, fontSize: 26, fontWeight: '800', letterSpacing: -1 }, statLabel: { color: palette.muted, fontSize: 11 },
   chartHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }, chartUnit: { color: palette.muted, fontSize: 11 },
   body: { color: palette.muted, fontSize: 12, lineHeight: 19 }, chartDetail: { color: palette.secondary, fontSize: 12, fontWeight: '700', lineHeight: 18 },
   riskStack: { gap: 5 }, riskRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 9, paddingVertical: 10, borderRadius: 8 }, riskRowActive: { backgroundColor: palette.background },

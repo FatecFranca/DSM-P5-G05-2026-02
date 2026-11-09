@@ -5,7 +5,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimens
 import { useSession } from '@/auth/session';
 import { filterInstituicoes } from '@/auth/instituicoes';
 import { BrandMark, PrimaryButton, Screen, TextButton } from '@/components/primitives';
-import { palette } from '@/constants/design';
+import { palette, radius, space, type } from '@/constants/design';
 import { ApiError, type InstituicaoOption } from '@/services/api';
 import { api } from '@/services/api-config';
 
@@ -109,7 +109,7 @@ export default function LoginScreen() {
   return (
       <Screen>
         <View style={[styles.layout, width >= 760 && styles.layoutWide]}>
-        <View style={styles.hero}>
+        <View style={[styles.hero, width >= 760 && styles.heroWide]}>
           <View style={styles.brandRow}>
             <BrandMark compact />
             <View>
@@ -118,26 +118,12 @@ export default function LoginScreen() {
             </View>
           </View>
           <View style={styles.heroCopy}>
-            <Text style={styles.kicker}>Dados para acompanhar pessoas</Text>
-            <Text style={styles.heroTitle}>Ensino em{'\n'}perspectiva.</Text>
-            <Text style={styles.heroDescription}>Acompanhe turmas, estudantes e indicadores em um único espaço de trabalho.</Text>
-          </View>
-          <View style={styles.art} accessible accessibilityLabel="Ilustração abstrata de progresso acadêmico">
-            <View style={[styles.artCard, styles.artCardBack]} />
-            <View style={[styles.artCard, styles.artCardFront]}>
-              <View style={styles.artLineShort} />
-              <View style={styles.artLineLong} />
-              <View style={styles.artChart}>
-                <View style={[styles.artBar, { height: 22 }]} />
-                <View style={[styles.artBar, { height: 38 }]} />
-                <View style={[styles.artBar, { height: 54, backgroundColor: palette.gold }]} />
-                <View style={[styles.artBar, { height: 68 }]} />
-              </View>
-            </View>
+            <Text accessibilityRole="header" style={[styles.heroTitle, width >= 760 && styles.heroTitleWide]}>Gestão acadêmica e acompanhamento da evasão</Text>
+            <Text style={styles.heroDescription}>Notas, frequência, turmas e indicadores da sua Fatec em um só lugar.</Text>
           </View>
         </View>
 
-        <View style={styles.formCard}>
+        <View style={[styles.formCard, width >= 760 && styles.formCardWide]}>
           <Text style={styles.formTitle}>Acesse sua conta</Text>
           <Text style={styles.formDescription}>Entre com as credenciais da sua instituição.</Text>
           {state.status === 'signedOut' && state.restoreError ? (
@@ -181,23 +167,17 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   layout: { gap: 18 },
   layoutWide: { flexDirection: 'row', alignItems: 'stretch' },
-  hero: { flex: 1, backgroundColor: palette.primary, borderRadius: 15, overflow: 'hidden', padding: 27, gap: 32, minHeight: 360 },
+  hero: { backgroundColor: palette.primary, borderRadius: radius.lg, padding: 22, gap: 22 },
+  heroWide: { flex: 1, padding: 28, justifyContent: 'space-between' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   brandName: { color: palette.surface, fontSize: 21, fontWeight: '800', letterSpacing: 0.2 },
-  brandCaption: { color: '#B8D7D4', fontSize: 11, fontWeight: '600' },
-  heroCopy: { gap: 9, zIndex: 1 },
-  kicker: { color: palette.gold, fontSize: 12, fontWeight: '700' },
-  heroTitle: { color: palette.surface, fontSize: 37, lineHeight: 42, fontWeight: '800', letterSpacing: -1.4 },
-  heroDescription: { color: '#CEE3DF', fontSize: 14, lineHeight: 21, maxWidth: 310 },
-  art: { height: 118, alignItems: 'flex-end', justifyContent: 'flex-end' },
-  artCard: { position: 'absolute', width: 192, height: 118, borderRadius: 11 },
-  artCardBack: { right: 70, top: 18, backgroundColor: '#28747A', transform: [{ rotate: '-8deg' }] },
-  artCardFront: { right: 0, top: 0, backgroundColor: palette.surface, padding: 18, gap: 10 },
-  artLineShort: { width: 44, height: 7, borderRadius: 4, backgroundColor: palette.gold },
-  artLineLong: { width: 105, height: 7, borderRadius: 4, backgroundColor: palette.line },
-  artChart: { flexDirection: 'row', alignItems: 'flex-end', height: 68, gap: 12 },
-  artBar: { width: 21, borderRadius: 6, backgroundColor: palette.teal },
-  formCard: { flex: 1, backgroundColor: palette.surface, borderRadius: 15, padding: 27, gap: 10, borderWidth: 1, borderColor: palette.line, justifyContent: 'center' },
+  brandCaption: { color: palette.onPrimaryMuted, fontSize: 11, fontWeight: '600' },
+  heroCopy: { gap: space.sm },
+  heroTitle: { color: palette.surface, ...type.title },
+  heroTitleWide: { fontSize: 32, lineHeight: 38, letterSpacing: -0.9 },
+  heroDescription: { color: palette.onPrimaryMuted, ...type.body, maxWidth: 340 },
+  formCard: { backgroundColor: palette.surface, borderRadius: radius.lg, padding: 24, gap: 10, borderWidth: 1, borderColor: palette.line },
+  formCardWide: { flex: 1, padding: 27, justifyContent: 'center' },
   formTitle: { color: palette.ink, fontSize: 25, fontWeight: '800', letterSpacing: -0.6 },
   formDescription: { color: palette.muted, fontSize: 14, marginBottom: 8 },
   label: { color: palette.ink, fontSize: 13, fontWeight: '700', marginTop: 4 },

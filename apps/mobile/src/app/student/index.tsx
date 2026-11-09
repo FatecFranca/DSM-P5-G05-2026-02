@@ -1,11 +1,10 @@
 import { useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Text } from 'react-native';
 import { Screen } from '@/components/primitives';
 import { attendanceSummary, demoStudentId, demoStudentSubjects, gradeAverage } from '@/demo/academic';
 import { useAcademicDemo } from '@/demo/academic-store';
-import { AcademicDemoNotice, AcademicHeader, Panel, PanelTitle, Stat, academicStyles, formatAcademicDate, formatAcademicNumber } from '@/demo/academic-ui';
+import { AcademicDemoNotice, AcademicHeader, ListRow, Panel, PanelHeader, RowList, StatStrip, academicStyles, formatAcademicDate, formatAcademicNumber } from '@/demo/academic-ui';
 import { demoStudents } from '@/demo/data';
-import { Bar } from '@/demo/ui';
 
 export default function StudentHome() {
   const router = useRouter();
@@ -18,12 +17,45 @@ export default function StudentHome() {
   const assignments = data.assignments.filter((item) => item.status === 'PUBLISHED' && demoStudentSubjects.some((subject) => subject.id === item.subjectId));
   const pending = assignments.filter((item) => !data.submissions.some((submission) => submission.assignmentId === item.id && submission.studentId === demoStudentId));
 
-  return <Screen><AcademicHeader title="Meu desempenho" subtitle={`${student.name} · acompanhamento acadêmico individual`} /><AcademicDemoNotice />
-    <View style={academicStyles.grid}><Stat label="Média publicada" value={formatAcademicNumber(overall)} /><Stat label="Presença registrada" value={attendance.percent === null ? '—' : `${Math.round(attendance.percent)}%`} /><Stat label="Faltas registradas" value={String(attendance.absent)} /><Stat label="Atividades pendentes" value={String(pending.length)} /></View>
-    <Panel><PanelTitle>Minhas disciplinas</PanelTitle>{demoStudentSubjects.map((subject) => <View key={subject.id} style={academicStyles.row}><View><Text style={academicStyles.strong}>{subject.title}</Text><Text style={academicStyles.meta}>{subject.course} · {subject.semester}</Text></View><Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/student/course-detail', params: { id: subject.id } })}><Text style={academicStyles.link}>Detalhes</Text></Pressable></View>)}<Pressable accessibilityRole="button" onPress={() => router.push('/student/courses')}><Text style={academicStyles.link}>Ver todas as disciplinas</Text></Pressable></Panel>
-    <Panel><PanelTitle>Médias publicadas por disciplina</PanelTitle>{demoStudentSubjects.map((subject) => { const average = gradeAverage(ownAssessments.filter((item) => item.subjectId === subject.id), data.grades, demoStudentId); return <Bar key={subject.id} label={subject.title} value={average === null ? 0 : average / 10} valueLabel={formatAcademicNumber(average)} />; })}<Text style={academicStyles.meta}>Escala demonstrativa de 0 a 10. A média real segue a configuração institucional.</Text></Panel>
-    <Panel><PanelTitle>Presença por disciplina</PanelTitle>{demoStudentSubjects.map((subject) => { const result = attendanceSummary(data.lessons.filter((item) => item.subjectId === subject.id), data.attendance, demoStudentId); return <Bar key={subject.id} label={subject.title} value={result.percent === null ? 0 : result.percent / 100} />; })}</Panel>
-    <Panel><PanelTitle>Próximas entregas</PanelTitle>{pending.length ? pending.map((assignment) => <View key={assignment.id} style={academicStyles.row}><View><Text style={academicStyles.strong}>{assignment.title}</Text><Text style={academicStyles.meta}>{formatAcademicDate(assignment.dueAt)}</Text></View><Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/student/assignment-detail', params: { id: assignment.id } })}><Text style={academicStyles.link}>Abrir</Text></Pressable></View>) : <Text style={academicStyles.meta}>Nenhuma entrega pendente.</Text>}</Panel>
-    <Panel><PanelTitle>Agenda e avisos</PanelTitle><View style={academicStyles.chips}><Pressable accessibilityRole="button" onPress={() => router.push('/student/calendar')}><Text style={academicStyles.link}>Calendário acadêmico</Text></Pressable><Pressable accessibilityRole="button" onPress={() => router.push('/student/notifications')}><Text style={academicStyles.link}>Notificações locais</Text></Pressable></View></Panel>
+  return <Screen>
+    <AcademicHeader title="Meu desempenho" subtitle={`${student.name} · acompanhamento acadêmico individual`} />
+    <AcademicDemoNotice />
+    <Panel>
+      <PanelHeader title="Próximas entregas" actionLabel="Atividades" onAction={() => router.push('/student/assignments')} />
+      {pending.length
+        ? <RowList>{pending.map((assignment) => <ListRow
+          key={assignment.id}
+          title={assignment.title}
+          meta={`${demoStudentSubjects.find((subject) => subject.id === assignment.subjectId)?.title ?? ''} · prazo ${formatAcademicDate(assignment.dueAt)}`}
+          onPress={() => router.push({ pathname: '/student/assignment-detail', params: { id: assignment.id } })} />)}</RowList>
+        : <Text style={academicStyles.meta}>Nenhuma entrega pendente.</Text>}
+    </Panel>
+    <StatStrip items={[
+      { label: 'Média publicada', value: formatAcademicNumber(overall) },
+      { label: 'Presença registrada', value: attendance.percent === null ? '—' : `${Math.round(attendance.percent)}%` },
+      { label: 'Faltas registradas', value: String(attendance.absent) },
+    ]} />
+    <Panel>
+      <PanelHeader title="Disciplinas" actionLabel="Ver todas" onAction={() => router.push('/student/courses')} />
+      <RowList>{demoStudentSubjects.map((subject) => {
+        const average = gradeAverage(ownAssessments.filter((item) => item.subjectId === subject.id), data.grades, demoStudentId);
+        const presence = attendanceSummary(data.lessons.filter((item) => item.subjectId === subject.id), data.attendance, demoStudentId).percent;
+        return <ListRow
+          key={subject.id}
+          title={subject.title}
+          meta={`${subject.course} · ${subject.semester} · presença ${presence === null ? '—' : `${Math.round(presence)}%`}`}
+          value={formatAcademicNumber(average)}
+          onPress={() => router.push({ pathname: '/student/course-detail', params: { id: subject.id } })} />;
+      })}</RowList>
+      <Text style={academicStyles.meta}>Média por disciplina na escala demonstrativa de 0 a 10. A média real segue a configuração institucional.</Text>
+    </Panel>
+    <Panel>
+      <PanelHeader title="Materiais, agenda e avisos" />
+      <RowList>
+        <ListRow title="Materiais" meta="Arquivos publicados nas suas disciplinas" onPress={() => router.push('/student/materials')} />
+        <ListRow title="Calendário acadêmico" onPress={() => router.push('/student/calendar')} />
+        <ListRow title="Notificações locais" onPress={() => router.push('/student/notifications')} />
+      </RowList>
+    </Panel>
   </Screen>;
 }

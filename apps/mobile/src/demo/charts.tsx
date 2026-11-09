@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   column: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', minHeight: 130, gap: 5 },
   count: { color: palette.muted, fontSize: 12, fontWeight: '700' },
   countSelected: { color: palette.primary },
-  columnBar: { width: '100%', maxWidth: 60, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: '#A8CCC7' },
+  columnBar: { width: '100%', maxWidth: 60, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: palette.tealSoft },
   columnSelected: { backgroundColor: palette.secondary },
   axis: { flexDirection: 'row', gap: 8, paddingTop: 8 },
   axisLabel: { flex: 1, textAlign: 'center', color: palette.muted, fontSize: 11 },

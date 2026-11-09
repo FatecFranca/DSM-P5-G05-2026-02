@@ -1,2 +1,3 @@
-import { ConnectedSection } from '@/features/connected/section';
-export default function Assignments() { return <ConnectedSection section="Atividades" />; }
+import { ConnectedAssignments } from '@/features/connected/assignments';
+
+export default function Assignments() { return <ConnectedAssignments />; }

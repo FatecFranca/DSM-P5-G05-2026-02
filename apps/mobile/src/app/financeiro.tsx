@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen } from '@/components/primitives';
-import { TopBar } from '@/components/top-bar';
+import { TopBar, useGoBack } from '@/components/top-bar';
 import { ActionButton, BodyText, Chip, Feedback, FormField, Panel, PanelTitle, academicStyles } from '@/demo/academic-ui';
 import { Editor, type EditorConfig } from '@/features/academic/editor';
 import { formatCents, parseMoneyToCents } from '@/features/finance/money';
@@ -17,6 +17,7 @@ const isoMonth = () => new Date().toISOString().slice(0, 7);
 export default function FinanceScreen() {
   const { request, state } = useSession();
   const admin = state.status === 'signedIn' && state.user.perfil === 'COORDENACAO';
+  const goBack = useGoBack(admin ? '/connected' : '/secretaria');
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState<Enrollment[]>([]);
   const [selected, setSelected] = useState<Enrollment | null>(null);
@@ -131,7 +132,7 @@ export default function FinanceScreen() {
   }
 
   return <Screen>
-    <TopBar />
+    <TopBar onBack={goBack} />
     <Panel><PanelTitle>Financeiro · mensalidades</PanelTitle>
       <BodyText>Localize uma matrícula para configurar o plano mensal, consultar faturas e registrar pagamentos. Vencimentos são processados automaticamente pelo servidor.</BodyText>
       <FormField label="Registro do aluno" value={query} onChangeText={setQuery} placeholder="Digite ao menos 2 caracteres" />
