@@ -62,9 +62,10 @@ export function PrimaryButton({
   );
 }
 
-export function TextButton({ title, onPress, danger = false }: { title: string; onPress: () => void; danger?: boolean }) {
+/** `flush` tira o respiro lateral do botão de texto: o texto fica alinhado à borda da coluna, também depois de quebrar de linha. */
+export function TextButton({ title, onPress, danger = false, flush = false }: { title: string; onPress: () => void; danger?: boolean; flush?: boolean }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={title} hitSlop={6} onPress={onPress} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={title} hitSlop={6} onPress={onPress} style={({ pressed }) => [styles.textButton, flush && styles.flush, pressed && styles.pressed]}>
       <Text style={[styles.textButtonLabel, danger && styles.danger]}>{title}</Text>
     </Pressable>
   );
@@ -96,6 +97,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.5 },
   textButton: { minHeight: 48, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
   textButtonLabel: { color: palette.primary, fontSize: 15, fontWeight: '700' },
+  flush: { marginLeft: -12 },
   danger: { color: palette.danger },
   sectionTitle: { gap: 5 },
   eyebrow: { color: palette.secondary, fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },

@@ -115,7 +115,7 @@ export function ConnectedModel() {
 const styles = StyleSheet.create({
   hero: { backgroundColor: palette.primary, borderRadius: 15, padding: 23, gap: 16 }, heroLabel: { color: '#B9D8D5', fontSize: 12 },
   heroValue: { color: palette.surface, fontSize: 34, fontWeight: '800', letterSpacing: -1, lineHeight: 40 }, heroCaption: { color: '#C8E2DF', fontSize: 12, lineHeight: 18 },
-  heroRule: { height: 1, backgroundColor: '#4F7075' }, heroFooter: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 },
+  heroRule: { height: 1, backgroundColor: palette.onPrimaryRule }, heroFooter: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 },
   heroFootLabel: { color: '#C8E2DF', fontSize: 12 }, heroFootValue: { color: palette.gold, fontSize: 14, fontWeight: '800', marginRight: 14 },
   summaryNumber: { color: palette.primary, fontSize: 40, fontWeight: '800' },
   loading: { alignItems: 'center', gap: 9, padding: 28 },

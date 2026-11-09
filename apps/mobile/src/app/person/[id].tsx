@@ -4,9 +4,10 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { Screen, SectionTitle } from '@/components/primitives';
 import { TopBar, useGoBack } from '@/components/top-bar';
-import { palette, roleLabel } from '@/constants/design';
+import { palette } from '@/constants/design';
 import { Bar, Card, classColor, Metric } from '@/demo/ui';
 import { DataNotice, connectedStyles } from '@/features/connected/ui';
+import { AccountAdmin, PersonHeader } from '@/features/people/account-admin';
 import type { AcademicSnapshot } from '@/services/academic';
 import type { UserDetail } from '@/services/api';
 import { type DemoMlPrediction, type EnrollmentMl, type MlImportedPrediction, type MlPrediction } from '@/services/ml';
@@ -113,12 +114,13 @@ export default function PersonDetail() {
   const mlError = visibleMlData?.error ?? '';
   const demoPerson = !!role && role !== 'ALUNO' && person?.nome === 'Aluno Demo SGEI' && person.matriculas.some((item) => /^SGEI-DEMO-(109|002|276|284)$/.test(item.registro));
   const hasImportedPrediction = person?.matriculas.some((item) => !!importedPredictions[item.registro]) ?? false;
-  return <Screen><TopBar onBack={goBack} /><SectionTitle eyebrow={person?.perfil === 'ALUNO' ? 'ANÁLISE INDIVIDUAL' : 'CADASTRO'} title={person?.nome ?? 'Detalhes da pessoa'} />
-    <DataNotice>{demoPerson ? 'Dados demonstrativos. As probabilidades são estimativas para apoio humano.' : hasImportedPrediction && role === 'COORDENACAO' ? 'Previsão experimental: estimativa para apoio humano, não um desfecho confirmado.' : 'Informações registradas na API. As previsões aparecem quando houver dados para a matrícula.'}</DataNotice>
+  return <Screen><TopBar onBack={goBack} />
+    {person ? <PersonHeader person={person} /> : <SectionTitle title="Detalhes da pessoa" />}
+    {demoPerson && <DataNotice>Dados demonstrativos. As probabilidades são calculadas pelo modelo a partir dos atributos cadastrados.</DataNotice>}
     {loading && <ActivityIndicator color={palette.primary} />}
     {!!error && <Card><Text accessibilityRole="alert" style={styles.error}>{error}</Text></Card>}
     {person && <>
-      <Card><Text style={styles.heading}>Identificação</Text><Text style={styles.text}>{roleLabel[person.perfil]}</Text><Text style={styles.text}>{person.instituicao?.nome ?? 'Fatec não informada'}</Text><Text style={styles.text}>{person.email}</Text><Text style={connectedStyles.caption}>{person.ativo ? 'Conta ativa' : 'Conta inativa'}</Text></Card>
+      {role === 'COORDENACAO' && <AccountAdmin person={person} onChanged={(changes) => setPerson((current) => current ? { ...current, ...changes } : current)} />}
       {person.perfil === 'ALUNO' && <>
         {academicError ? <Card><Text accessibilityRole="alert" style={styles.error}>{academicError}</Text></Card> : null}
         {records.map((item) => <View key={item.registration} style={styles.stack}>

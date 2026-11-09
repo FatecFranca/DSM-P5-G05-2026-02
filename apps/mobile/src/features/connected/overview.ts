@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from '@/auth/session';
 import type { AcademicSnapshot } from '@/services/academic';
-import type { InstituicaoOption, UserSummary } from '@/services/api';
-import { api } from '@/services/api-config';
+import type { UserSummary } from '@/services/api';
 
 import type { EnrollmentView } from './summary';
 export { summarizeEnrollments } from './summary';
@@ -23,39 +22,29 @@ export interface OverviewData {
   users: UserSummary[];
 }
 
-export function useAcademicOverview() {
+/**
+ * Panorama acadêmico da instituição da sessão. Não há escolha de Fatec: a API atende apenas a da conta
+ * (outra Fatec responde "não encontrada"), e o login já é feito por Fatec.
+ */
+export function useAcademicOverview(enabled = true) {
   const { state, request } = useSession();
-  const admin = state.status === 'signedIn' && state.user.perfil === 'COORDENACAO';
-  const [institutions, setInstitutions] = useState<InstituicaoOption[]>([]);
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
-    if (state.status !== 'signedIn' || state.mode !== 'api') return;
+    if (!enabled || state.status !== 'signedIn' || state.mode !== 'api') return;
     let active = true;
-    let awaitingInstitution = false;
     void (async () => {
       try {
-        if (admin && !institutionId) {
-          const options = await api.listInstituicoes();
-          if (!active) return;
-          setInstitutions(options);
-          const initial = options.find((item) => item.codigoCps === '109') ?? options[0];
-          if (initial) { awaitingInstitution = true; setInstitutionId(initial.id); return; }
-        }
-        const query = institutionId ? `?instituicaoId=${encodeURIComponent(institutionId)}` : '';
         const [first, users] = await Promise.all([
-          request<AcademicSnapshot>(`/academico/resumo${query}`),
+          request<AcademicSnapshot>('/academico/resumo'),
           request<UserSummary[]>('/usuarios'),
         ]);
-        const snapshots = await Promise.all(first.turmas.map((item) => {
-          const params = new URLSearchParams({ turmaId: item.id });
-          if (institutionId) params.set('instituicaoId', institutionId);
-          return first.turmaId === item.id ? Promise.resolve(first) : request<AcademicSnapshot>(`/academico/resumo?${params}`);
-        }));
+        const snapshots = await Promise.all(first.turmas.map((item) => first.turmaId === item.id
+          ? Promise.resolve(first)
+          : request<AcademicSnapshot>(`/academico/resumo?turmaId=${encodeURIComponent(item.id)}`)));
         if (!active) return;
         if (snapshots.some((item) => item.truncated)) throw new Error('A consulta acadêmica está incompleta. Os indicadores foram suspensos.');
         const classes = first.turmas.map((item, index) => ({
@@ -73,14 +62,13 @@ export function useAcademicOverview() {
         setData({ classes, enrollments, users });
       } catch (cause) {
         if (active) { setData(null); setError(cause instanceof Error ? cause.message : 'Não foi possível carregar o panorama acadêmico.'); }
-      } finally { if (active && !awaitingInstitution) setLoading(false); }
+      } finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
-  }, [admin, institutionId, reload, request, state]);
+  }, [enabled, reload, request, state]);
 
   return {
-    data, institutions, institutionId,
-    selectInstitution: (id: string) => { setData(null); setLoading(true); setError(''); setInstitutionId(id); },
-    loading, error, refresh: () => { setLoading(true); setError(''); setReload((value) => value + 1); },
+    data, loading, error,
+    refresh: () => { setLoading(true); setError(''); setReload((value) => value + 1); },
   };
 }

@@ -1,9 +1,38 @@
 import type { Perfil } from '../services/api.ts';
 
+/**
+ * Mensagens: estudante e docente conversam; a tutoria só lê canais; docente é quem publica.
+ * Segue as mesmas regras do backend (messages.policy.ts), que é quem de fato decide.
+ */
+function canSendMessage(perfil: Perfil, method: string, route: string): boolean {
+  const chat = perfil === 'ALUNO' || perfil === 'PROFESSOR';
+  const channels = chat || perfil === 'TUTOR';
+  if (route === '/mensagens/resumo' || route === '/mensagens/canais') return method === 'GET' && channels;
+  if (/^\/mensagens\/canais\/[^/]+\/publicacoes$/.test(route)) return (method === 'GET' && channels) || (method === 'POST' && perfil === 'PROFESSOR');
+  if (/^\/mensagens\/canais\/[^/]+\/leitura$/.test(route)) return method === 'PUT' && channels;
+  if (/^\/mensagens\/publicacoes\/[\w-]+$/.test(route)) return method === 'GET' && channels;
+  if (/^\/mensagens\/publicacoes\/[\w-]+\/respostas$/.test(route)) return method === 'POST' && chat;
+  if (route === '/mensagens/contatos') return method === 'GET' && chat;
+  if (route === '/mensagens/conversas') return chat && ['GET', 'POST'].includes(method);
+  if (/^\/mensagens\/conversas\/[\w-]+$/.test(route)) return chat && method === 'GET';
+  if (/^\/mensagens\/conversas\/[\w-]+\/mensagens$/.test(route)) return chat && ['GET', 'POST'].includes(method);
+  if (/^\/mensagens\/conversas\/[\w-]+\/leitura$/.test(route)) return chat && method === 'PUT';
+  if (route === '/mensagens/curtidas') return chat && method === 'POST';
+  return false;
+}
+
 // UX filtering only. Every operation is authenticated and authorized again by the API.
 export function canSend(perfil: Perfil, method: string, path: string): boolean {
   const route = path.split('?')[0];
   if (route === '/auth/trocar-senha') return method === 'POST';
+  if (route === '/academico/avisos/leitura') return perfil !== 'SECRETARIA' && ['GET', 'PUT'].includes(method);
+  if (route.startsWith('/mensagens/')) return canSendMessage(perfil, method, route);
+  // Gestão de contas: coordenação (qualquer pessoa) e secretaria (estudantes; o servidor confere).
+  const manager = perfil === 'COORDENACAO' || perfil === 'SECRETARIA';
+  if (route === '/usuarios/importacoes/modelo') return method === 'GET' && manager;
+  if (route === '/usuarios/importacoes') return method === 'POST' && manager;
+  if (/^\/usuarios\/[\w-]+$/.test(route) && method === 'PATCH') return manager;
+  if (/^\/usuarios\/[\w-]+\/redefinir-senha$/.test(route)) return method === 'POST' && manager;
   if (route.startsWith('/ml/')) {
     if (route === '/ml/fontes/importacoes/semestres/modelo') return ['COORDENACAO', 'SECRETARIA'].includes(perfil) && method === 'GET';
     if (route === '/ml/fontes/importacoes/semestres') return ['COORDENACAO', 'SECRETARIA'].includes(perfil) && method === 'POST';
@@ -32,6 +61,10 @@ export function canSend(perfil: Perfil, method: string, path: string): boolean {
   if (/^\/faturas\/matriculas\/[\w-]+\/semestres$/.test(route)) return method === 'GET' && ['COORDENACAO', 'SECRETARIA', 'ALUNO'].includes(perfil);
   if (/^\/faturas\/[\w-]+\/simular-pagamento$/.test(route)) return method === 'POST' && perfil === 'ALUNO';
   if (/^\/turmas\/[\w-]+\/duracao$/.test(route)) return method === 'PUT' && perfil === 'COORDENACAO';
+  // Montar a turma: quem vê os participantes, e quem vincula ou desvincula (o servidor decide de fato).
+  if (/^\/turmas\/[\w-]+\/participantes$/.test(route)) return method === 'GET' && perfil !== 'ALUNO';
+  if (/^\/matriculas\/[\w-]+$/.test(route)) return method === 'DELETE' && manager;
+  if (/^\/(lotacoes|tutorias)\/[\w-]+\/[\w-]+$/.test(route)) return method === 'DELETE' && perfil === 'COORDENACAO';
   if (/^\/faturas\/matriculas\/[\w-]+\/plano$/.test(route)) return ['COORDENACAO', 'SECRETARIA'].includes(perfil) && ['GET', 'PUT'].includes(method);
   if (/^\/faturas\/matriculas\/[\w-]+$/.test(route)) return method === 'GET' && ['COORDENACAO', 'SECRETARIA', 'ALUNO'].includes(perfil);
   if (/^\/faturas\/[\w-]+\/pagamentos$/.test(route)) return method === 'POST' && ['COORDENACAO', 'SECRETARIA'].includes(perfil);

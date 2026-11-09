@@ -5,7 +5,9 @@ import { useEffect } from 'react';
 
 import { SessionProvider, useSession } from '@/auth/session';
 import { AcademicDemoProvider } from '@/demo/academic-store';
+import { MessagesDemoProvider } from '@/demo/messages-store';
 import { palette } from '@/constants/design';
+import { MessagesApiProvider, canChatWith, canUseMessages } from '@/features/messages/api-data';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -13,8 +15,12 @@ export default function RootLayout() {
   return (
     <SessionProvider>
       <AcademicDemoProvider>
-        <StatusBar style="dark" />
-        <Navigation />
+        <MessagesDemoProvider>
+          <MessagesApiProvider>
+            <StatusBar style="dark" />
+            <Navigation />
+          </MessagesApiProvider>
+        </MessagesDemoProvider>
       </AcademicDemoProvider>
     </SessionProvider>
   );
@@ -50,5 +56,10 @@ function Navigation() {
       <Stack.Screen name="(tabs)" /><Stack.Screen name="professor" /><Stack.Screen name="student" />
       <Stack.Screen name="students/[id]" /><Stack.Screen name="classes/[id]" />
     </Stack.Protected>
+    {/* Telas de conversa: a demonstração e a versão com API usam as mesmas rotas (ver features/messages/routes). */}
+    <Stack.Protected guard={demo || (passwordReady && !!apiRole && canUseMessages(apiRole))} redirectTo="/home">
+      <Stack.Screen name="messages/chat/[id]" /><Stack.Screen name="messages/channel/[id]" /><Stack.Screen name="messages/thread/[id]" />
+    </Stack.Protected>
+    <Stack.Protected guard={passwordReady && !!apiRole && canChatWith(apiRole)} redirectTo="/home"><Stack.Screen name="messages/new" /></Stack.Protected>
   </Stack>;
 }
