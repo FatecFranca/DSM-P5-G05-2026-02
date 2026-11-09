@@ -78,18 +78,31 @@ As previsões individuais de risco são destinadas apenas aos perfis autorizados
 
 ## Organização do desenvolvimento
 
-O projeto está organizado em **branches por componente**, permitindo evolução independente dos serviços. A branch `main` serve como página de apresentação do projeto.
+As branches de componentes são `back/prototype`, `mobile/prototype` e `web/prototype`. A `main` permanece como apresentação, sem merges automáticos. Este checkout contém somente a aplicação web em `apps/web`; API, Prisma, ML e infraestrutura ficam em `back/prototype`, enquanto Expo/React Native fica em `mobile/prototype`.
 
-| Componente | Branch |
-| --- | --- |
-| Frontend web | [`frontweb/prototype`](../../tree/frontweb/prototype) |
-| Backend / API principal | [`back/prototype`](../../tree/back/prototype) |
-| Aplicativo mobile | [`mobile/prototype`](../../tree/mobile/prototype) |
-| Machine Learning / FastAPI | [`ml/prototype`](../../tree/ml/prototype) |
-| Infraestrutura e integração | [`infra/prototype`](../../tree/infra/prototype) |
-| Documentação técnica | [`docs/prototype`](../../tree/docs/prototype) |
+### Iniciar a versão web
 
-> Os links apontam para as branches planejadas e estarão disponíveis à medida que elas forem criadas no repositório remoto. O código-fonte e as instruções de execução de cada componente serão disponibilizados na respectiva branch.
+Requer Node.js 22.12+ e Docker Desktop. Execute a API e a interface em checkouts separados.
+
+**Terminal 1 — API e banco de dados** (crie o checkout uma única vez a partir da raiz deste repositório):
+
+```powershell
+git worktree add ..\SGEI-back back/prototype
+cd ..\SGEI-back
+node dev-up.mjs
+```
+
+Se o checkout do backend já existir, entre nele e execute `node dev-up.mjs`. O comando inicia a API em `http://localhost:3000`; as credenciais de demonstração ficam no `.env` local do backend.
+
+**Terminal 2 — interface web** (na raiz de `web/prototype`):
+
+```powershell
+cd apps/web
+npm ci
+npm run dev
+```
+
+Abra `http://localhost:8082`. O Vite encaminha `/api` à API local. Para parar a API sem apagar os dados, execute `node dev-up.mjs down` no checkout do backend. Mais detalhes estão em [apps/web/README.md](apps/web/README.md).
 
 ## Evolução do projeto
 

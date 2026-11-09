@@ -1,0 +1,21 @@
+# Arquivos locais de orientação e contexto
+.agents/
+AGENTS.md
+CONTEXT.md
+
+# Outros componentes têm branches próprias. Resíduos locais são preservados.
+/apps/mobile/
+/services/
+
+# Dependências, builds e configuração privada
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+*.log
+.DS_Store
+Thumbs.db
