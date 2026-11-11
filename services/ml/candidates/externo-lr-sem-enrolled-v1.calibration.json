@@ -1,0 +1,148 @@
+{
+  "model_version": "externo-lr-sem-enrolled-v1",
+  "dataset_sha256": "3ef126de5cefff26eb11fbb4237f1a1401cb64b488e2f1d598c23cedeb4c45ae",
+  "artifact_sha256": "fbc7d381435551924dc09439da7a203aa02c5592a02d0d4fc963770887a2e5fd",
+  "train_after_outliers": 2730,
+  "validation_samples": 726,
+  "accuracy": 0.9077134986225895,
+  "macro_f1": 0.9021577119041249,
+  "dropout_recall": 0.8556338028169014,
+  "dropout_brier": 0.06929653828336252,
+  "calibration_assessment": {
+    "method": "fixed_width_10_bins_bootstrap_2000_seed_7",
+    "sample_size": 726,
+    "expected_dropout_count": 302.2897094173002,
+    "observed_dropout_count": 284,
+    "mean_probability": 0.4163770102166669,
+    "observed_rate": 0.39118457300275483,
+    "observed_minus_predicted": -0.025192437213912115,
+    "observed_minus_predicted_95_ci": [
+      -0.04427032901600875,
+      -0.005997254054791705
+    ],
+    "expected_calibration_error": 0.028140345735406923,
+    "maximum_bin_gap": 0.2950800238501655,
+    "bins": [
+      {
+        "lower": 0.0,
+        "upper": 0.1,
+        "count": 284,
+        "mean_probability": 0.04465647434846963,
+        "observed_rate": 0.04225352112676056,
+        "observed_wilson_95": [
+          0.024333397061166516,
+          0.07239158110828295
+        ]
+      },
+      {
+        "lower": 0.1,
+        "upper": 0.2,
+        "count": 83,
+        "mean_probability": 0.13986098527284235,
+        "observed_rate": 0.08433734939759036,
+        "observed_wilson_95": [
+          0.04145333632101998,
+          0.16399529458616308
+        ]
+      },
+      {
+        "lower": 0.2,
+        "upper": 0.30000000000000004,
+        "count": 35,
+        "mean_probability": 0.2530665919932495,
+        "observed_rate": 0.11428571428571428,
+        "observed_wilson_95": [
+          0.04535179333097357,
+          0.2595146864621381
+        ]
+      },
+      {
+        "lower": 0.30000000000000004,
+        "upper": 0.4,
+        "count": 28,
+        "mean_probability": 0.33910620684425136,
+        "observed_rate": 0.25,
+        "observed_wilson_95": [
+          0.12676494919293316,
+          0.4335567031899896
+        ]
+      },
+      {
+        "lower": 0.4,
+        "upper": 0.5,
+        "count": 27,
+        "mean_probability": 0.4523203969245574,
+        "observed_rate": 0.4074074074074074,
+        "observed_wilson_95": [
+          0.24514757074395552,
+          0.592732990319353
+        ]
+      },
+      {
+        "lower": 0.5,
+        "upper": 0.6000000000000001,
+        "count": 17,
+        "mean_probability": 0.5472805875557696,
+        "observed_rate": 0.5882352941176471,
+        "observed_wilson_95": [
+          0.3600544264299978,
+          0.7838894320978518
+        ]
+      },
+      {
+        "lower": 0.6000000000000001,
+        "upper": 0.7000000000000001,
+        "count": 19,
+        "mean_probability": 0.6434559376126909,
+        "observed_rate": 0.5263157894736842,
+        "observed_wilson_95": [
+          0.3170780924511316,
+          0.7267019483882042
+        ]
+      },
+      {
+        "lower": 0.7000000000000001,
+        "upper": 0.8,
+        "count": 9,
+        "mean_probability": 0.7395244682946099,
+        "observed_rate": 0.4444444444444444,
+        "observed_wilson_95": [
+          0.18877852109766452,
+          0.733348706504507
+        ]
+      },
+      {
+        "lower": 0.8,
+        "upper": 0.9,
+        "count": 17,
+        "mean_probability": 0.8601506741372407,
+        "observed_rate": 0.8235294117647058,
+        "observed_wilson_95": [
+          0.5897054143116588,
+          0.9380887336237901
+        ]
+      },
+      {
+        "lower": 0.9,
+        "upper": 1.0,
+        "count": 207,
+        "mean_probability": 0.9885320735181126,
+        "observed_rate": 0.9903381642512077,
+        "observed_wilson_95": [
+          0.9654623784086972,
+          0.9973463648785384
+        ]
+      }
+    ]
+  },
+  "confusion_matrix_dropout_graduate": [
+    [
+      243,
+      41
+    ],
+    [
+      26,
+      416
+    ]
+  ]
+}
