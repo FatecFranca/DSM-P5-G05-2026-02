@@ -17,12 +17,15 @@ Abra `http://localhost:8082`. O servidor de desenvolvimento encaminha `/api` à 
 ## Funcionalidades
 
 - Login por instituição e perfil, atualização de token em memória, logout e troca de senha.
-- Painel, turmas, disciplinas, frequência, notas, atividades, materiais e diretório de pessoas conforme o perfil.
-- Docente lança frequência e notas nas turmas abertas; coordenação cria turmas.
-- Secretaria consulta turmas e pessoas pelos endpoints permitidos para seu perfil.
+- Navegação e página inicial próprias para coordenação, secretaria, professor, tutor e estudante. URLs de outras áreas mostram falta de acesso, além da autorização aplicada pela API.
+- Coordenação vê indicadores da instituição, turmas, pessoas e modelo; secretaria consulta a estrutura acadêmica e pessoas.
+- Professor acessa chamada, notas e atividades das turmas vinculadas, com lançamento de frequência e notas nas turmas abertas. Tutor consulta esses registros sem ações de lançamento.
+- Estudante vê apenas os próprios indicadores, notas publicadas, presenças e entregas, além de atividades e materiais de suas turmas.
+- Coordenação baixa o modelo Excel, envia a planilha `.xlsx` de até 1 MB em **Cenários** e consulta o resultado por linha e as importações recentes. O backend valida os dados e pode criar alunos e matrículas ausentes.
+- Coordenação consulta a tela **Modelo**, com estado da inferência, métricas de validação e calibração externa do artefato ativo, matriz de confusão, desempenho por classe, proveniência e distribuição das previsões recentes.
 - Estados de carregamento, erro e vazio; layout adaptado para celular e desktop.
 
-O protótipo usa somente dados da API. A autorização final é sempre aplicada pelo backend. A sessão web fica em memória; recarregar a página exige novo login. Funcionalidades avançadas do aplicativo, como mensagens, importação de planilhas, faturamento, gestão completa de vínculos, envio de atividades e telas de ML, ainda dependem de implementação web específica.
+O protótipo usa dados da API para informações acadêmicas e previsões recentes. A tela Modelo usa os relatórios versionados de `back/prototype:services/ml/candidates/externo-lr-sem-enrolled-v1.json` e `externo-lr-sem-enrolled-v1.calibration.json` para as métricas externas e só os exibe quando a API confirma essa versão como ativa. A calibração institucional permanece pendente; a soma das probabilidades dos estudantes não deve ser apresentada como evasão esperada. A autorização final é sempre aplicada pelo backend. A sessão web fica em memória; recarregar a página exige novo login. Funcionalidades avançadas do aplicativo, como mensagens, importação em lote de pessoas, faturamento, gestão completa de vínculos, envio de atividades e edição de dados de ML, ainda dependem de implementação web específica.
 
 ## Verificar
 

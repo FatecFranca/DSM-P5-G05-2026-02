@@ -12,13 +12,14 @@ interface RequestOptions { method?: 'GET' | 'POST' | 'PUT'; body?: object; acces
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   if (!path.startsWith('/') || path.startsWith('//') || path.includes('://')) throw new Error('Rota inválida');
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const multipart = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const timeout = setTimeout(() => controller.abort(), multipart ? 120_000 : 30_000);
   let response: Response;
   try {
     response = await fetch(`${baseUrl}${path}`, {
       method: options.method ?? 'GET', signal: controller.signal,
-      headers: { Accept: 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}) },
-      ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+      headers: { Accept: 'application/json', ...(options.body && !multipart ? { 'Content-Type': 'application/json' } : {}), ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}) },
+      ...(options.body ? { body: multipart ? options.body as FormData : JSON.stringify(options.body) } : {}),
     });
   } catch {
     throw new ApiError(controller.signal.aborted ? 'A API demorou para responder. Tente novamente.' : 'Não foi possível conectar à API.', 0);

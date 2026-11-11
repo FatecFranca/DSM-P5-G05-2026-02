@@ -1,10 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useSession } from './auth/Session';
+import { canVisit } from './auth/role-navigation';
 import { Login } from './components/Login';
 import { Shell } from './components/Shell';
 import { StateMessage } from './components/UI';
-import { ActivitiesPage, ClassDetail, ClassesPage, HomePage, PeoplePage, SecretaryPage } from './features/academic/Pages';
+import { ActivitiesPage, ClassDetail, ClassesPage, PeoplePage, SecretaryPage } from './features/academic/Pages';
+import { RecordsPage } from './features/academic/RecordsPage';
+import { RoleHomePage } from './features/academic/RoleHome';
 import { useOverview } from './features/academic/overview';
+import { ImportWorkbookPage } from './features/model/ImportWorkbookPage';
+import { ModelPage } from './features/model/ModelPage';
 
 function useRoute() {
   const [route, setRoute] = useState(window.location.pathname);
@@ -34,19 +39,23 @@ function SignedInApp() {
   const { route, navigate } = useRoute();
   const role = session!.user.perfil;
   const secretary = role === 'SECRETARIA';
-  const overview = useOverview(!secretary && !session!.user.trocaSenhaObrigatoria);
+  const overview = useOverview(!secretary && !session!.user.trocaSenhaObrigatoria && canVisit(role, route) && !['/modelo', '/cenarios', '/pessoas', '/conta'].includes(route));
   let content;
   if (session!.user.trocaSenhaObrigatoria || route === '/conta') content = <AccountPage />;
+  else if (!canVisit(role, route)) content = <div className="state-message" role="alert">Esta área não está disponível para o seu perfil. <button type="button" className="text-button" onClick={() => navigate('/')}>Ir para o início</button></div>;
+  else if (route === '/pessoas') content = <PeoplePage />;
   else if (secretary) content = <SecretaryPage route={route} navigate={navigate} />;
-  else if (route === '/pessoas' && role === 'COORDENACAO') content = <PeoplePage />;
-  else if (route === '/pessoas') content = <div className="state-message" role="alert">Área indisponível para este perfil.</div>;
+  else if (route === '/cenarios') content = <ImportWorkbookPage />;
+  else if (route === '/modelo') content = <ModelPage onImport={() => navigate('/cenarios')} />;
   else if (overview.loading || overview.error || !overview.data) content = <StateMessage loading={overview.loading} error={overview.error} retry={overview.refresh} />;
   else if (route === '/turmas') content = <ClassesPage data={overview.data} navigate={navigate} refresh={overview.refresh} />;
   else if (route.startsWith('/turmas/')) {
     const item = overview.data.classes.find((value) => value.id === route.slice('/turmas/'.length));
     content = item ? <ClassDetail item={item} navigate={navigate} refresh={overview.refresh} /> : <div className="state-message" role="alert">Turma não encontrada ou indisponível para sua conta.</div>;
   } else if (route === '/atividades') content = <ActivitiesPage data={overview.data} navigate={navigate} refresh={overview.refresh} />;
-  else content = <HomePage data={overview.data} navigate={navigate} refresh={overview.refresh} />;
+  else if (route === '/chamada' || route === '/frequencia') content = <RecordsPage data={overview.data} kind="frequencia" navigate={navigate} />;
+  else if (route === '/notas') content = <RecordsPage data={overview.data} kind="notas" navigate={navigate} />;
+  else content = <RoleHomePage data={overview.data} navigate={navigate} />;
   return <Shell route={route} navigate={navigate}>{content}</Shell>;
 }
 
