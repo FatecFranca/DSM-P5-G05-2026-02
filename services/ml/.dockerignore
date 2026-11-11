@@ -1,7 +1,9 @@
 .venv
 .pytest_cache
 __pycache__
-artifacts
+artifacts/**
+!artifacts/externo-lr-sem-enrolled-v1/
+!artifacts/externo-lr-sem-enrolled-v1/model.pkl
 datasets
 tests
 training

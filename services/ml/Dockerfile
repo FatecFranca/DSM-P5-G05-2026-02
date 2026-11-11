@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY --chown=ml:ml app ./app
 COPY --chown=ml:ml candidates ./candidates
+COPY --chown=ml:ml artifacts/externo-lr-sem-enrolled-v1/model.pkl /models/externo-lr-sem-enrolled-v1/model.pkl
 USER 10001
 
 EXPOSE 8000

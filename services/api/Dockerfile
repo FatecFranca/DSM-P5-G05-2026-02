@@ -7,7 +7,10 @@ COPY prisma7.config.ts tsconfig*.json nest-cli.json ./
 COPY src ./src
 RUN npm run db:generate && npm run build
 
-FROM node:24-alpine
+FROM build AS migration
+CMD ["npm", "run", "db:migrate"]
+
+FROM node:24-alpine AS production
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package*.json ./
