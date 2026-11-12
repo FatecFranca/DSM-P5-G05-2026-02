@@ -49,18 +49,14 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: mobile-source/apps/mobile
+        working-directory: apps/mobile
     steps:
       - uses: actions/checkout@v5
-        with:
-          ref: 9e2c9ad9305bcccb61314e33613a2cb5f20188c6
-          path: mobile-source
-          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: mobile-source/apps/mobile/package-lock.json
+          cache-dependency-path: apps/mobile/package-lock.json
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
@@ -162,28 +158,23 @@ jobs:
       ANDROID_PACKAGE: ${{ vars.ANDROID_PACKAGE }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/checkout@v5
-        with:
-          ref: 9e2c9ad9305bcccb61314e33613a2cb5f20188c6
-          path: mobile-source
-          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: mobile-source/apps/mobile/package-lock.json
+          cache-dependency-path: apps/mobile/package-lock.json
       - name: Configurar projeto EAS
         shell: bash
         run: |
           test -n "$EXPO_TOKEN" && test -n "$EAS_PROJECT_ID" && test -n "$ANDROID_PACKAGE"
-          cp .github/eas.json mobile-source/apps/mobile/eas.json
-          node -e 'const fs=require("fs"); const p="mobile-source/apps/mobile/app.json"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.expo.extra={...c.expo.extra,eas:{projectId:process.env.EAS_PROJECT_ID}}; c.expo.android={...c.expo.android,package:process.env.ANDROID_PACKAGE}; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n")'
+          cp .github/eas.json apps/mobile/eas.json
+          node -e 'const fs=require("fs"); const p="apps/mobile/app.json"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.expo.extra={...c.expo.extra,eas:{projectId:process.env.EAS_PROJECT_ID}}; c.expo.android={...c.expo.android,package:process.env.ANDROID_PACKAGE}; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n")'
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - run: npm ci
-        working-directory: mobile-source/apps/mobile
+        working-directory: apps/mobile
       - name: Gerar APK de distribuicao interna
         run: eas build --platform android --profile preview --non-interactive --wait
-        working-directory: mobile-source/apps/mobile
+        working-directory: apps/mobile

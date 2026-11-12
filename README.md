@@ -78,16 +78,16 @@ As previsões individuais de risco são destinadas apenas aos perfis autorizados
 
 ## Organização do desenvolvimento
 
-As branches de componentes mantidas são `main`, `back/prototype` e `mobile/prototype`. A branch `integration-ci-deploy` foi criada para a esteira solicitada, sem merge entre os componentes.
+As branches de componentes mantidas são `main`, `back/prototype` e `mobile/prototype`. A branch `integration-ci-deploy` reúne as revisões validadas dos componentes para integração e CI/CD.
 
 | Branch | Responsabilidade |
 | --- | --- |
 | `main` | Apresentação e integração futura, preservada; sem merges automáticos |
 | `back/prototype` | API NestJS, Prisma, PostgreSQL, ML/FastAPI e infraestrutura dos serviços |
 | `mobile/prototype` | Aplicativo Expo/React Native e integração com os contratos da API |
-| `integration-ci-deploy` | CI/CD com checkout separado de uma revisão fixada do mobile |
+| `integration-ci-deploy` | Integração da API, ML e mobile, com CI/CD |
 
-Antes de editar, confira `git branch --show-current` e trabalhe na branch do componente. Não recrie branches `infra/*` ou `ml/*`. Mudanças funcionais que atravessam componentes são feitas nas duas branches, respeitando os contratos da API. A branch da esteira não recebe código funcional por merge.
+Antes de editar, confira `git branch --show-current` e trabalhe na branch do componente. Não recrie branches `infra/*` ou `ml/*`. Mudanças funcionais são desenvolvidas na branch do componente e integradas por PR após validar os contratos da API.
 
 Para executar localmente: na branch backend, inicie os serviços Docker; na branch mobile, inicie o Expo. Os containers usam as imagens construídas no backend. Recompilar serviços exige voltar à branch backend. Alternativamente, use checkouts separados dessas mesmas branches. A esteira e seus pré-requisitos estão em [docs/integration-pipeline.md](docs/integration-pipeline.md).
 
