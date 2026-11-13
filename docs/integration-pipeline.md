@@ -1,10 +1,10 @@
 # Esteira de integração e deploy
 
-A branch `integration-ci-deploy` reúne a API e o ML de `back/prototype` com o aplicativo de `mobile/prototype`. O workflow em `.github/workflows/integration.yml` valida o código da própria branch, inclusive nos PRs direcionados a ela. Novas revisões dos componentes devem entrar por PR após revisão do contrato de API.
+A branch `integration-ci-deploy` reúne a API e o ML de `back/prototype` com os aplicativos de `mobile/prototype` e `web/prototype`. O workflow em `.github/workflows/integration.yml` valida o código da própria branch, inclusive nos PRs direcionados a ela. Novas revisões dos componentes devem entrar por PR após revisão do contrato de API.
 
 ## Etapas
 
-Em push e PR para a branch de integração, a CI instala dependências, executa lint, typecheck, testes, build/export e auditoria npm dos componentes aplicáveis. Em seguida, constrói três imagens Docker (API, job de migração e ML) e bloqueia a publicação se o Trivy detectar vulnerabilidades altas ou críticas. Em push, publica no GHCR as mesmas imagens verificadas, com tag do commit do backend. O modelo `.pkl` versionado entra na imagem de ML; o serviço ainda exige o SHA-256 aprovado em tempo de execução.
+Em push e PR para a branch de integração, a CI instala dependências, executa lint onde disponível, typecheck, testes, build/export e auditoria npm dos componentes aplicáveis. A web é validada como aplicação estática, sem publicação automática. Em seguida, constrói três imagens Docker (API, job de migração e ML) e bloqueia a publicação se o Trivy detectar vulnerabilidades altas ou críticas. Em push, publica no GHCR as mesmas imagens verificadas, com tag do commit integrado. O modelo `.pkl` versionado entra na imagem de ML; o serviço ainda exige o SHA-256 aprovado em tempo de execução.
 
 O deploy só inicia em push quando a variável de repositório `DEPLOY_ENABLED` é `true`. Os dois jobs usam o ambiente GitHub `production`; configure revisão obrigatória nesse ambiente antes de habilitar a variável. O deploy da VM usa as imagens já verificadas. Depois que a API fica saudável, o EAS gera um APK Android de distribuição interna a partir do código integrado. A esteira não envia o aplicativo à Play Store.
 

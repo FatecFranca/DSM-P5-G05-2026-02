@@ -78,14 +78,15 @@ As previsões individuais de risco são destinadas apenas aos perfis autorizados
 
 ## Organização do desenvolvimento
 
-As branches de componentes mantidas são `main`, `back/prototype` e `mobile/prototype`. A branch `integration-ci-deploy` reúne as revisões validadas dos componentes para integração e CI/CD.
+As branches de componentes mantidas são `main`, `back/prototype`, `mobile/prototype` e `web/prototype`. A branch `integration-ci-deploy` reúne as revisões validadas dos componentes para integração e CI/CD.
 
 | Branch | Responsabilidade |
 | --- | --- |
 | `main` | Apresentação e integração futura, preservada; sem merges automáticos |
 | `back/prototype` | API NestJS, Prisma, PostgreSQL, ML/FastAPI e infraestrutura dos serviços |
 | `mobile/prototype` | Aplicativo Expo/React Native e integração com os contratos da API |
-| `integration-ci-deploy` | Integração da API, ML e mobile, com CI/CD |
+| `web/prototype` | Interface React/TypeScript e integração com os contratos da API |
+| `integration-ci-deploy` | Integração da API, ML, mobile e web, com CI/CD |
 
 Antes de editar, confira `git branch --show-current` e trabalhe na branch do componente. Não recrie branches `infra/*` ou `ml/*`. Mudanças funcionais são desenvolvidas na branch do componente e integradas por PR após validar os contratos da API.
 
@@ -100,6 +101,10 @@ Na branch `back/prototype`, com Node.js e Docker Desktop instalados, execute `no
 Os sete e-mails de teste estão em [USUARIOS_TESTE.md](USUARIOS_TESTE.md). As senhas geradas ficam somente em `services/api/.env`. Se esse arquivo já existir, o script o preserva; configure nele as sete variáveis `DEMO_*_PASSWORD` antes de iniciar.
 
 Use `node dev-up.mjs down` para parar os serviços sem apagar dados. Para descartar **somente** o banco e os uploads desse checkout e recriá-los na próxima inicialização, execute conscientemente `node dev-up.mjs reset --yes`.
+
+### Iniciar a versão web
+
+Com a API disponível em `http://localhost:3000`, entre em `apps/web`, execute `npm ci` e `npm run dev` e abra `http://localhost:8082`. O Vite encaminha as requisições `/api` à API local. Na branch `web/prototype`, execute a API em um checkout separado de `back/prototype`. Consulte [apps/web/README.md](apps/web/README.md) para as funcionalidades e opções de configuração.
 
 ## Evolução do projeto
 
