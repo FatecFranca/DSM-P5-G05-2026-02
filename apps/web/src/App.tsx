@@ -4,9 +4,12 @@ import { canVisit } from './auth/role-navigation';
 import { Login } from './components/Login';
 import { Shell } from './components/Shell';
 import { StateMessage } from './components/UI';
-import { ActivitiesPage, ClassDetail, ClassesPage, PeoplePage, SecretaryPage } from './features/academic/Pages';
+import { ActivitiesPage, ClassDetail, ClassesPage, SecretaryPage } from './features/academic/Pages';
+import { PeoplePage } from './features/academic/PeoplePage';
 import { RecordsPage } from './features/academic/RecordsPage';
 import { RoleHomePage } from './features/academic/RoleHome';
+import { ClassManagement } from './features/academic/ClassManagement';
+import { AssignmentDetail } from './features/academic/AssignmentDetail';
 import { useOverview } from './features/academic/overview';
 import { ImportWorkbookPage } from './features/model/ImportWorkbookPage';
 import { ModelPage } from './features/model/ModelPage';
@@ -44,14 +47,18 @@ function SignedInApp() {
   if (session!.user.trocaSenhaObrigatoria || route === '/conta') content = <AccountPage />;
   else if (!canVisit(role, route)) content = <div className="state-message" role="alert">Esta área não está disponível para o seu perfil. <button type="button" className="text-button" onClick={() => navigate('/')}>Ir para o início</button></div>;
   else if (route === '/pessoas') content = <PeoplePage />;
+  else if (secretary && route.startsWith('/turmas/')) content = <><button type="button" className="back-button" onClick={() => navigate('/turmas')}>‹ Todas as turmas</button><div className="page-heading"><div><p className="section-label">Secretaria</p><h1>Participantes da turma</h1></div></div><ClassManagement turmaId={route.slice('/turmas/'.length)} /></>;
   else if (secretary) content = <SecretaryPage route={route} navigate={navigate} />;
   else if (route === '/cenarios') content = <ImportWorkbookPage />;
   else if (route === '/modelo') content = <ModelPage onImport={() => navigate('/cenarios')} />;
   else if (overview.loading || overview.error || !overview.data) content = <StateMessage loading={overview.loading} error={overview.error} retry={overview.refresh} />;
   else if (route === '/turmas') content = <ClassesPage data={overview.data} navigate={navigate} refresh={overview.refresh} />;
   else if (route.startsWith('/turmas/')) {
-    const item = overview.data.classes.find((value) => value.id === route.slice('/turmas/'.length));
-    content = item ? <ClassDetail item={item} navigate={navigate} refresh={overview.refresh} /> : <div className="state-message" role="alert">Turma não encontrada ou indisponível para sua conta.</div>;
+    const [, , turmaId, section, activityId] = route.split('/');
+    const item = overview.data.classes.find((value) => value.id === turmaId);
+    content = !item ? <div className="state-message" role="alert">Turma não encontrada ou indisponível para sua conta.</div>
+      : section === 'atividades' && activityId ? <AssignmentDetail snapshot={item.snapshot} activityId={activityId} closed={item.closed} onChanged={overview.refresh} onBack={() => navigate(`/turmas/${item.id}`)} />
+        : <ClassDetail item={item} navigate={navigate} refresh={overview.refresh} />;
   } else if (route === '/atividades') content = <ActivitiesPage data={overview.data} navigate={navigate} refresh={overview.refresh} />;
   else if (route === '/chamada' || route === '/frequencia') content = <RecordsPage data={overview.data} kind="frequencia" navigate={navigate} />;
   else if (route === '/notas') content = <RecordsPage data={overview.data} kind="notas" navigate={navigate} />;

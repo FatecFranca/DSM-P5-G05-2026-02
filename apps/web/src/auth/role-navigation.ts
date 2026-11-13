@@ -46,6 +46,6 @@ export const navigationByRole: Record<Perfil, readonly NavigationItem[]> = {
 };
 
 export function canVisit(role: Perfil, route: string): boolean {
-  if (route.startsWith('/turmas/')) return role !== 'SECRETARIA' && /^\/turmas\/[^/]+$/.test(route);
+  if (route.startsWith('/turmas/')) return /^\/turmas\/[^/]+$/.test(route) || (role !== 'SECRETARIA' && /^\/turmas\/[^/]+\/atividades\/[^/]+$/.test(route));
   return navigationByRole[role].some((item) => item.path === route);
 }

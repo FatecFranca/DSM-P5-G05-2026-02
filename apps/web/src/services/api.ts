@@ -7,7 +7,7 @@ export class ApiError extends Error {
   constructor(message: string, public readonly status: number) { super(message); }
 }
 
-interface RequestOptions { method?: 'GET' | 'POST' | 'PUT'; body?: object; accessToken?: string; binary?: boolean }
+interface RequestOptions { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: object; accessToken?: string; binary?: boolean }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   if (!path.startsWith('/') || path.startsWith('//') || path.includes('://')) throw new Error('Rota inválida');

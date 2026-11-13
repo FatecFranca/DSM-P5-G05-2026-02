@@ -15,10 +15,12 @@ test('URL direta não abre área de outro perfil', () => {
   assert.equal(canVisit('ALUNO', '/cenarios'), false);
   assert.equal(canVisit('SECRETARIA', '/cenarios'), false);
   assert.equal(canVisit('ALUNO', '/pessoas'), false);
-  assert.equal(canVisit('SECRETARIA', '/turmas/turma-1'), false);
+  assert.equal(canVisit('SECRETARIA', '/turmas/turma-1'), true);
+  assert.equal(canVisit('SECRETARIA', '/turmas/turma-1/atividades/atividade-1'), false);
   assert.equal(canVisit('TUTOR', '/chamada'), false);
   assert.equal(canVisit('PROFESSOR', '/modelo'), false);
   assert.equal(canVisit('COORDENACAO', '/notas'), false);
   assert.equal(canVisit('ALUNO', '/turmas/turma-1'), true);
   assert.equal(canVisit('PROFESSOR', '/turmas/turma-1'), true);
+  assert.equal(canVisit('ALUNO', '/turmas/turma-1/atividades/atividade-1'), true);
 });

@@ -8,7 +8,7 @@ interface SessionContextValue {
   signIn: (institutionId: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   changePassword: (current: string, next: string) => Promise<void>;
-  request: <T>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT'; body?: object; binary?: boolean }) => Promise<T>;
+  request: <T>(path: string, options?: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: object; binary?: boolean }) => Promise<T>;
 }
 const SessionContext = createContext<SessionContextValue | null>(null);
 
@@ -41,7 +41,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (token) await publicApi.logout(token).catch(() => undefined);
   }, []);
 
-  const request = useCallback(async <T,>(path: string, options: { method?: 'GET' | 'POST' | 'PUT'; body?: object; binary?: boolean } = {}): Promise<T> => {
+  const request = useCallback(async <T,>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: object; binary?: boolean } = {}): Promise<T> => {
     const epoch = generation.current;
     const current = tokens.current;
     if (!current) throw new ApiError('Entre para continuar.', 401);
