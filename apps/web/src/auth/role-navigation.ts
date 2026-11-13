@@ -3,6 +3,7 @@ import type { Perfil } from '../services/contracts';
 export interface NavigationItem { label: string; path: string; icon: string }
 
 const account: NavigationItem = { label: 'Minha conta', path: '/conta', icon: '◌' };
+const finance: NavigationItem = { label: 'Financeiro', path: '/financeiro', icon: '$' };
 
 export const navigationByRole: Record<Perfil, readonly NavigationItem[]> = {
   COORDENACAO: [
@@ -11,12 +12,14 @@ export const navigationByRole: Record<Perfil, readonly NavigationItem[]> = {
     { label: 'Pessoas', path: '/pessoas', icon: '◯' },
     { label: 'Cenários', path: '/cenarios', icon: '⇧' },
     { label: 'Modelo', path: '/modelo', icon: '◫' },
+    finance,
     account,
   ],
   SECRETARIA: [
     { label: 'Secretaria', path: '/', icon: '⌂' },
     { label: 'Turmas', path: '/turmas', icon: '▦' },
     { label: 'Pessoas', path: '/pessoas', icon: '◯' },
+    finance,
     account,
   ],
   PROFESSOR: [
@@ -41,6 +44,7 @@ export const navigationByRole: Record<Perfil, readonly NavigationItem[]> = {
     { label: 'Minhas notas', path: '/notas', icon: '▤' },
     { label: 'Minha frequência', path: '/frequencia', icon: '✓' },
     { label: 'Atividades', path: '/atividades', icon: '☷' },
+    { ...finance, label: 'Mensalidades' },
     account,
   ],
 };

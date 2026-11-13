@@ -13,6 +13,7 @@ import { AssignmentDetail } from './features/academic/AssignmentDetail';
 import { useOverview } from './features/academic/overview';
 import { ImportWorkbookPage } from './features/model/ImportWorkbookPage';
 import { ModelPage } from './features/model/ModelPage';
+import { FinancePage } from './features/finance/FinancePage';
 
 function useRoute() {
   const [route, setRoute] = useState(window.location.pathname);
@@ -42,11 +43,12 @@ function SignedInApp() {
   const { route, navigate } = useRoute();
   const role = session!.user.perfil;
   const secretary = role === 'SECRETARIA';
-  const overview = useOverview(!secretary && !session!.user.trocaSenhaObrigatoria && canVisit(role, route) && !['/modelo', '/cenarios', '/pessoas', '/conta'].includes(route));
+  const overview = useOverview(!secretary && !session!.user.trocaSenhaObrigatoria && canVisit(role, route) && !['/modelo', '/cenarios', '/pessoas', '/conta', '/financeiro'].includes(route));
   let content;
   if (session!.user.trocaSenhaObrigatoria || route === '/conta') content = <AccountPage />;
   else if (!canVisit(role, route)) content = <div className="state-message" role="alert">Esta área não está disponível para o seu perfil. <button type="button" className="text-button" onClick={() => navigate('/')}>Ir para o início</button></div>;
   else if (route === '/pessoas') content = <PeoplePage />;
+  else if (route === '/financeiro') content = <FinancePage />;
   else if (secretary && route.startsWith('/turmas/')) content = <><button type="button" className="back-button" onClick={() => navigate('/turmas')}>‹ Todas as turmas</button><div className="page-heading"><div><p className="section-label">Secretaria</p><h1>Participantes da turma</h1></div></div><ClassManagement turmaId={route.slice('/turmas/'.length)} /></>;
   else if (secretary) content = <SecretaryPage route={route} navigate={navigate} />;
   else if (route === '/cenarios') content = <ImportWorkbookPage />;
