@@ -18,14 +18,18 @@ Abra `http://localhost:8082`. O servidor de desenvolvimento encaminha `/api` à 
 
 - Login por instituição e perfil, atualização de token em memória, logout e troca de senha.
 - Navegação e página inicial próprias para coordenação, secretaria, professor, tutor e estudante. URLs de outras áreas mostram falta de acesso, além da autorização aplicada pela API.
-- Coordenação vê indicadores da instituição, turmas, pessoas e modelo; secretaria consulta a estrutura acadêmica e pessoas.
-- Professor acessa chamada, notas e atividades das turmas vinculadas, com lançamento de frequência e notas nas turmas abertas. Tutor consulta esses registros sem ações de lançamento.
-- Estudante vê apenas os próprios indicadores, notas publicadas, presenças e entregas, além de atividades e materiais de suas turmas.
+- Coordenação vê indicadores da instituição, cria turmas, monta disciplinas e vínculos, fecha ou reabre períodos e gerencia contas. Secretaria pode abrir os participantes da turma e matricular estudantes conforme as permissões da API.
+- A área Pessoas permite cadastro, edição, redefinição de senha, ativação de contas e importação em lote com conferência prévia. Senhas temporárias aparecem uma vez e podem ser salvas em CSV.
+- Professor registra aulas, avaliações, notas, atividades e materiais nas turmas abertas, além de corrigir entregas. Tutor consulta os registros autorizados sem ações de lançamento.
+- Estudante vê os próprios indicadores, notas publicadas e presenças, envia atividades e consulta o retorno do professor. Turmas incluem calendário e avisos da API.
+- Coordenação, professor e tutor consultam a prontidão e o resultado da análise por matrícula e podem solicitar o cálculo conforme a autorização da API.
 - Coordenação baixa o modelo Excel, envia a planilha `.xlsx` de até 1 MB em **Cenários** e consulta o resultado por linha e as importações recentes. O backend valida os dados e pode criar alunos e matrículas ausentes.
 - Coordenação consulta a tela **Modelo**, com estado da inferência, métricas de validação e calibração externa do artefato ativo, matriz de confusão, desempenho por classe, proveniência e distribuição das previsões recentes.
 - Estados de carregamento, erro e vazio; layout adaptado para celular e desktop.
+- Financeiro para coordenação e secretaria: busca por matrícula, filtros de faturas, plano mensal, emissão avulsa, pagamentos com referência de comprovante, bolsas e duração do curso. Estudantes consultam suas mensalidades e podem solicitar pagamento simulado, sujeito à autorização da API.
+- Interface de trabalho com navegação discreta, extrato financeiro ao lado da matrícula e formulários acadêmicos recolhidos até serem necessários. A identidade verde-petróleo do SGEI é mantida.
 
-O protótipo usa dados da API para informações acadêmicas e previsões recentes. A tela Modelo usa os relatórios versionados de `back/prototype:services/ml/candidates/externo-lr-sem-enrolled-v1.json` e `externo-lr-sem-enrolled-v1.calibration.json` para as métricas externas e só os exibe quando a API confirma essa versão como ativa. A calibração institucional permanece pendente; a soma das probabilidades dos estudantes não deve ser apresentada como evasão esperada. A autorização final é sempre aplicada pelo backend. A sessão web fica em memória; recarregar a página exige novo login. Funcionalidades avançadas do aplicativo, como mensagens, importação em lote de pessoas, faturamento, gestão completa de vínculos, envio de atividades e edição de dados de ML, ainda dependem de implementação web específica.
+O protótipo usa dados da API para informações acadêmicas e previsões recentes. A tela Modelo usa os relatórios versionados de `back/prototype:services/ml/candidates/externo-lr-sem-enrolled-v1.json` e `externo-lr-sem-enrolled-v1.calibration.json` para as métricas externas e só os exibe quando a API confirma essa versão como ativa. A calibração institucional permanece pendente; a soma das probabilidades dos estudantes não deve ser apresentada como evasão esperada. A autorização final é sempre aplicada pelo backend. A sessão web fica em memória; recarregar a página exige novo login. Mensagens e os formulários de autodeclaração e homologação dos dados de ML ainda não integram a web.
 
 ## Verificar
 
