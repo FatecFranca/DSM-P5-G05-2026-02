@@ -1,0 +1,76 @@
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: ./services/api/.env
+    volumes:
+      - sgei_postgres:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build:
+      context: ./services/api
+      target: build
+    command: npm run db:migrate
+    env_file: ./services/api/.env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  seed-dev:
+    build:
+      context: ./services/api
+      target: build
+    command: npm run db:seed:dev
+    env_file:
+      - ./services/api/.env
+      - path: ./services/api/.env.seed
+        required: false
+    environment:
+      DEMO_SEED_ENABLED: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  api:
+    build: ./services/api
+    env_file: ./services/api/.env
+    environment:
+      SIMULATED_PAYMENTS_ENABLED: "true"
+    volumes:
+      - sgei_uploads:/app/uploads
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      seed-dev:
+        condition: service_completed_successfully
+
+  ml:
+    build: ./services/ml
+    env_file: ./services/ml/.env
+    environment:
+      ML_MODEL_PATH: /models/externo-lr-sem-enrolled-v1/model.pkl
+      ML_METADATA_PATH: /app/candidates/externo-lr-sem-enrolled-v1.json
+    volumes:
+      - ./services/ml/artifacts:/models:ro
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  sgei_postgres:
+  sgei_uploads:

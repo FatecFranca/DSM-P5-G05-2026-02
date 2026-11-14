@@ -1,0 +1,198 @@
+name: Integracao e deploy
+
+on:
+  push:
+    branches: [integration-ci-deploy]
+  pull_request:
+    branches: [integration-ci-deploy]
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: services/api/package-lock.json
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --runInBand
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  ml:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: services/ml
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/ml/requirements-dev.txt
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  mobile:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx expo export --platform web
+      - run: npm audit --omit=dev --audit-level=high
+
+  web:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  images:
+    needs: [api, ml, mobile, web]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            context: services/api
+            target: production
+          - name: api-migrate
+            context: services/api
+            target: migration
+          - name: ml
+            context: services/ml
+            target: ''
+    steps:
+      - uses: actions/checkout@v5
+      - name: Definir imagem
+        shell: bash
+        run: |
+          prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "IMAGE=$prefix/${{ matrix.name }}:$GITHUB_SHA" >> "$GITHUB_ENV"
+      - name: Construir a imagem
+        shell: bash
+        run: |
+          if [ -n '${{ matrix.target }}' ]; then
+            docker build --target '${{ matrix.target }}' -t "$IMAGE" '${{ matrix.context }}'
+          else
+            docker build -t "$IMAGE" '${{ matrix.context }}'
+          fi
+      - name: Verificar vulnerabilidades da imagem
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+      - name: Entrar no GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publicar a imagem verificada
+        if: github.event_name == 'push'
+        run: docker push "$IMAGE"
+
+  deploy_vm:
+    needs: images
+    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    environment: production
+    env:
+      VM_HOST: ${{ secrets.VM_HOST }}
+      VM_USER: ${{ secrets.VM_USER }}
+      VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+      VM_KNOWN_HOSTS: ${{ secrets.VM_KNOWN_HOSTS }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Preparar acesso e release
+        shell: bash
+        run: |
+          test -n "$VM_HOST" && test -n "$VM_USER" && test -n "$VM_SSH_KEY" && test -n "$VM_KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VM_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf 'API_IMAGE=%s\nAPI_MIGRATE_IMAGE=%s\nML_IMAGE=%s\n' \
+            "$prefix/api:$GITHUB_SHA" "$prefix/api-migrate:$GITHUB_SHA" "$prefix/ml:$GITHUB_SHA" > release.env
+      - name: Publicar na VM
+        shell: bash
+        run: |
+          scp -o StrictHostKeyChecking=yes compose.production.yml "$VM_USER@$VM_HOST:/opt/sgei/compose.production.yml.next"
+          scp -o StrictHostKeyChecking=yes release.env "$VM_USER@$VM_HOST:/opt/sgei/release.env.next"
+          ssh -o StrictHostKeyChecking=yes "$VM_USER@$VM_HOST" \
+            'cd /opt/sgei && mv compose.production.yml.next compose.production.yml && mv release.env.next release.env && docker compose --env-file release.env -f compose.production.yml pull && docker compose --env-file release.env -f compose.production.yml up -d --wait api'
+
+  deploy_android:
+    needs: deploy_vm
+    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    environment: production
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
+      ANDROID_PACKAGE: ${{ vars.ANDROID_PACKAGE }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - name: Configurar projeto EAS
+        shell: bash
+        run: |
+          test -n "$EXPO_TOKEN" && test -n "$EAS_PROJECT_ID" && test -n "$ANDROID_PACKAGE"
+          cp .github/eas.json apps/mobile/eas.json
+          node -e 'const fs=require("fs"); const p="apps/mobile/app.json"; const c=JSON.parse(fs.readFileSync(p,"utf8")); c.expo.extra={...c.expo.extra,eas:{projectId:process.env.EAS_PROJECT_ID}}; c.expo.android={...c.expo.android,package:process.env.ANDROID_PACKAGE}; fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n")'
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+        working-directory: apps/mobile
+      - name: Gerar APK de distribuicao interna
+        run: eas build --platform android --profile preview --non-interactive --wait
+        working-directory: apps/mobile

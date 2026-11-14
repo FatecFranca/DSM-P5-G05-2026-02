@@ -1,0 +1,46 @@
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { Perfil } from '../../generated/prisma/enums';
+import { ROLES_KEY } from './roles.decorator';
+import { RolesGuard } from './roles.guard';
+
+describe('RolesGuard', () => {
+  const handler = () => undefined;
+  Reflect.defineMetadata(ROLES_KEY, [Perfil.COORDENACAO], handler);
+  const guard = new RolesGuard(new Reflector());
+
+  function context(perfil: Perfil): ExecutionContext {
+    return {
+      getHandler: () => handler,
+      getClass: () => class TestController {},
+      switchToHttp: () => ({
+        getRequest: () => ({ currentUser: { perfil } }),
+      }),
+    } as unknown as ExecutionContext;
+  }
+
+  it('permite COORDENACAO', () => {
+    expect(guard.canActivate(context(Perfil.COORDENACAO))).toBe(true);
+  });
+
+  it.each([Perfil.SECRETARIA, Perfil.PROFESSOR, Perfil.TUTOR, Perfil.ALUNO])(
+    'nega acesso ao perfil %s',
+    (perfil) => {
+      expect(() => guard.canActivate(context(perfil))).toThrow(
+        ForbiddenException,
+      );
+    },
+  );
+
+  it.each([Perfil.SECRETARIA])(
+    'nega acesso implícito a rotas sem perfil explícito para %s',
+    (perfil) => {
+      const undecorated = () => undefined;
+      const request = {
+        ...context(perfil),
+        getHandler: () => undecorated,
+      } as ExecutionContext;
+      expect(() => guard.canActivate(request)).toThrow(ForbiddenException);
+    },
+  );
+});

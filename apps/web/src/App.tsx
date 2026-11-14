@@ -1,0 +1,74 @@
+import { useEffect, useState, type FormEvent } from 'react';
+import { useSession } from './auth/Session';
+import { canVisit } from './auth/role-navigation';
+import { Login } from './components/Login';
+import { Shell } from './components/Shell';
+import { StateMessage } from './components/UI';
+import { ActivitiesPage, ClassDetail, ClassesPage, SecretaryPage } from './features/academic/Pages';
+import { PeoplePage } from './features/academic/PeoplePage';
+import { RecordsPage } from './features/academic/RecordsPage';
+import { RoleHomePage } from './features/academic/RoleHome';
+import { ClassManagement } from './features/academic/ClassManagement';
+import { AssignmentDetail } from './features/academic/AssignmentDetail';
+import { useOverview } from './features/academic/overview';
+import { ImportWorkbookPage } from './features/model/ImportWorkbookPage';
+import { ModelPage } from './features/model/ModelPage';
+import { FinancePage } from './features/finance/FinancePage';
+
+function useRoute() {
+  const [route, setRoute] = useState(window.location.pathname);
+  useEffect(() => { const onPop = () => setRoute(window.location.pathname); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop); }, []);
+  const navigate = (path: string) => { if (window.location.pathname !== path) window.history.pushState({}, '', path); setRoute(path); window.scrollTo(0, 0); };
+  return { route, navigate };
+}
+
+function AccountPage() {
+  const { session, changePassword, signOut } = useSession();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError(''); setNotice(''); setBusy(true);
+    try { await changePassword(current, next); setCurrent(''); setNext(''); setNotice('Senha alterada.'); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível alterar a senha.'); }
+    finally { setBusy(false); }
+  }
+  return <><div className="page-heading"><div><p className="section-label">Configurações</p><h1>Minha conta</h1><p>Seu acesso à instituição.</p></div></div><div className="two-columns"><section className="panel account-panel"><h2>Dados da sessão</h2><dl><dt>Perfil</dt><dd>{session?.user.perfil}</dd><dt>Instituição</dt><dd>{session?.user.instituicaoId}</dd></dl><button type="button" className="secondary-button" onClick={() => void signOut()}>Sair da conta</button></section><section className="panel account-panel"><h2>Alterar senha</h2><form onSubmit={(event) => void submit(event)}><label>Senha atual<input type="password" autoComplete="current-password" required value={current} onChange={(event) => setCurrent(event.target.value)} /></label><label>Nova senha<input type="password" autoComplete="new-password" required minLength={8} value={next} onChange={(event) => setNext(event.target.value)} /></label>{error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-success" role="status">{notice}</p>}<button type="submit" className="primary-button compact" disabled={busy}>{busy ? 'Salvando…' : 'Alterar senha'}</button></form></section></div></>;
+}
+
+function SignedInApp() {
+  const { session } = useSession();
+  const { route, navigate } = useRoute();
+  const role = session!.user.perfil;
+  const secretary = role === 'SECRETARIA';
+  const overview = useOverview(!secretary && !session!.user.trocaSenhaObrigatoria && canVisit(role, route) && !['/modelo', '/cenarios', '/pessoas', '/conta', '/financeiro'].includes(route));
+  let content;
+  if (session!.user.trocaSenhaObrigatoria || route === '/conta') content = <AccountPage />;
+  else if (!canVisit(role, route)) content = <div className="state-message" role="alert">Esta área não está disponível para o seu perfil. <button type="button" className="text-button" onClick={() => navigate('/')}>Ir para o início</button></div>;
+  else if (route === '/pessoas') content = <PeoplePage />;
+  else if (route === '/financeiro') content = <FinancePage />;
+  else if (secretary && route.startsWith('/turmas/')) content = <><button type="button" className="back-button" onClick={() => navigate('/turmas')}>‹ Todas as turmas</button><div className="page-heading"><div><p className="section-label">Secretaria</p><h1>Participantes da turma</h1></div></div><ClassManagement turmaId={route.slice('/turmas/'.length)} /></>;
+  else if (secretary) content = <SecretaryPage route={route} navigate={navigate} />;
+  else if (route === '/cenarios') content = <ImportWorkbookPage />;
+  else if (route === '/modelo') content = <ModelPage onImport={() => navigate('/cenarios')} />;
+  else if (overview.loading || overview.error || !overview.data) content = <StateMessage loading={overview.loading} error={overview.error} retry={overview.refresh} />;
+  else if (route === '/turmas') content = <ClassesPage data={overview.data} navigate={navigate} refresh={overview.refresh} />;
+  else if (route.startsWith('/turmas/')) {
+    const [, , turmaId, section, activityId] = route.split('/');
+    const item = overview.data.classes.find((value) => value.id === turmaId);
+    content = !item ? <div className="state-message" role="alert">Turma não encontrada ou indisponível para sua conta.</div>
+      : section === 'atividades' && activityId ? <AssignmentDetail snapshot={item.snapshot} activityId={activityId} closed={item.closed} onChanged={overview.refresh} onBack={() => navigate(`/turmas/${item.id}`)} />
+        : <ClassDetail item={item} navigate={navigate} refresh={overview.refresh} />;
+  } else if (route === '/atividades') content = <ActivitiesPage data={overview.data} navigate={navigate} refresh={overview.refresh} />;
+  else if (route === '/chamada' || route === '/frequencia') content = <RecordsPage data={overview.data} kind="frequencia" navigate={navigate} />;
+  else if (route === '/notas') content = <RecordsPage data={overview.data} kind="notas" navigate={navigate} />;
+  else content = <RoleHomePage data={overview.data} navigate={navigate} />;
+  return <Shell route={route} navigate={navigate}>{content}</Shell>;
+}
+
+export function App() {
+  const { session } = useSession();
+  return session ? <SignedInApp /> : <Login />;
+}
