@@ -1,0 +1,40 @@
+{
+  "model_version": "externo-lr-sem-enrolled-v1",
+  "dataset_sha256": "3ef126de5cefff26eb11fbb4237f1a1401cb64b488e2f1d598c23cedeb4c45ae",
+  "artifact_sha256": "fbc7d381435551924dc09439da7a203aa02c5592a02d0d4fc963770887a2e5fd",
+  "method": "sigmoid_FrozenEstimator",
+  "split": "original_holdout_80_20_seed_7_then_stratified_50_50_seed_17",
+  "calibration_samples": 363,
+  "test_samples": 363,
+  "test_dropout_count": 142,
+  "raw_test": {
+    "brier": 0.06856480317312326,
+    "log_loss": 0.22550367645321862,
+    "expected_calibration_error": 0.03774220688320124,
+    "mean_probability": 0.4226496818259306,
+    "observed_rate": 0.39118457300275483,
+    "observed_minus_predicted": -0.03146510882317577,
+    "observed_minus_predicted_95_ci": [
+      -0.05874183339467981,
+      -0.0035897945843056615
+    ]
+  },
+  "calibrated_test": {
+    "brier": 0.06678367140172584,
+    "log_loss": 0.2199194623215452,
+    "expected_calibration_error": 0.022771962565459093,
+    "mean_probability": 0.40608615360677586,
+    "observed_rate": 0.39118457300275483,
+    "observed_minus_predicted": -0.014901580604020966,
+    "observed_minus_predicted_95_ci": [
+      -0.04134554850639987,
+      0.012636882298879987
+    ]
+  },
+  "brier_improvement": 0.0017811317713974175,
+  "brier_improvement_95_ci": [
+    -0.00044381941155650055,
+    0.004079437249341774
+  ],
+  "publication_status": "EXTERNAL_EXPERIMENT_ONLY"
+}

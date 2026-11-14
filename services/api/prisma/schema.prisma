@@ -1,0 +1,706 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Perfil {
+  SECRETARIA
+  COORDENACAO
+  PROFESSOR
+  TUTOR
+  ALUNO
+}
+
+model Instituicao {
+  id         String      @id @default(uuid()) @db.Uuid
+  nome       String      @db.VarChar(160)
+  codigoCps  String?     @unique @map("codigo_cps") @db.VarChar(3)
+  ativa      Boolean     @default(true)
+  criadaEm   DateTime    @default(now()) @map("criada_em")
+  usuarios   Usuario[]
+  sessoes    Sessao[]
+  auditorias Auditoria[]
+  turmas     Turma[]
+  indicadoresMacro IndicadorMacro[]
+
+  @@map("instituicao")
+}
+
+model Usuario {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  email         String      @db.VarChar(254)
+  nome          String      @db.VarChar(160)
+  senhaHash     String      @map("senha_hash") @db.VarChar(255)
+  trocaSenhaObrigatoria Boolean @default(false) @map("troca_senha_obrigatoria")
+  perfil        Perfil
+  ativo         Boolean     @default(true)
+  criadoEm      DateTime    @default(now()) @map("criado_em")
+  atualizadoEm  DateTime    @updatedAt @map("atualizado_em")
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id])
+  sessoes       Sessao[]
+  auditorias    Auditoria[]
+  matriculas    Matricula[]
+  lotacoes      Lotacao[]
+  tutorias      Tutoria[]
+  arquivos      Arquivo[]
+  conversasCriadas   Conversa[]              @relation("ConversaCriadaPor")
+  participacoes      ConversaParticipante[]
+  mensagens          Mensagem[]
+  publicacoes        Publicacao[]
+  respostas          RespostaPublicacao[]
+  curtidasMensagem   CurtidaMensagem[]
+  curtidasPublicacao CurtidaPublicacao[]
+  curtidasResposta   CurtidaResposta[]
+  leiturasCanal      LeituraCanal[]
+  leituraAvisos      LeituraAvisos?
+
+  @@unique([instituicaoId, email])
+  @@unique([instituicaoId, id])
+  @@map("usuario")
+}
+
+model Sessao {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  usuarioId     String      @map("usuario_id") @db.Uuid
+  tokenHash     String      @unique @map("token_hash") @db.Char(64)
+  expiraEm      DateTime    @map("expira_em")
+  revogadaEm    DateTime?   @map("revogada_em")
+  criadaEm      DateTime    @default(now()) @map("criada_em")
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id])
+  usuario       Usuario     @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@index([usuarioId, revogadaEm])
+  @@map("sessao")
+}
+
+model Auditoria {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  autorId       String?     @map("autor_id") @db.Uuid
+  acao          String      @db.VarChar(80)
+  recurso       String      @db.VarChar(80)
+  recursoId     String?     @map("recurso_id") @db.Uuid
+  criadaEm      DateTime    @default(now()) @map("criada_em")
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id])
+  autor         Usuario?    @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+
+  @@index([instituicaoId, criadaEm])
+  @@map("auditoria")
+}
+
+model Turma {
+  id            String       @id @default(uuid()) @db.Uuid
+  instituicaoId String       @db.Uuid
+  nome          String       @db.VarChar(120)
+  curso         String       @db.VarChar(120)
+  periodo       String       @db.VarChar(40)
+  duracaoSemestres Int        @default(6)
+  fechada       Boolean      @default(false)
+  instituicao   Instituicao  @relation(fields: [instituicaoId], references: [id])
+  disciplinas   Disciplina[]
+  matriculas    Matricula[]
+  publicacoes   Publicacao[]
+
+  @@unique([instituicaoId, id])
+  @@unique([instituicaoId, nome, periodo])
+  @@map("turma")
+}
+
+model Disciplina {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @db.Uuid
+  turmaId       String      @db.Uuid
+  nome          String      @db.VarChar(120)
+  turma         Turma       @relation(fields: [instituicaoId, turmaId], references: [instituicaoId, id])
+  lotacoes      Lotacao[]
+  aulas         Aula[]
+  avaliacoes    Avaliacao[]
+  atividades    Atividade[]
+  materiais     Material[]
+  publicacoes   Publicacao[]
+
+  @@unique([instituicaoId, id])
+  @@unique([instituicaoId, turmaId, nome])
+  @@map("disciplina")
+}
+
+model Matricula {
+  id               String            @id @default(uuid()) @db.Uuid
+  instituicaoId    String            @db.Uuid
+  turmaId          String            @db.Uuid
+  alunoId          String            @db.Uuid
+  registro         String            @db.VarChar(40)
+  turma            Turma             @relation(fields: [instituicaoId, turmaId], references: [instituicaoId, id])
+  aluno            Usuario           @relation(fields: [instituicaoId, alunoId], references: [instituicaoId, id])
+  tutorias         Tutoria[]
+  presencas        Presenca[]
+  notas            Nota[]
+  entregas         Entrega[]
+  perfilMl         PerfilMl?
+  eventosAtributos AtributoMlEvento[]
+  faturas          Fatura[]
+  planoMensalidade PlanoMensalidade?
+  bolsa            BolsaMatricula?
+  resumosMl        ResumoSemestreMl[]
+  declaracaoIngresso DeclaracaoIngressoMl?
+  fonteIngresso      FonteIngressoMl?
+  previsoesImportadas PrevisaoImportadaMl[]
+  previsoesAutomaticas PrevisaoAutomaticaMl[]
+  macroPais        String?           @db.VarChar(2)
+  macroAno         Int?
+  macroPendente    Boolean           @default(false)
+
+  @@unique([instituicaoId, id])
+  @@unique([instituicaoId, turmaId, alunoId])
+  @@unique([instituicaoId, registro])
+  @@index([instituicaoId, macroPais, macroAno, macroPendente])
+  @@map("matricula")
+}
+
+model PerfilMl {
+  matriculaId   String    @id @db.Uuid
+  instituicaoId String    @db.Uuid
+  features      Json
+  fonte         String    @default("Cadastro institucional") @db.VarChar(200)
+  resultado     Json?
+  versao        Int       @default(1)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@map("perfil_ml")
+}
+
+model AtributoMlEvento {
+  id            String    @id @default(uuid()) @db.Uuid
+  instituicaoId String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  atributo      String    @db.VarChar(40)
+  valorAnterior Float?
+  valorAtual    Float?
+  origem        String    @db.VarChar(40)
+  autorId       String?   @db.Uuid
+  versaoPerfil  Int
+  registradoEm  DateTime  @default(now())
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@index([instituicaoId, matriculaId, versaoPerfil])
+  @@index([instituicaoId, matriculaId, atributo, versaoPerfil])
+  @@map("atributo_ml_evento")
+}
+
+model ResumoSemestreMl {
+  instituicaoId String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  semestre      Int
+  creditadas    Int
+  matriculadas  Int
+  avaliacoes    Int
+  aprovadas     Int
+  nota          Float
+  semAvaliacao  Int
+  fonteRef      String    @db.VarChar(200)
+  revisao       Int       @default(1)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@id([instituicaoId, matriculaId, semestre])
+  @@map("resumo_semestre_ml")
+}
+
+model DeclaracaoIngressoMl {
+  matriculaId   String    @id @db.Uuid
+  instituicaoId String    @db.Uuid
+  dados         Json
+  revisao       Int       @default(1)
+  pendente      Boolean   @default(true)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@index([instituicaoId, pendente])
+  @@map("declaracao_ingresso_ml")
+}
+
+model FonteIngressoMl {
+  matriculaId   String    @id @db.Uuid
+  instituicaoId String    @db.Uuid
+  features      Json
+  fonteRef      String    @db.VarChar(200)
+  revisao       Int       @default(1)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@map("fonte_ingresso_ml")
+}
+
+model PrevisaoImportadaMl {
+  id            String    @id @default(uuid()) @db.Uuid
+  instituicaoId String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  arquivoSha256 String    @db.VarChar(64)
+  linha         Int
+  modelVersion  String    @db.VarChar(100)
+  perfilVersao  Int
+  features      Json
+  predictedClass String  @db.VarChar(30)
+  probabilities Json
+  calculadoEm   DateTime  @default(now())
+  autorId       String    @db.Uuid
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId, arquivoSha256, modelVersion])
+  @@index([instituicaoId, matriculaId, calculadoEm])
+  @@map("previsao_importada_ml")
+}
+
+model PrevisaoAutomaticaMl {
+  id             String    @id @default(uuid()) @db.Uuid
+  instituicaoId  String    @db.Uuid
+  matriculaId    String    @db.Uuid
+  modelVersion   String    @db.VarChar(100)
+  perfilVersao   Int
+  features       Json
+  predictedClass String    @db.VarChar(30)
+  probabilities  Json
+  calculadoEm    DateTime  @default(now())
+  matricula      Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId, modelVersion, perfilVersao])
+  @@index([instituicaoId, calculadoEm])
+  @@map("previsao_automatica_ml")
+}
+
+model IndicadorMacro {
+  instituicaoId String      @db.Uuid
+  pais          String      @db.VarChar(2)
+  ano           Int
+  desemprego    Float
+  inflacao      Float
+  pib           Float
+  fonteUrl      String      @db.VarChar(500)
+  versao        Int         @default(1)
+  atualizadoEm  DateTime    @updatedAt
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id])
+
+  @@id([instituicaoId, pais, ano])
+  @@map("indicador_macro")
+}
+
+enum SituacaoFatura {
+  ABERTA
+  VENCIDA
+  QUITADA
+}
+
+model Fatura {
+  id            String            @id @default(uuid()) @db.Uuid
+  instituicaoId String            @db.Uuid
+  matriculaId   String            @db.Uuid
+  competencia   DateTime          @db.Date
+  semestre      Int?
+  vencimento    DateTime          @db.Date
+  valorCentavos Int
+  pagoCentavos  Int               @default(0)
+  situacao      SituacaoFatura    @default(ABERTA)
+  criadaEm      DateTime          @default(now())
+  atualizadaEm  DateTime          @updatedAt
+  matricula     Matricula         @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+  pagamentos    PagamentoFatura[]
+
+  @@unique([instituicaoId, matriculaId, competencia])
+  @@unique([instituicaoId, id])
+  @@index([situacao, vencimento])
+  @@map("fatura")
+}
+
+model PlanoMensalidade {
+  matriculaId        String    @id @db.Uuid
+  instituicaoId      String    @db.Uuid
+  inicioCompetencia  DateTime  @db.Date
+  proximaCompetencia DateTime  @db.Date
+  fimCompetencia     DateTime? @db.Date
+  valorCentavos      Int
+  diaVencimento      Int
+  ativo              Boolean   @default(true)
+  atualizadoEm       DateTime  @updatedAt
+  matricula          Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@map("plano_mensalidade")
+}
+
+model BolsaMatricula {
+  matriculaId   String    @id @db.Uuid
+  instituicaoId String    @db.Uuid
+  inicio        DateTime  @db.Date
+  fim           DateTime? @db.Date
+  ativa         Boolean   @default(true)
+  estadoAplicado Boolean  @default(false)
+  atualizadoEm  DateTime  @updatedAt
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, matriculaId])
+  @@index([ativa, inicio, fim])
+  @@map("bolsa_matricula")
+}
+
+model PagamentoFatura {
+  id            String   @id @default(uuid()) @db.Uuid
+  instituicaoId String   @db.Uuid
+  faturaId      String   @db.Uuid
+  referencia    String   @db.VarChar(100)
+  valorCentavos Int
+  recebidoEm    DateTime
+  simulado      Boolean  @default(false)
+  registradoEm  DateTime @default(now())
+  fatura        Fatura   @relation(fields: [instituicaoId, faturaId], references: [instituicaoId, id], onDelete: Cascade)
+
+  @@unique([instituicaoId, referencia])
+  @@index([instituicaoId, faturaId])
+  @@map("pagamento_fatura")
+}
+
+model Lotacao {
+  instituicaoId String     @db.Uuid
+  disciplinaId  String     @db.Uuid
+  professorId   String     @db.Uuid
+  disciplina    Disciplina @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  professor     Usuario    @relation(fields: [instituicaoId, professorId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, disciplinaId, professorId])
+  @@index([instituicaoId, professorId])
+  @@map("lotacao")
+}
+
+model Tutoria {
+  instituicaoId String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  tutorId       String    @db.Uuid
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id])
+  tutor         Usuario   @relation(fields: [instituicaoId, tutorId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, matriculaId, tutorId])
+  @@index([instituicaoId, tutorId])
+  @@map("tutoria")
+}
+
+model Aula {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  disciplinaId  String     @db.Uuid
+  data          DateTime
+  tema          String     @db.VarChar(200)
+  disciplina    Disciplina @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  presencas     Presenca[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, disciplinaId, data])
+  @@map("aula")
+}
+
+enum SituacaoPresenca {
+  PRESENTE
+  FALTA
+  FALTA_JUSTIFICADA
+}
+
+model Presenca {
+  instituicaoId String           @db.Uuid
+  aulaId        String           @db.Uuid
+  matriculaId   String           @db.Uuid
+  situacao      SituacaoPresenca
+  atualizadoEm  DateTime         @updatedAt
+  aula          Aula             @relation(fields: [instituicaoId, aulaId], references: [instituicaoId, id])
+  matricula     Matricula        @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, aulaId, matriculaId])
+  @@map("presenca")
+}
+
+model Avaliacao {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  disciplinaId  String     @db.Uuid
+  titulo        String     @db.VarChar(160)
+  peso          Float
+  notaMaxima    Float
+  data          DateTime
+  publicada     Boolean    @default(false)
+  publicadaEm   DateTime?
+  disciplina    Disciplina @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  notas         Nota[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, disciplinaId])
+  @@map("avaliacao")
+}
+
+model Nota {
+  instituicaoId String    @db.Uuid
+  avaliacaoId   String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  valor         Float
+  atualizadoEm  DateTime  @updatedAt
+  avaliacao     Avaliacao @relation(fields: [instituicaoId, avaliacaoId], references: [instituicaoId, id])
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, avaliacaoId, matriculaId])
+  @@map("nota")
+}
+
+enum EstadoAtividade {
+  RASCUNHO
+  PUBLICADA
+  ENCERRADA
+}
+
+model Atividade {
+  id            String          @id @default(uuid()) @db.Uuid
+  instituicaoId String          @db.Uuid
+  disciplinaId  String          @db.Uuid
+  titulo        String          @db.VarChar(160)
+  descricao     String          @db.VarChar(4000)
+  prazo         DateTime
+  notaMaxima    Float
+  estado        EstadoAtividade @default(RASCUNHO)
+  publicadaEm   DateTime?
+  disciplina    Disciplina      @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  entregas      Entrega[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, disciplinaId])
+  @@map("atividade")
+}
+
+model Arquivo {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  autorId       String     @db.Uuid
+  nome          String     @db.VarChar(200)
+  mime          String     @db.VarChar(100)
+  tamanho       Int
+  sha256        String     @db.Char(64)
+  criadoEm      DateTime   @default(now())
+  autor         Usuario    @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+  materiais     Material[]
+  entregas      Entrega[]
+  mensagens     Mensagem[]
+  publicacoes   Publicacao[]
+  respostas     RespostaPublicacao[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, autorId])
+  @@map("arquivo")
+}
+
+model Entrega {
+  instituicaoId String    @db.Uuid
+  atividadeId   String    @db.Uuid
+  matriculaId   String    @db.Uuid
+  arquivoId     String    @db.Uuid
+  enviadaEm     DateTime  @default(now())
+  nota          Float?
+  feedback      String?   @db.VarChar(4000)
+  corrigidaEm   DateTime?
+  atividade     Atividade @relation(fields: [instituicaoId, atividadeId], references: [instituicaoId, id])
+  matricula     Matricula @relation(fields: [instituicaoId, matriculaId], references: [instituicaoId, id])
+  arquivo       Arquivo   @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, atividadeId, matriculaId])
+  @@map("entrega")
+}
+
+model Material {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  disciplinaId  String     @db.Uuid
+  titulo        String     @db.VarChar(160)
+  descricao     String     @db.VarChar(4000)
+  arquivoId     String     @db.Uuid
+  criadoEm      DateTime   @default(now())
+  disciplina    Disciplina @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  arquivo       Arquivo    @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, disciplinaId])
+  @@map("material")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Mensagens: conversas (diretas e em grupo) e canais da turma (publicações com respostas).
+// Todo registro pertence a uma instituição; as chaves compostas impedem referências entre elas.
+// ---------------------------------------------------------------------------------------------
+
+enum TipoConversa {
+  DIRETA
+  GRUPO
+}
+
+model Conversa {
+  id            String       @id @default(uuid()) @db.Uuid
+  instituicaoId String       @db.Uuid
+  tipo          TipoConversa
+  titulo        String?      @db.VarChar(120)
+  /// Só nas conversas diretas ("idMenor:idMaior"): garante uma única conversa por par de pessoas.
+  chaveDireta   String?      @db.VarChar(80)
+  criadaPorId   String       @db.Uuid
+  criadaEm      DateTime     @default(now())
+  criadaPor     Usuario      @relation("ConversaCriadaPor", fields: [instituicaoId, criadaPorId], references: [instituicaoId, id])
+  participantes ConversaParticipante[]
+  mensagens     Mensagem[]
+
+  @@unique([instituicaoId, id])
+  @@unique([instituicaoId, chaveDireta])
+  @@map("conversa")
+}
+
+model ConversaParticipante {
+  instituicaoId String    @db.Uuid
+  conversaId    String    @db.Uuid
+  usuarioId     String    @db.Uuid
+  entrouEm      DateTime  @default(now())
+  /// Última leitura da conversa por esta pessoa; o que veio depois e é de outros conta como não lido.
+  lidoAte       DateTime?
+  conversa      Conversa  @relation(fields: [instituicaoId, conversaId], references: [instituicaoId, id])
+  usuario       Usuario   @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, conversaId, usuarioId])
+  @@index([instituicaoId, usuarioId])
+  @@map("conversa_participante")
+}
+
+model Mensagem {
+  id            String    @id @default(uuid()) @db.Uuid
+  instituicaoId String    @db.Uuid
+  conversaId    String    @db.Uuid
+  autorId       String    @db.Uuid
+  texto         String    @db.VarChar(2000)
+  arquivoId     String?   @db.Uuid
+  criadaEm      DateTime  @default(now())
+  conversa      Conversa  @relation(fields: [instituicaoId, conversaId], references: [instituicaoId, id])
+  autor         Usuario   @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+  arquivo       Arquivo?  @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+  curtidas      CurtidaMensagem[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, conversaId, criadaEm])
+  @@map("mensagem")
+}
+
+model Publicacao {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @db.Uuid
+  turmaId       String      @db.Uuid
+  /// Nulo no canal "Geral" da turma; preenchido no canal de uma disciplina.
+  disciplinaId  String?     @db.Uuid
+  autorId       String      @db.Uuid
+  texto         String      @db.VarChar(2000)
+  importante    Boolean     @default(false)
+  arquivoId     String?     @db.Uuid
+  criadaEm      DateTime    @default(now())
+  turma         Turma       @relation(fields: [instituicaoId, turmaId], references: [instituicaoId, id])
+  disciplina    Disciplina? @relation(fields: [instituicaoId, disciplinaId], references: [instituicaoId, id])
+  autor         Usuario     @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+  arquivo       Arquivo?    @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+  respostas     RespostaPublicacao[]
+  curtidas      CurtidaPublicacao[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, turmaId, disciplinaId, criadaEm])
+  @@map("publicacao")
+}
+
+model RespostaPublicacao {
+  id            String     @id @default(uuid()) @db.Uuid
+  instituicaoId String     @db.Uuid
+  publicacaoId  String     @db.Uuid
+  autorId       String     @db.Uuid
+  texto         String     @db.VarChar(2000)
+  arquivoId     String?    @db.Uuid
+  criadaEm      DateTime   @default(now())
+  publicacao    Publicacao @relation(fields: [instituicaoId, publicacaoId], references: [instituicaoId, id])
+  autor         Usuario    @relation(fields: [instituicaoId, autorId], references: [instituicaoId, id])
+  arquivo       Arquivo?   @relation(fields: [instituicaoId, arquivoId], references: [instituicaoId, id])
+  curtidas      CurtidaResposta[]
+
+  @@unique([instituicaoId, id])
+  @@index([instituicaoId, publicacaoId, criadaEm])
+  @@map("resposta_publicacao")
+}
+
+model CurtidaMensagem {
+  instituicaoId String   @db.Uuid
+  mensagemId    String   @db.Uuid
+  usuarioId     String   @db.Uuid
+  criadaEm      DateTime @default(now())
+  mensagem      Mensagem @relation(fields: [instituicaoId, mensagemId], references: [instituicaoId, id])
+  usuario       Usuario  @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, mensagemId, usuarioId])
+  @@index([instituicaoId, usuarioId])
+  @@map("curtida_mensagem")
+}
+
+model CurtidaPublicacao {
+  instituicaoId String     @db.Uuid
+  publicacaoId  String     @db.Uuid
+  usuarioId     String     @db.Uuid
+  criadaEm      DateTime   @default(now())
+  publicacao    Publicacao @relation(fields: [instituicaoId, publicacaoId], references: [instituicaoId, id])
+  usuario       Usuario    @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, publicacaoId, usuarioId])
+  @@index([instituicaoId, usuarioId])
+  @@map("curtida_publicacao")
+}
+
+model CurtidaResposta {
+  instituicaoId String             @db.Uuid
+  respostaId    String             @db.Uuid
+  usuarioId     String             @db.Uuid
+  criadaEm      DateTime           @default(now())
+  resposta      RespostaPublicacao @relation(fields: [instituicaoId, respostaId], references: [instituicaoId, id])
+  usuario       Usuario            @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, respostaId, usuarioId])
+  @@index([instituicaoId, usuarioId])
+  @@map("curtida_resposta")
+}
+
+/// Última leitura de um canal por pessoa. `canal` é "turmaId:geral" ou "turmaId:disciplinaId".
+model LeituraCanal {
+  instituicaoId String   @db.Uuid
+  usuarioId     String   @db.Uuid
+  canal         String   @db.VarChar(80)
+  lidoAte       DateTime
+  usuario       Usuario  @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, usuarioId, canal])
+  @@map("leitura_canal")
+}
+
+/// Última vez que a pessoa abriu a aba Atividade (feed de avisos), para sincronizar entre aparelhos.
+model LeituraAvisos {
+  instituicaoId String   @db.Uuid
+  usuarioId     String   @db.Uuid
+  lidoAte       DateTime
+  usuario       Usuario  @relation(fields: [instituicaoId, usuarioId], references: [instituicaoId, id])
+
+  @@id([instituicaoId, usuarioId])
+  @@map("leitura_avisos")
+}
