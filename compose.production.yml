@@ -49,6 +49,18 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  web:
+    image: ${WEB_IMAGE:?WEB_IMAGE obrigatoria}
+    read_only: true
+    tmpfs:
+      - /tmp
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   uploads_data:

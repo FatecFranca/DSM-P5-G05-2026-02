@@ -101,6 +101,9 @@ jobs:
           - name: ml
             context: services/ml
             target: ''
+          - name: web
+            context: apps/web
+            target: production
     steps:
       - uses: actions/checkout@v5
       - name: Definir imagem
@@ -155,15 +158,16 @@ jobs:
           printf '%s\n' "$VM_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
           prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
-          printf 'API_IMAGE=%s\nAPI_MIGRATE_IMAGE=%s\nML_IMAGE=%s\n' \
-            "$prefix/api:$GITHUB_SHA" "$prefix/api-migrate:$GITHUB_SHA" "$prefix/ml:$GITHUB_SHA" > release.env
+          printf 'API_IMAGE=%s\nAPI_MIGRATE_IMAGE=%s\nML_IMAGE=%s\nWEB_IMAGE=%s\n' \
+            "$prefix/api:$GITHUB_SHA" "$prefix/api-migrate:$GITHUB_SHA" \
+            "$prefix/ml:$GITHUB_SHA" "$prefix/web:$GITHUB_SHA" > release.env
       - name: Publicar na VM
         shell: bash
         run: |
           scp -o StrictHostKeyChecking=yes compose.production.yml "$VM_USER@$VM_HOST:/opt/sgei/compose.production.yml.next"
           scp -o StrictHostKeyChecking=yes release.env "$VM_USER@$VM_HOST:/opt/sgei/release.env.next"
           ssh -o StrictHostKeyChecking=yes "$VM_USER@$VM_HOST" \
-            'cd /opt/sgei && mv compose.production.yml.next compose.production.yml && mv release.env.next release.env && docker compose --env-file release.env -f compose.production.yml pull && docker compose --env-file release.env -f compose.production.yml up -d --wait api'
+            'cd /opt/sgei && mv compose.production.yml.next compose.production.yml && mv release.env.next release.env && docker compose --env-file release.env -f compose.production.yml pull && docker compose --env-file release.env -f compose.production.yml up -d --wait web'
 
   deploy_android:
     needs: deploy_vm
