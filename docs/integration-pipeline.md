@@ -4,13 +4,13 @@ A branch `integration-ci-deploy` reúne a API e o ML de `back/prototype` com os 
 
 ## Etapas
 
-Em push e PR para a branch de integração, a CI instala dependências, executa lint onde disponível, typecheck, testes, build/export e auditoria npm dos componentes aplicáveis. A web é validada como aplicação estática, sem publicação automática. Em seguida, constrói três imagens Docker (API, job de migração e ML) e bloqueia a publicação se o Trivy detectar vulnerabilidades altas ou críticas. Em push, publica no GHCR as mesmas imagens verificadas, com tag do commit integrado. O modelo `.pkl` versionado entra na imagem de ML; o serviço ainda exige o SHA-256 aprovado em tempo de execução.
+Em push e PR para a branch de integração, a CI instala dependências, executa lint onde disponível, typecheck, testes, build/export e auditoria npm dos componentes aplicáveis. Em seguida, constrói quatro imagens Docker (API, job de migração, ML e web estática) e bloqueia a publicação se o Trivy detectar vulnerabilidades altas ou críticas. Em push, publica no GHCR as mesmas imagens verificadas, com tag do commit integrado. O modelo `.pkl` versionado entra na imagem de ML; o serviço ainda exige o SHA-256 aprovado em tempo de execução.
 
-O deploy só inicia em push quando a variável de repositório `DEPLOY_ENABLED` é `true`. Os dois jobs usam o ambiente GitHub `production`; configure revisão obrigatória nesse ambiente antes de habilitar a variável. O deploy da VM usa as imagens já verificadas. Depois que a API fica saudável, o EAS gera um APK Android de distribuição interna a partir do código integrado. A esteira não envia o aplicativo à Play Store.
+O deploy só inicia em push quando a variável de repositório `DEPLOY_ENABLED` é `true`. Os dois jobs usam o ambiente GitHub `production`; configure revisão obrigatória nesse ambiente antes de habilitar a variável. O deploy da VM usa as imagens já verificadas e aguarda a web ficar saudável. Depois disso, o EAS gera um APK Android de distribuição interna a partir do código integrado. A esteira não envia o aplicativo à Play Store.
 
 ## Configuração da VM
 
-Instale Docker Engine e Compose, configure o usuário de deploy com acesso ao Docker e crie `/opt/sgei` com permissão de escrita para ele. Configure HTTPS em um proxy reverso que encaminhe para `127.0.0.1:3000`; o PostgreSQL e o serviço ML não publicam portas. A VM precisa conseguir ler os pacotes GHCR, com login persistente de uma credencial `read:packages` se o pacote for privado.
+Instale Docker Engine e Compose, configure o usuário de deploy com acesso ao Docker e crie `/opt/sgei` com permissão de escrita para ele. Configure HTTPS em um proxy reverso que encaminhe para `127.0.0.1:8080`; a web no container encaminha `/api/` à API pela rede interna do Compose. O PostgreSQL e o serviço ML não publicam portas, e a API fica em `127.0.0.1:3000` apenas para diagnóstico local. A VM precisa conseguir ler os pacotes GHCR, com login persistente de uma credencial `read:packages` se o pacote for privado. Consulte [o roteiro da VM](vm-azure.md) para os arquivos de exemplo e a sequência de preparação.
 
 Crie fora do Git, em `/opt/sgei`, os arquivos `db.env`, `api.env` e `ml.env`, com permissões `600`:
 

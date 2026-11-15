@@ -14,6 +14,8 @@ npm run dev
 
 Abra `http://localhost:8082`. O servidor de desenvolvimento encaminha `/api` à API local. A tela de login lista as instituições da API; use uma conta criada pela carga de desenvolvimento do backend. Para produção, configure um proxy HTTPS de mesma origem para `/api` ou defina `VITE_API_URL` com a URL pública da API e inclua a origem web na configuração CORS do backend. Essa variável é pública no bundle e não deve conter credenciais.
 
+Na branch de integração, o `Dockerfile` gera o bundle e o serve com NGINX sem privilégios. O container encaminha `/api/` para o serviço `api` no Compose e publica somente a porta local `127.0.0.1:8080` na VM. O acesso público HTTPS é configurado no proxy do host conforme [o roteiro da VM](../../docs/vm-azure.md).
+
 ## Funcionalidades
 
 - Login por instituição e perfil, atualização de token em memória, logout e troca de senha.
