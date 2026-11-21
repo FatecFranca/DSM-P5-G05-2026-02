@@ -36,6 +36,17 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": false
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "85aa9404-2bef-4421-a5e7-578616400954"
+      }
+    },
+    "owner": "gasrots-team"
   }
 }
