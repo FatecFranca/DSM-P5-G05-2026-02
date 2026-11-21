@@ -6,6 +6,10 @@ A branch `integration-ci-deploy` reúne a API e o ML de `back/prototype` com os 
 
 Em push e PR para a branch de integração, a CI instala dependências, executa lint onde disponível, typecheck, testes, build/export e auditoria npm dos componentes aplicáveis. Em seguida, constrói quatro imagens Docker (API, job de migração, ML e web estática) e bloqueia a publicação se o Trivy detectar vulnerabilidades altas ou críticas. Em push, publica no GHCR as mesmas imagens verificadas, com tag do commit integrado. O modelo `.pkl` versionado entra na imagem de ML; o serviço ainda exige o SHA-256 aprovado em tempo de execução.
 
+Os builds consultam a imagem base com `--pull`. A API e a imagem de migração compartilham uma base com npm `11.21.2`, que atualiza as dependências internas `brace-expansion` e `undici`; alterar somente o lockfile da aplicação não corrige o npm global da imagem. O override de `effect` em `@prisma/config` mantém a versão `3.22.1` corrigida, sem mudar a versão principal do Prisma. A auditoria npm e o Trivy continuam obrigatórios; novas vulnerabilidades podem exigir outra atualização direcionada.
+
+As imagens web e ML aplicam as atualizações de segurança do Alpine durante o build e executam com usuário não-root. O ML usa Python 3.12 em Alpine 3.24, preservando scikit-learn 1.8.0 e o modelo versionado. Como essa versão do scikit-learn não fornece wheel para musl, uma etapa separada compila a dependência com dois processos; os compiladores não entram na imagem final. Esse trabalho acontece no GitHub Actions: a VM apenas baixa e executa as imagens prontas. O mobile continua fora do Compose de produção.
+
 O deploy só inicia em push quando a variável de repositório `DEPLOY_ENABLED` é `true`. Os dois jobs usam o ambiente GitHub `production`; configure revisão obrigatória nesse ambiente antes de habilitar a variável. O deploy da VM usa as imagens já verificadas e aguarda a web ficar saudável. Depois disso, o EAS gera um APK Android de distribuição interna a partir do código integrado. A esteira não envia o aplicativo à Play Store.
 
 ## Configuração da VM

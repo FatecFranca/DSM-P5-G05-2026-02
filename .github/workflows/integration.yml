@@ -115,9 +115,9 @@ jobs:
         shell: bash
         run: |
           if [ -n '${{ matrix.target }}' ]; then
-            docker build --target '${{ matrix.target }}' -t "$IMAGE" '${{ matrix.context }}'
+            docker build --pull --target '${{ matrix.target }}' -t "$IMAGE" '${{ matrix.context }}'
           else
-            docker build -t "$IMAGE" '${{ matrix.context }}'
+            docker build --pull -t "$IMAGE" '${{ matrix.context }}'
           fi
       - name: Verificar vulnerabilidades da imagem
         uses: aquasecurity/trivy-action@v0.36.0

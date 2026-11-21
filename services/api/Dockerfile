@@ -1,4 +1,8 @@
-FROM node:24-alpine AS build
+FROM node:24-alpine AS base
+# Atualiza também as dependências internas do npm verificadas pelo Trivy.
+RUN npm install --global npm@11.21.2 && npm cache clean --force
+
+FROM base AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -10,7 +14,7 @@ RUN npm run db:generate && npm run build
 FROM build AS migration
 CMD ["npm", "run", "db:migrate"]
 
-FROM node:24-alpine AS production
+FROM base AS production
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package*.json ./

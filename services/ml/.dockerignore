@@ -1,4 +1,8 @@
 .venv
+.env
+.env.*
+.git
+*.log
 .pytest_cache
 __pycache__
 artifacts/**
